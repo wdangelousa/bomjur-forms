@@ -3,15 +3,25 @@
 import { useCallback, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-// ---------- Tipos ----------
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+
+type FilePhase =
+    | 'uploading'   // Fazendo upload para o Storage
+    | 'analyzing'   // Chamando a Edge Function / Claude Vision
+    | 'success'     // Tudo concluído com sucesso
+    | 'error'       // Erro em qualquer etapa
+
 interface UploadedFile {
     name: string
     size: number
-    status: 'uploading' | 'success' | 'error'
+    phase: FilePhase
+    fieldsExtracted?: number
+    documentType?: string
     errorMessage?: string
 }
 
-// ---------- Utilitários ----------
+// ─── Utilitários ─────────────────────────────────────────────────────────────
+
 function formatBytes(bytes: number, decimals = 2) {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -22,14 +32,15 @@ function formatBytes(bytes: number, decimals = 2) {
 
 function getFileIcon(fileName: string) {
     const ext = fileName.split('.').pop()?.toLowerCase()
-    if (['pdf'].includes(ext ?? '')) return '📄'
+    if (ext === 'pdf') return '📄'
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext ?? '')) return '🖼️'
     if (['doc', 'docx'].includes(ext ?? '')) return '📝'
     if (['xls', 'xlsx'].includes(ext ?? '')) return '📊'
     return '📁'
 }
 
-// ---------- Componente principal ----------
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 export default function UploadPage() {
     const [isDragging, setIsDragging] = useState(false)
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
@@ -37,56 +48,111 @@ export default function UploadPage() {
 
     const supabase = createClient()
 
-    const updateFileStatus = (
-        name: string,
-        status: UploadedFile['status'],
-        errorMessage?: string
-    ) => {
+    // Atualiza os dados de um arquivo específico na lista pelo nome
+    const updateFile = (name: string, patch: Partial<UploadedFile>) => {
         setUploadedFiles((prev) =>
-            prev.map((f) => (f.name === name ? { ...f, status, errorMessage } : f))
+            prev.map((f) => (f.name === name ? { ...f, ...patch } : f))
         )
     }
 
-    const uploadFile = async (file: File) => {
+    // ── Pipeline completo para um único arquivo ────────────────────────────────
+    const processFile = async (file: File) => {
         const filePath = `uploads/${Date.now()}_${file.name}`
 
-        // 1. Faz o upload para o bucket "bomjur-documents"
+        // ─── ETAPA 1: Upload para o Supabase Storage ────────────────────────────
         const { data: storageData, error: storageError } = await supabase.storage
             .from('bomjur-documents')
-            .upload(filePath, file, {
-                cacheControl: '3600',
-                upsert: false,
-            })
+            .upload(filePath, file, { cacheControl: '3600', upsert: false })
 
         if (storageError) {
-            updateFileStatus(file.name, 'error', storageError.message)
+            updateFile(file.name, {
+                phase: 'error',
+                errorMessage: `Upload falhou: ${storageError.message}`,
+            })
             return
         }
 
-        // 2. Obtém a URL pública do arquivo
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from('bomjur-documents').getPublicUrl(filePath)
+        // ─── ETAPA 2: Obtém a URL pública ────────────────────────────────────────
+        const { data: { publicUrl } } = supabase.storage
+            .from('bomjur-documents')
+            .getPublicUrl(filePath)
 
-        // 3. Registra o documento na tabela client_documents
-        const { error: dbError } = await supabase.from('client_documents').insert({
-            file_name: file.name,
-            file_path: storageData.path,
-            file_url: publicUrl,
-            file_size: file.size,
-            file_type: file.type,
-            bucket_name: 'bomjur-documents',
-            uploaded_at: new Date().toISOString(),
-        })
+        // ─── ETAPA 3: Registra na tabela client_documents ─────────────────────────
+        const { data: docRecord, error: dbError } = await supabase
+            .from('client_documents')
+            .insert({
+                file_name: file.name,
+                file_path: storageData.path,
+                file_url: publicUrl,
+                file_size: file.size,
+                file_type: file.type,
+                bucket_name: 'bomjur-documents',
+                processing_status: 'pending',
+                uploaded_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
 
-        if (dbError) {
-            updateFileStatus(file.name, 'error', dbError.message)
+        if (dbError || !docRecord) {
+            updateFile(file.name, {
+                phase: 'error',
+                errorMessage: `Registro no banco falhou: ${dbError?.message}`,
+            })
             return
         }
 
-        updateFileStatus(file.name, 'success')
+        // ─── ETAPA 4: Muda fase para "Analisando com IA" ─────────────────────────
+        updateFile(file.name, { phase: 'analyzing' })
+
+        // ─── ETAPA 5: Chama a Edge Function process-document ─────────────────────
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+        const edgeFnUrl = `${supabaseUrl}/functions/v1/process-document`
+
+        let edgeError: string | null = null
+        let fieldsExtracted = 0
+        let documentType = 'Documento'
+
+        try {
+            const response = await fetch(edgeFnUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseAnonKey}`,
+                    'apikey': supabaseAnonKey,
+                },
+                body: JSON.stringify({ document_id: docRecord.id }),
+            })
+
+            if (!response.ok) {
+                const errBody = await response.text()
+                edgeError = `Análise falhou (${response.status}): ${errBody}`
+            } else {
+                const result = await response.json()
+                fieldsExtracted = result.fields_extracted ?? 0
+                documentType = result.document_type ?? 'Documento'
+            }
+        } catch (fetchErr) {
+            edgeError = `Erro de rede ao chamar a análise: ${String(fetchErr)}`
+        }
+
+        // ─── ETAPA 6: Atualiza o status final ────────────────────────────────────
+        if (edgeError) {
+            updateFile(file.name, {
+                phase: 'error',
+                errorMessage: edgeError,
+            })
+        } else {
+            updateFile(file.name, {
+                phase: 'success',
+                fieldsExtracted,
+                documentType,
+            })
+        }
     }
 
+    // ── Dispara o pipeline para múltiplos arquivos ─────────────────────────────
     const handleFiles = useCallback(
         async (files: FileList | File[]) => {
             const fileArray = Array.from(files)
@@ -95,13 +161,13 @@ export default function UploadPage() {
             const newFiles: UploadedFile[] = fileArray.map((f) => ({
                 name: f.name,
                 size: f.size,
-                status: 'uploading',
+                phase: 'uploading',
             }))
 
             setUploadedFiles((prev) => [...prev, ...newFiles])
             setIsUploading(true)
 
-            await Promise.all(fileArray.map(uploadFile))
+            await Promise.all(fileArray.map(processFile))
             setIsUploading(false)
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,9 +194,38 @@ export default function UploadPage() {
         if (e.target.files) handleFiles(e.target.files)
     }
 
-    const successCount = uploadedFiles.filter((f) => f.status === 'success').length
-    const errorCount = uploadedFiles.filter((f) => f.status === 'error').length
+    // ── Contadores de status ───────────────────────────────────────────────────
+    const analyzingCount = uploadedFiles.filter((f) => f.phase === 'analyzing').length
+    const successCount = uploadedFiles.filter((f) => f.phase === 'success').length
+    const errorCount = uploadedFiles.filter((f) => f.phase === 'error').length
 
+    // ── Badge por fase ──────────────────────────────────────────────────────────
+    const renderBadge = (file: UploadedFile) => {
+        switch (file.phase) {
+            case 'uploading':
+                return (
+                    <span className="badge uploading">
+                        <span className="spinner sm" /> Enviando
+                    </span>
+                )
+            case 'analyzing':
+                return (
+                    <span className="badge analyzing">
+                        <span className="spinner sm purple" /> Analisando IA
+                    </span>
+                )
+            case 'success':
+                return (
+                    <span className="badge success">
+                        ✓ {file.fieldsExtracted ?? 0} campos extraídos
+                    </span>
+                )
+            case 'error':
+                return <span className="badge error">✕ Erro</span>
+        }
+    }
+
+    // ─── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="upload-page">
             {/* ── HEADER ── */}
@@ -153,27 +248,53 @@ export default function UploadPage() {
 
             {/* ── MAIN ── */}
             <main className="main">
-                {/* Título da seção */}
+                {/* Cabeçalho da seção */}
                 <div className="section-header">
                     <div>
-                        <h2 className="section-title">Enviar Documentos</h2>
+                        <h2 className="section-title">Enviar &amp; Analisar Documentos</h2>
                         <p className="section-desc">
-                            Faça o upload dos seus documentos de imigração com segurança.
-                            Todos os arquivos são criptografados e armazenados de forma segura.
+                            Faça o upload dos seus documentos de imigração. Nossa IA (Claude Vision)
+                            irá analisar e extrair automaticamente todos os campos relevantes.
                         </p>
                     </div>
+
                     {uploadedFiles.length > 0 && (
                         <div className="stats-row">
-                            <div className="stat-chip green">
-                                <span>✓</span> {successCount} enviado{successCount !== 1 ? 's' : ''}
-                            </div>
+                            {analyzingCount > 0 && (
+                                <div className="stat-chip purple">
+                                    <span className="spinner sm purple" /> {analyzingCount} analisando
+                                </div>
+                            )}
+                            {successCount > 0 && (
+                                <div className="stat-chip green">
+                                    ✓ {successCount} concluído{successCount !== 1 ? 's' : ''}
+                                </div>
+                            )}
                             {errorCount > 0 && (
                                 <div className="stat-chip red">
-                                    <span>✕</span> {errorCount} com erro
+                                    ✕ {errorCount} com erro
                                 </div>
                             )}
                         </div>
                     )}
+                </div>
+
+                {/* ── PIPELINE VISUAL ── */}
+                <div className="pipeline-row">
+                    {[
+                        { icon: '⬆️', label: 'Upload Seguro', desc: 'Arquivo enviado com criptografia AES-256' },
+                        { icon: '🧠', label: 'Claude Vision', desc: 'IA analisa e extrai campos automaticamente' },
+                        { icon: '🗄️', label: 'Banco de Dados', desc: 'Campos salvos com confidence scores' },
+                    ].map((step, i) => (
+                        <div key={step.label} className="pipeline-step">
+                            <div className="pipeline-icon">{step.icon}</div>
+                            <div className="pipeline-info">
+                                <p className="pipeline-label">{step.label}</p>
+                                <p className="pipeline-desc">{step.desc}</p>
+                            </div>
+                            {i < 2 && <div className="pipeline-arrow">→</div>}
+                        </div>
+                    ))}
                 </div>
 
                 {/* ── DROP ZONE ── */}
@@ -184,12 +305,7 @@ export default function UploadPage() {
                     onDragLeave={onDragLeave}
                 >
                     <div className="drop-icon-ring">
-                        <svg
-                            className="drop-icon"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
+                        <svg className="drop-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -200,31 +316,17 @@ export default function UploadPage() {
                     </div>
 
                     <h3 className="drop-title">
-                        {isDragging ? 'Solte os arquivos aqui' : 'Arraste e solte seus arquivos'}
+                        {isDragging ? 'Solte os arquivos aqui' : 'Arraste e solte seus documentos'}
                     </h3>
-                    <p className="drop-sub">
-                        ou clique para selecionar do seu computador
-                    </p>
+                    <p className="drop-sub">ou clique para selecionar do seu computador</p>
 
                     <label className="upload-btn">
                         {isUploading ? (
-                            <>
-                                <span className="spinner" /> Enviando...
-                            </>
+                            <><span className="spinner" /> Processando...</>
                         ) : (
                             <>
-                                <svg
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    style={{ width: 18, height: 18 }}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 4v16m8-8H4"
-                                    />
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 18, height: 18 }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                                 Selecionar Arquivos
                             </>
@@ -238,37 +340,37 @@ export default function UploadPage() {
                         />
                     </label>
 
-                    <p className="drop-hint">
-                        PDF, Word, Excel, imagens · Máximo 50 MB por arquivo
-                    </p>
+                    <p className="drop-hint">PDF, JPEG, PNG · Máximo 50 MB por arquivo · Análise automática por IA</p>
                 </div>
 
-                {/* ── FILE LIST ── */}
+                {/* ── LISTA DE ARQUIVOS ── */}
                 {uploadedFiles.length > 0 && (
                     <div className="file-list">
-                        <h3 className="file-list-title">Arquivos Enviados</h3>
+                        <h3 className="file-list-title">Documentos em Processamento</h3>
                         <div className="file-cards">
                             {uploadedFiles.map((file, i) => (
-                                <div key={i} className={`file-card status-${file.status}`}>
+                                <div key={i} className={`file-card phase-${file.phase}`}>
                                     <div className="file-icon">{getFileIcon(file.name)}</div>
                                     <div className="file-info">
                                         <p className="file-name">{file.name}</p>
                                         <p className="file-size">{formatBytes(file.size)}</p>
+                                        {file.phase === 'success' && file.documentType && (
+                                            <p className="file-doctype">📋 {file.documentType}</p>
+                                        )}
                                         {file.errorMessage && (
                                             <p className="file-error">{file.errorMessage}</p>
                                         )}
                                     </div>
-                                    <div className="file-badge">
-                                        {file.status === 'uploading' && (
-                                            <span className="badge uploading">
-                                                <span className="spinner sm" /> Enviando
-                                            </span>
-                                        )}
-                                        {file.status === 'success' && (
-                                            <span className="badge success">✓ Enviado</span>
-                                        )}
-                                        {file.status === 'error' && (
-                                            <span className="badge error">✕ Erro</span>
+
+                                    {/* Barra de progresso por fase */}
+                                    <div className="file-right">
+                                        {renderBadge(file)}
+                                        {(file.phase === 'uploading' || file.phase === 'analyzing') && (
+                                            <div className="progress-bar">
+                                                <div
+                                                    className={`progress-fill ${file.phase === 'analyzing' ? 'fill-purple' : 'fill-indigo'}`}
+                                                />
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -276,33 +378,6 @@ export default function UploadPage() {
                         </div>
                     </div>
                 )}
-
-                {/* ── INFO CARDS ── */}
-                <div className="info-grid">
-                    {[
-                        {
-                            icon: '🔒',
-                            title: 'Segurança',
-                            desc: 'Todos os documentos são criptografados em trânsito e em repouso com AES-256.',
-                        },
-                        {
-                            icon: '☁️',
-                            title: 'Armazenamento',
-                            desc: 'Seus arquivos ficam em servidores redundantes com backup automático diário.',
-                        },
-                        {
-                            icon: '⚡',
-                            title: 'Processamento',
-                            desc: 'Nossa equipe jurídica é notificada imediatamente após cada upload.',
-                        },
-                    ].map((card) => (
-                        <div key={card.title} className="info-card">
-                            <span className="info-icon">{card.icon}</span>
-                            <h4 className="info-title">{card.title}</h4>
-                            <p className="info-desc">{card.desc}</p>
-                        </div>
-                    ))}
-                </div>
             </main>
 
             {/* ── ESTILOS INLINE ── */}
@@ -316,118 +391,86 @@ export default function UploadPage() {
           color: #e2e8f0;
         }
 
-        /* HEADER */
+        /* ── HEADER ── */
         .header {
           background: rgba(255,255,255,0.04);
           backdrop-filter: blur(20px);
           border-bottom: 1px solid rgba(255,255,255,0.08);
-          position: sticky;
-          top: 0;
-          z-index: 100;
+          position: sticky; top: 0; z-index: 100;
         }
         .header-inner {
-          max-width: 1100px;
-          margin: 0 auto;
-          padding: 0 24px;
-          height: 64px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          max-width: 1100px; margin: 0 auto;
+          padding: 0 24px; height: 64px;
+          display: flex; align-items: center; justify-content: space-between;
         }
-        .logo-area {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
+        .logo-area { display: flex; align-items: center; gap: 12px; }
         .logo-icon { font-size: 28px; }
         .logo-title {
-          font-size: 20px;
-          font-weight: 700;
+          font-size: 20px; font-weight: 700;
           background: linear-gradient(90deg, #a78bfa, #818cf8);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
         .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
         .nav-pills { display: flex; gap: 8px; }
         .nav-pill {
-          padding: 6px 16px;
-          border-radius: 999px;
-          font-size: 13px;
-          color: #94a3b8;
-          cursor: pointer;
-          transition: all 0.2s;
+          padding: 6px 16px; border-radius: 999px;
+          font-size: 13px; color: #94a3b8; cursor: pointer; transition: all 0.2s;
         }
         .nav-pill:hover { color: #e2e8f0; background: rgba(255,255,255,0.06); }
         .nav-pill.active {
-          background: rgba(139,92,246,0.2);
-          color: #a78bfa;
+          background: rgba(139,92,246,0.2); color: #a78bfa;
           border: 1px solid rgba(139,92,246,0.4);
         }
 
-        /* MAIN */
+        /* ── MAIN ── */
         .main {
-          max-width: 1100px;
-          margin: 0 auto;
+          max-width: 1100px; margin: 0 auto;
           padding: 48px 24px 80px;
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
+          display: flex; flex-direction: column; gap: 28px;
         }
 
-        /* SECTION HEADER */
+        /* ── SECTION HEADER ── */
         .section-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 16px;
+          display: flex; align-items: flex-start;
+          justify-content: space-between; flex-wrap: wrap; gap: 16px;
         }
-        .section-title {
-          font-size: 28px;
-          font-weight: 700;
-          color: #f1f5f9;
-          line-height: 1.2;
-        }
-        .section-desc {
-          margin-top: 8px;
-          font-size: 15px;
-          color: #94a3b8;
-          max-width: 560px;
-        }
-        .stats-row { display: flex; gap: 10px; align-items: center; }
+        .section-title { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+        .section-desc { margin-top: 8px; font-size: 15px; color: #94a3b8; max-width: 580px; }
+        .stats-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .stat-chip {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 14px;
-          border-radius: 999px;
-          font-size: 13px;
-          font-weight: 600;
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 14px; border-radius: 999px;
+          font-size: 13px; font-weight: 600;
         }
-        .stat-chip.green {
-          background: rgba(16,185,129,0.15);
-          color: #34d399;
-          border: 1px solid rgba(16,185,129,0.3);
-        }
-        .stat-chip.red {
-          background: rgba(239,68,68,0.15);
-          color: #f87171;
-          border: 1px solid rgba(239,68,68,0.3);
-        }
+        .stat-chip.green { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .stat-chip.red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .stat-chip.purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); display: flex; align-items: center; gap: 6px; }
 
-        /* DROP ZONE */
+        /* ── PIPELINE ── */
+        .pipeline-row {
+          display: flex; align-items: center; gap: 0;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 16px; padding: 18px 24px;
+          flex-wrap: wrap;
+        }
+        .pipeline-step {
+          display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px;
+        }
+        .pipeline-icon { font-size: 26px; flex-shrink: 0; }
+        .pipeline-info { flex: 1; }
+        .pipeline-label { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+        .pipeline-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .pipeline-arrow { font-size: 20px; color: #4b5563; padding: 0 16px; }
+
+        /* ── DROP ZONE ── */
         .drop-zone {
           background: rgba(255,255,255,0.03);
           border: 2px dashed rgba(139,92,246,0.35);
-          border-radius: 24px;
-          padding: 64px 32px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 16px;
+          border-radius: 24px; padding: 60px 32px;
+          display: flex; flex-direction: column; align-items: center;
+          text-align: center; gap: 16px;
           transition: all 0.25s ease;
-          cursor: default;
         }
         .drop-zone.dragging {
           border-color: #a78bfa;
@@ -435,146 +478,108 @@ export default function UploadPage() {
           transform: scale(1.01);
           box-shadow: 0 0 60px rgba(139,92,246,0.2);
         }
-
         .drop-icon-ring {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
+          width: 80px; height: 80px; border-radius: 50%;
           background: rgba(139,92,246,0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: flex; align-items: center; justify-content: center;
           border: 1px solid rgba(139,92,246,0.3);
         }
         .drop-icon { width: 36px; height: 36px; color: #a78bfa; }
-
-        .drop-title {
-          font-size: 20px;
-          font-weight: 600;
-          color: #f1f5f9;
-        }
+        .drop-title { font-size: 20px; font-weight: 600; color: #f1f5f9; }
         .drop-sub { font-size: 14px; color: #64748b; }
-
         .upload-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
+          display: inline-flex; align-items: center; gap: 8px;
           padding: 12px 28px;
           background: linear-gradient(135deg, #7c3aed, #4f46e5);
-          color: #fff;
-          font-size: 14px;
-          font-weight: 600;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 24px rgba(124,58,237,0.4);
-          margin-top: 8px;
+          color: #fff; font-size: 14px; font-weight: 600;
+          border-radius: 12px; cursor: pointer; transition: all 0.2s;
+          box-shadow: 0 4px 24px rgba(124,58,237,0.4); margin-top: 8px;
         }
-        .upload-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 32px rgba(124,58,237,0.5);
-        }
+        .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,58,237,0.5); }
         .hidden-input { display: none; }
-
         .drop-hint { font-size: 12px; color: #475569; }
 
-        /* FILE LIST */
-        .file-list {}
-        .file-list-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: #cbd5e1;
-          margin-bottom: 12px;
-        }
+        /* ── FILE LIST ── */
+        .file-list-title { font-size: 16px; font-weight: 600; color: #cbd5e1; margin-bottom: 12px; }
         .file-cards { display: flex; flex-direction: column; gap: 10px; }
         .file-card {
-          display: flex;
-          align-items: center;
-          gap: 14px;
+          display: flex; align-items: center; gap: 14px;
           padding: 16px 20px;
           background: rgba(255,255,255,0.04);
           border-radius: 14px;
           border: 1px solid rgba(255,255,255,0.07);
           transition: all 0.2s;
         }
-        .file-card.status-success {
+        .file-card.phase-analyzing {
+          border-color: rgba(139,92,246,0.3);
+          background: rgba(139,92,246,0.06);
+        }
+        .file-card.phase-success {
           border-color: rgba(16,185,129,0.25);
           background: rgba(16,185,129,0.05);
         }
-        .file-card.status-error {
+        .file-card.phase-error {
           border-color: rgba(239,68,68,0.25);
           background: rgba(239,68,68,0.05);
         }
         .file-icon { font-size: 28px; flex-shrink: 0; }
         .file-info { flex: 1; overflow: hidden; }
         .file-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #e2e8f0;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          font-size: 14px; font-weight: 600; color: #e2e8f0;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .file-size { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .file-doctype { font-size: 12px; color: #a78bfa; margin-top: 4px; font-weight: 500; }
         .file-error { font-size: 12px; color: #f87171; margin-top: 4px; }
-        .file-badge { flex-shrink: 0; }
+        .file-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 150px; }
+
+        /* ── BADGES ── */
         .badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 5px 12px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 600;
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 5px 12px; border-radius: 999px;
+          font-size: 12px; font-weight: 600;
         }
         .badge.uploading { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .badge.analyzing { background: rgba(139,92,246,0.15); color: #a78bfa; }
         .badge.success { background: rgba(16,185,129,0.15); color: #34d399; }
         .badge.error { background: rgba(239,68,68,0.15); color: #f87171; }
 
-        /* SPINNER */
+        /* ── PROGRESS BAR ── */
+        .progress-bar {
+          width: 100%; height: 3px;
+          background: rgba(255,255,255,0.08);
+          border-radius: 999px; overflow: hidden;
+        }
+        .progress-fill {
+          height: 100%; border-radius: 999px;
+          animation: progress-anim 1.6s ease-in-out infinite;
+        }
+        .fill-indigo { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+        .fill-purple { background: linear-gradient(90deg, #7c3aed, #c084fc); }
+        @keyframes progress-anim {
+          0% { width: 5%; margin-left: 0; }
+          50% { width: 60%; margin-left: 30%; }
+          100% { width: 5%; margin-left: 95%; }
+        }
+
+        /* ── SPINNER ── */
         .spinner {
-          display: inline-block;
-          width: 16px;
-          height: 16px;
+          display: inline-block; width: 16px; height: 16px;
           border: 2px solid rgba(255,255,255,0.3);
           border-top-color: #fff;
           border-radius: 50%;
           animation: spin 0.7s linear infinite;
         }
         .spinner.sm {
-          width: 11px;
-          height: 11px;
-          border-width: 1.5px;
-          border-top-color: #818cf8;
+          width: 11px; height: 11px; border-width: 1.5px;
           border-color: rgba(129,140,248,0.3);
           border-top-color: #818cf8;
         }
+        .spinner.sm.purple {
+          border-color: rgba(167,139,250,0.3);
+          border-top-color: #a78bfa;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* INFO GRID */
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 16px;
-        }
-        .info-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px;
-          padding: 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          transition: all 0.2s;
-        }
-        .info-card:hover {
-          background: rgba(255,255,255,0.06);
-          border-color: rgba(139,92,246,0.25);
-          transform: translateY(-3px);
-        }
-        .info-icon { font-size: 28px; }
-        .info-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
-        .info-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
       `}</style>
         </div>
     )
