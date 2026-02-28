@@ -1,6 +1,5 @@
 // Supabase Edge Function: process-document
-// Runtime: Deno | Supabase Edge Functions
-// Schema validado: extracted_fields usa field_key (NOT NULL), não field_name
+// Runtime: Deno | Fix: btoa em chunks para suportar PDFs grandes
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -10,6 +9,18 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Converte ArrayBuffer para Base64 em chunks (suporta arquivos grandes) ──
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192; // 8 KB por chunk — evita stack overflow
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+}
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -18,14 +29,14 @@ serve(async (req) => {
     try {
         const { documentId, filePath } = await req.json();
 
-        // ── Inicializa Supabase com o token do usuário ─────────────────────
+        // ── Inicializa Supabase ────────────────────────────────────────────
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
         const supabase = createClient(supabaseUrl, supabaseAnonKey, {
             global: { headers: { Authorization: req.headers.get('Authorization')! } }
         });
 
-        // ── 1. Marca o documento como "em extração" ────────────────────────
+        // ── 1. Marca como "em processamento" ──────────────────────────────
         await supabase
             .from('client_documents')
             .update({
@@ -34,7 +45,7 @@ serve(async (req) => {
             })
             .eq('id', documentId);
 
-        // ── 2. Baixa o arquivo do Storage ──────────────────────────────────
+        // ── 2. Baixa o arquivo do Storage ─────────────────────────────────
         const { data: fileData, error: downloadError } = await supabase
             .storage
             .from('bomjur-documents')
@@ -44,11 +55,11 @@ serve(async (req) => {
             throw new Error(`Erro ao baixar arquivo: ${downloadError?.message}`);
         }
 
-        // ── 3. Converte para Base64 ────────────────────────────────────────
+        // ── 3. Converte para Base64 em chunks (suporta PDFs grandes) ──────
         const arrayBuffer = await fileData.arrayBuffer();
-        const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const base64Data = arrayBufferToBase64(arrayBuffer);
 
-        // ── 4. Determina o media_type para o Claude ────────────────────────
+        // ── 4. Determina o media_type para o Claude ───────────────────────
         const mimeType = fileData.type || 'image/jpeg';
         type ClaudeMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' | 'application/pdf';
         const allowedTypes: ClaudeMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
@@ -56,9 +67,11 @@ serve(async (req) => {
             ? (mimeType as ClaudeMediaType)
             : 'image/jpeg';
 
-        // ── 5. Chama o Claude Vision ────────────────────────────────────────
+        // ── 5. Chama o Claude Vision ──────────────────────────────────────
         const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada nos Secrets da Edge Function.');
+        if (!anthropicKey) {
+            throw new Error('ANTHROPIC_API_KEY não configurada. Vá em Supabase > Edge Functions > Secrets e adicione a chave.');
+        }
 
         const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -75,17 +88,17 @@ serve(async (req) => {
                     content: [
                         {
                             type: 'image',
-                            source: { type: 'base64', media_type: mediaType, data: base64Image }
+                            source: { type: 'base64', media_type: mediaType, data: base64Data }
                         },
                         {
                             type: 'text',
                             text: `Você é um especialista em documentos de imigração (Brasil/EUA).
 
-Analise este documento e retorne APENAS um objeto JSON puro (sem blocos de código, sem explicações).
+Analise este documento e retorne APENAS um objeto JSON puro (sem blocos de código, sem explicações, sem markdown).
 
-Schema OBRIGATÓRIO:
+Schema obrigatório:
 {
-  "document_type": "tipo do documento (Passaporte, Visto, I-140, I-485, RG, CPF, etc.)",
+  "document_type": "tipo do documento (Passaporte, Visto, I-140, I-485, RG, CPF, Certidão de Nascimento, etc.)",
   "fields": {
     "nome_completo": "valor ou null",
     "data_nascimento": "valor ou null",
@@ -97,12 +110,15 @@ Schema OBRIGATÓRIO:
     "tipo_visto": "valor ou null",
     "orgao_emissor": "valor ou null",
     "cpf": "valor ou null",
-    "passaporte_numero": "valor ou null"
+    "passaporte_numero": "valor ou null",
+    "sexo": "valor ou null",
+    "estado_civil": "valor ou null",
+    "naturalidade": "valor ou null"
   },
   "confidence": 0.95
 }
 
-Inclua apenas os campos visíveis no documento. Preencha com null os não encontrados.`
+Preencha com null os campos não encontrados no documento.`
                         }
                     ]
                 }]
@@ -111,13 +127,13 @@ Inclua apenas os campos visíveis no documento. Preencha com null os não encont
 
         if (!anthropicResponse.ok) {
             const errText = await anthropicResponse.text();
-            throw new Error(`Erro do Claude: ${errText}`);
+            throw new Error(`Erro do Claude (${anthropicResponse.status}): ${errText}`);
         }
 
         const anthropicData = await anthropicResponse.json();
         let aiText: string = anthropicData.content[0].text.trim();
 
-        // ── 6. Limpa e faz parse do JSON retornado ─────────────────────────
+        // ── 6. Extrai apenas o JSON da resposta ───────────────────────────
         if (aiText.includes('{')) {
             aiText = aiText.substring(aiText.indexOf('{'), aiText.lastIndexOf('}') + 1);
         }
@@ -126,18 +142,17 @@ Inclua apenas os campos visíveis no documento. Preencha com null os não encont
         try {
             parsed = JSON.parse(aiText);
         } catch {
-            throw new Error('Claude retornou JSON inválido.');
+            throw new Error(`JSON inválido do Claude: ${aiText.substring(0, 200)}`);
         }
 
-        // ── 7. Insere um registro por campo em extracted_fields ─────────────
-        //    Schema real: document_id (NOT NULL), field_key (NOT NULL), field_value, confidence
+        // ── 7. Insere os campos extraídos em extracted_fields ─────────────
         const fieldsToInsert = Object.entries(parsed.fields ?? {})
             .filter(([, value]) => value !== null && value !== '')
             .map(([key, value]) => ({
                 document_id: documentId,
-                field_key: key,                          // nome do campo em snake_case
-                field_value: String(value),              // valor extraído
-                confidence: parsed.confidence ?? 0.9,   // score geral
+                field_key: key,
+                field_value: String(value),
+                confidence: parsed.confidence ?? 0.9,
             }));
 
         if (fieldsToInsert.length > 0) {
@@ -150,7 +165,7 @@ Inclua apenas os campos visíveis no documento. Preencha com null os não encont
             }
         }
 
-        // ── 8. Marca o documento como concluído ────────────────────────────
+        // ── 8. Atualiza o documento com os resultados ─────────────────────
         await supabase
             .from('client_documents')
             .update({
@@ -172,7 +187,7 @@ Inclua apenas os campos visíveis no documento. Preencha com null os não encont
         );
 
     } catch (error) {
-        console.error('Edge Function error:', error);
+        console.error('Edge Function error:', (error as Error).message);
         return new Response(
             JSON.stringify({ error: (error as Error).message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
