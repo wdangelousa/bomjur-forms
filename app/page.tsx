@@ -34,9 +34,19 @@ export default function UploadPage() {
         setStatus('Registrando documento no sistema...');
 
         // 2. Insere o registro na tabela client_documents
+        //    CORREÇÃO: incluídos todos os campos NOT NULL do banco (file_name, file_path, file_type)
         const { data: docData, error: dbError } = await supabase
             .from('client_documents')
-            .insert([{ file_url: fileName, extraction_status: 'pending' }])
+            .insert([{
+                file_name: file.name,
+                file_path: fileName,
+                file_url: fileName,
+                file_size: file.size,
+                file_type: file.type || 'application/octet-stream',
+                bucket_name: 'bomjur-documents',
+                extraction_status: 'pending',
+                uploaded_at: new Date().toISOString(),
+            }])
             .select()
             .single();
 
