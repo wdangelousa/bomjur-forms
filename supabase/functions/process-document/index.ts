@@ -1,5 +1,5 @@
 // Supabase Edge Function: process-document
-// v3 — modelo correto, service_role para bypass RLS, erros de insert verificados
+// v4 — Diagnóstico e Logging avançado
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -9,7 +9,6 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Converte ArrayBuffer para Base64 em chunks (evita stack overflow em PDFs grandes)
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -25,71 +24,79 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
+    // Cliente com SERVICE ROLE para logs de erro mesmo em falhas
+    const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    let currentDocId = "";
+
+    const logStatus = async (msg: string, isError = false) => {
+        console.log(`[${currentDocId}] ${msg}`);
+        if (!currentDocId) return;
+
+        const updateData: any = {
+            extraction_error: msg,
+            updated_at: new Date().toISOString()
+        };
+        if (isError) updateData.extraction_status = 'error';
+
+        await supabaseAdmin.from('client_documents')
+            .update(updateData)
+            .eq('id', currentDocId);
+    };
+
     try {
         const { documentId, filePath } = await req.json();
-        if (!documentId || !filePath) {
-            throw new Error('documentId e filePath são obrigatórios.');
-        }
+        currentDocId = documentId;
 
-        // ── Cliente com SERVICE ROLE KEY para bypass de RLS ──────────────────
-        // Operações internas da Edge Function não devem depender das políticas do usuário
-        const supabase = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        );
+        await logStatus("Iniciando extração (v4)...");
 
-        // ── 1. Marca como "processing" ────────────────────────────────────────
-        const { error: updateErr } = await supabase.from('client_documents')
+        if (!documentId || !filePath) throw new Error('Dados incompletos (id/path)');
+
+        // 1. Marcar Início
+        await supabaseAdmin.from('client_documents')
             .update({
                 extraction_status: 'processing',
                 extraction_started_at: new Date().toISOString(),
+                extraction_error: 'LOG: Iniciado'
             })
             .eq('id', documentId);
 
-        if (updateErr) {
-            console.error('Erro ao marcar como processing:', updateErr.message);
-        }
-
-        // ── 2. Baixa o arquivo do Storage ─────────────────────────────────────
-        const { data: fileBlob, error: downloadError } = await supabase.storage
+        // 2. Download
+        await logStatus("LOG: Baixando do storage...");
+        const { data: fileBlob, error: downloadError } = await supabaseAdmin.storage
             .from('bomjur-documents').download(filePath);
 
-        if (downloadError || !fileBlob) {
-            throw new Error(`Erro ao baixar arquivo do Storage: ${downloadError?.message}`);
-        }
+        if (downloadError || !fileBlob) throw new Error(`Falha download: ${downloadError?.message}`);
 
-        // ── 3. Converter para Base64 ──────────────────────────────────────────
+        // 3. Base64
+        await logStatus("LOG: Convertendo base64...");
         const base64Data = arrayBufferToBase64(await fileBlob.arrayBuffer());
 
-        // ── 4. Detecta se é PDF ou imagem ─────────────────────────────────────
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const isPdf = ext === 'pdf' || fileBlob.type === 'application/pdf';
+        // 4. Claude Request
+        await logStatus("LOG: Chamando Claude Vision...");
+        const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
 
-        type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-        const validImageTypes: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        const imageMediaType: ImageMediaType = validImageTypes.includes(fileBlob.type as ImageMediaType)
-            ? (fileBlob.type as ImageMediaType)
-            : 'image/jpeg';
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-        // ── 5. Monta o bloco de conteúdo para o Claude ───────────────────────
-        //    PDFs  → type: "document"  |  Imagens → type: "image"
+        const isPdf = filePath.toLowerCase().endsWith('.pdf');
         const fileContentBlock = isPdf
             ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } }
-            : { type: 'image', source: { type: 'base64', media_type: imageMediaType, data: base64Data } };
-
-        // ── 6. Chama o Claude ─────────────────────────────────────────────────
-        const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada nos Secrets do Supabase.');
+            : { type: 'image', source: { type: 'base64', media_type: fileBlob.type || 'image/jpeg', data: base64Data } };
 
         const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
+            signal: controller.signal,
             headers: {
-                'x-api-key': anthropicKey,
+                'x-api-key': anthropicKey!,
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',   // ← modelo com suporte a visão e documentos
+                model: 'claude-3-5-sonnet-20241022',
                 max_tokens: 2048,
                 messages: [{
                     role: 'user',
@@ -97,112 +104,58 @@ serve(async (req) => {
                         fileContentBlock,
                         {
                             type: 'text',
-                            text: `Você é um especialista em documentos de imigração (Brasil/EUA).
-
-Analise este documento e retorne APENAS um objeto JSON puro (sem blocos de código, sem markdown, sem explicações).
-
-Schema obrigatório:
-{
-  "document_type": "tipo do documento (Passaporte, Visto, I-140, I-485, RG, CPF, Certidão de Nascimento, Certidão de Casamento, etc.)",
-  "fields": {
-    "nome_completo": "valor ou null",
-    "data_nascimento": "valor ou null",
-    "numero_documento": "valor ou null",
-    "data_emissao": "valor ou null",
-    "data_validade": "valor ou null",
-    "nacionalidade": "valor ou null",
-    "numero_visto": "valor ou null",
-    "tipo_visto": "valor ou null",
-    "orgao_emissor": "valor ou null",
-    "cpf": "valor ou null",
-    "passaporte_numero": "valor ou null",
-    "sexo": "valor ou null",
-    "naturalidade": "valor ou null",
-    "estado_civil": "valor ou null",
-    "conjuge_nome": "valor ou null",
-    "data_casamento": "valor ou null"
-  },
-  "confidence": 0.95
-}
-
-Preencha com null os campos não encontrados no documento.`
+                            text: `Retorne JSON puro: {"document_type": string, "fields": {"nome_completo": string, "data_nascimento": string, "numero_documento": string, ...}, "confidence": float}`
                         }
                     ]
                 }]
             }),
         });
 
+        clearTimeout(timeout);
+
         if (!claudeResponse.ok) {
-            const errText = await claudeResponse.text();
-            throw new Error(`Erro do Claude (${claudeResponse.status}): ${errText}`);
+            const err = await claudeResponse.text();
+            throw new Error(`Claude falhou (${claudeResponse.status}): ${err.substring(0, 100)}`);
         }
 
         const claudeData = await claudeResponse.json();
-        let aiText: string = claudeData.content[0].text.trim();
+        const aiText = claudeData.content[0].text;
 
-        // Extrai o bloco JSON mesmo que o Claude retorne texto ao redor
-        if (aiText.includes('{')) {
-            aiText = aiText.substring(aiText.indexOf('{'), aiText.lastIndexOf('}') + 1);
-        }
+        await logStatus("LOG: Processando resposta IA...");
+        const parsed = JSON.parse(aiText.substring(aiText.indexOf('{'), aiText.lastIndexOf('}') + 1));
 
-        let parsed: { document_type?: string; fields?: Record<string, string | null>; confidence?: number };
-        try {
-            parsed = JSON.parse(aiText);
-        } catch {
-            throw new Error(`Resposta do Claude não é JSON válido: ${aiText.substring(0, 300)}`);
-        }
-
-        // ── 7. Insere os campos extraídos ─────────────────────────────────────
-        const fieldsToInsert = Object.entries(parsed.fields ?? {})
-            .filter(([, v]) => v !== null && v !== '' && v !== 'null')
+        // 5. Salvar Campos
+        await logStatus(`LOG: Salvando ${Object.keys(parsed.fields || {}).length} campos...`);
+        const fieldsToInsert = Object.entries(parsed.fields || {})
+            .filter(([, v]) => v)
             .map(([key, value]) => ({
                 document_id: documentId,
                 field_key: key,
                 field_value: String(value),
-                confidence: parsed.confidence ?? 0.9,
-                review_status: 'pending',
+                confidence: parsed.confidence || 0.9,
             }));
 
         if (fieldsToInsert.length > 0) {
-            const { error: insertErr } = await supabase.from('extracted_fields').insert(fieldsToInsert);
-            if (insertErr) {
-                // Loga o erro mas não interrompe — atualiza o status com erro
-                console.error('Erro ao inserir extracted_fields:', insertErr.message);
-                await supabase.from('client_documents').update({
-                    extraction_status: 'error',
-                    extraction_error: `insert_error: ${insertErr.message}`,
-                }).eq('id', documentId);
-
-                return new Response(
-                    JSON.stringify({ error: `Erro ao salvar campos: ${insertErr.message}` }),
-                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-                );
-            }
+            const { error: insErr } = await supabaseAdmin.from('extracted_fields').insert(fieldsToInsert);
+            if (insErr) throw new Error(`Erro insert fields: ${insErr.message}`);
         }
 
-        // ── 8. Marca como concluído ───────────────────────────────────────────
-        await supabase.from('client_documents').update({
+        // 6. Concluir
+        await supabaseAdmin.from('client_documents').update({
             extraction_status: 'extracted',
-            document_type: parsed.document_type ?? null,
-            document_type_confidence: parsed.confidence ?? null,
+            document_type: parsed.document_type,
+            extraction_error: null,
             extraction_completed_at: new Date().toISOString(),
-            raw_extraction_json: aiText,
+            raw_extraction_json: aiText
         }).eq('id', documentId);
 
-        return new Response(
-            JSON.stringify({
-                status: 'success',
-                document_type: parsed.document_type,
-                fields_extracted: fieldsToInsert.length,
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+        return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
 
     } catch (error) {
-        console.error('Edge Function error:', (error as Error).message);
-        return new Response(
-            JSON.stringify({ error: (error as Error).message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
+        await logStatus(`ERRO: ${(error as Error).message}`, true);
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+            headers: corsHeaders,
+            status: 400
+        });
     }
 });
