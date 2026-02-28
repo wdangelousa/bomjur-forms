@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Configuração de conexão com o seu banco Bomjur
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -34,18 +33,13 @@ export default function UploadPage() {
         setStatus('Registrando documento no sistema...');
 
         // 2. Insere o registro na tabela client_documents
-        //    CORREÇÃO: incluídos todos os campos NOT NULL do banco (file_name, file_path, file_type)
+        //    Usando apenas os campos que existem no seu banco
         const { data: docData, error: dbError } = await supabase
             .from('client_documents')
             .insert([{
                 file_name: file.name,
-                file_path: fileName,
                 file_url: fileName,
-                file_size: file.size,
-                file_type: file.type || 'application/octet-stream',
-                bucket_name: 'bomjur-documents',
                 extraction_status: 'pending',
-                uploaded_at: new Date().toISOString(),
             }])
             .select()
             .single();
@@ -57,7 +51,7 @@ export default function UploadPage() {
 
         setStatus('Iniciando leitura inteligente com Claude AI...');
 
-        // 3. Aciona a Edge Function (Backend) para extrair os dados
+        // 3. Aciona a Edge Function para extrair os dados com IA
         const { error: fnError } = await supabase.functions.invoke('process-document', {
             body: { documentId: docData.id, filePath: fileName }
         });
