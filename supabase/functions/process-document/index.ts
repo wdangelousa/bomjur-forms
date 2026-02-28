@@ -1,5 +1,5 @@
 // Supabase Edge Function: process-document
-// v4 — Diagnóstico e Logging avançado
+// v5 — Suporte a PDFs (beta), media_type rigoroso e logging de resposta da API
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,7 +24,6 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    // Cliente com SERVICE ROLE para logs de erro mesmo em falhas
     const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -37,7 +36,7 @@ serve(async (req) => {
         if (!currentDocId) return;
 
         const updateData: any = {
-            extraction_error: msg,
+            extraction_error: msg.substring(0, 1000), // Proteção contra strings gigantes
             updated_at: new Date().toISOString()
         };
         if (isError) updateData.extraction_status = 'error';
@@ -48,53 +47,72 @@ serve(async (req) => {
     };
 
     try {
-        const { documentId, filePath } = await req.json();
+        const body = await req.json();
+        const { documentId, filePath } = body;
         currentDocId = documentId;
 
-        await logStatus("Iniciando extração (v4)...");
+        await logStatus("Iniciando extração (v5)...");
 
         if (!documentId || !filePath) throw new Error('Dados incompletos (id/path)');
 
-        // 1. Marcar Início
+        // 1. Marca Processando
         await supabaseAdmin.from('client_documents')
             .update({
                 extraction_status: 'processing',
                 extraction_started_at: new Date().toISOString(),
-                extraction_error: 'LOG: Iniciado'
+                extraction_error: 'ETAPA: Baixando arquivo...'
             })
             .eq('id', documentId);
 
         // 2. Download
-        await logStatus("LOG: Baixando do storage...");
         const { data: fileBlob, error: downloadError } = await supabaseAdmin.storage
             .from('bomjur-documents').download(filePath);
 
-        if (downloadError || !fileBlob) throw new Error(`Falha download: ${downloadError?.message}`);
+        if (downloadError || !fileBlob) throw new Error(`Falha download storage: ${downloadError?.message}`);
 
         // 3. Base64
-        await logStatus("LOG: Convertendo base64...");
+        await logStatus("ETAPA: Convertendo para Base64...");
         const base64Data = arrayBufferToBase64(await fileBlob.arrayBuffer());
 
-        // 4. Claude Request
-        await logStatus("LOG: Chamando Claude Vision...");
+        // 4. Determina MIME Type rigoroso para Claude
+        const ext = filePath.split('.').pop()?.toLowerCase();
+        const isPdf = ext === 'pdf' || fileBlob.type === 'application/pdf';
+
+        let mediaType = fileBlob.type;
+        // Normalização de tipos de imagem para o padrão Claude
+        if (!isPdf) {
+            if (mediaType.includes('jpg') || mediaType.includes('jpeg')) mediaType = 'image/jpeg';
+            else if (mediaType.includes('png')) mediaType = 'image/png';
+            else if (mediaType.includes('gif')) mediaType = 'image/gif';
+            else if (mediaType.includes('webp')) mediaType = 'image/webp';
+            else mediaType = 'image/jpeg'; // Fallback
+        } else {
+            mediaType = 'application/pdf';
+        }
+
+        // 5. Claude API Call
+        await logStatus(`ETAPA: Chamando Claude Vision (${isPdf ? 'PDF' : 'Imagem'})...`);
         const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não encontrada.');
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+        const headers: Record<string, string> = {
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+        };
 
-        const isPdf = filePath.toLowerCase().endsWith('.pdf');
+        // Cabeçalho beta obrigatório para suporte a PDF no Sonnet 3.5
+        if (isPdf) {
+            headers['anthropic-beta'] = 'pdfs-2024-09-25';
+        }
+
         const fileContentBlock = isPdf
             ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } }
-            : { type: 'image', source: { type: 'base64', media_type: fileBlob.type || 'image/jpeg', data: base64Data } };
+            : { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: base64Data } };
 
         const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            signal: controller.signal,
-            headers: {
-                'x-api-key': anthropicKey!,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 model: 'claude-3-5-sonnet-20241022',
                 max_tokens: 2048,
@@ -104,30 +122,35 @@ serve(async (req) => {
                         fileContentBlock,
                         {
                             type: 'text',
-                            text: `Retorne JSON puro: {"document_type": string, "fields": {"nome_completo": string, "data_nascimento": string, "numero_documento": string, ...}, "confidence": float}`
+                            text: `Você é um especialista em imigração. Extraia os dados deste documento para JSON.
+Campos: nome_completo, data_nascimento, numero_documento, data_emissao, data_validade, nacionalidade, numero_visto, tipo_visto, orgao_emissor, cpf, passaporte_numero, sexo, naturalidade, estado_civil.
+
+Retorne APENAS o JSON conforme este exemplo:
+{ "document_type": "Passaporte", "fields": { "nome_completo": "JOÃO SILVA", ... }, "confidence": 0.99 }`
                         }
                     ]
                 }]
             }),
         });
 
-        clearTimeout(timeout);
-
         if (!claudeResponse.ok) {
-            const err = await claudeResponse.text();
-            throw new Error(`Claude falhou (${claudeResponse.status}): ${err.substring(0, 100)}`);
+            const errBody = await claudeResponse.text();
+            throw new Error(`API Claude Erro ${claudeResponse.status}: ${errBody}`);
         }
 
         const claudeData = await claudeResponse.json();
         const aiText = claudeData.content[0].text;
 
-        await logStatus("LOG: Processando resposta IA...");
-        const parsed = JSON.parse(aiText.substring(aiText.indexOf('{'), aiText.lastIndexOf('}') + 1));
+        await logStatus("ETAPA: Processando resposta da IA...");
 
-        // 5. Salvar Campos
-        await logStatus(`LOG: Salvando ${Object.keys(parsed.fields || {}).length} campos...`);
+        // Parsing robusto do JSON
+        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("IA não retornou um JSON válido.");
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        // 6. Salvar Campos em extracted_fields
         const fieldsToInsert = Object.entries(parsed.fields || {})
-            .filter(([, v]) => v)
+            .filter(([, v]) => v && v !== 'null' && v !== 'NULL')
             .map(([key, value]) => ({
                 document_id: documentId,
                 field_key: key,
@@ -136,25 +159,31 @@ serve(async (req) => {
             }));
 
         if (fieldsToInsert.length > 0) {
+            await logStatus(`ETAPA: Salvando ${fieldsToInsert.length} campos...`);
             const { error: insErr } = await supabaseAdmin.from('extracted_fields').insert(fieldsToInsert);
-            if (insErr) throw new Error(`Erro insert fields: ${insErr.message}`);
+            if (insErr) throw new Error(`Erro ao salvar no banco: ${insErr.message}`);
         }
 
-        // 6. Concluir
+        // 7. Finaliza documento
         await supabaseAdmin.from('client_documents').update({
             extraction_status: 'extracted',
-            document_type: parsed.document_type,
+            document_type: parsed.document_type || 'Desconhecido',
             extraction_error: null,
+            document_type_confidence: parsed.confidence || 0.9,
             extraction_completed_at: new Date().toISOString(),
-            raw_extraction_json: aiText
+            raw_extraction_json: JSON.stringify(parsed)
         }).eq('id', documentId);
 
-        return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+        return new Response(JSON.stringify({ status: 'success' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
 
     } catch (error) {
-        await logStatus(`ERRO: ${(error as Error).message}`, true);
-        return new Response(JSON.stringify({ error: (error as Error).message }), {
-            headers: corsHeaders,
+        const msg = (error as Error).message;
+        await logStatus(`ERRO: ${msg}`, true);
+        return new Response(JSON.stringify({ error: msg }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400
         });
     }
