@@ -19,11 +19,11 @@ export default function UploadPage() {
 
         // 1. Upload do arquivo para o bucket bomjur-documents
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
             .from('bomjur-documents')
-            .upload(fileName, file);
+            .upload(filePath, file);
 
         if (uploadError) {
             setStatus(`Erro no upload: ${uploadError.message}`);
@@ -33,15 +33,17 @@ export default function UploadPage() {
         setStatus('Registrando documento no sistema...');
 
         // 2. Insere o registro na tabela client_documents
-        //    Usando apenas os campos que existem no seu banco
+        //    Usando APENAS colunas que existem no banco (schema verificado via API)
         const { data: docData, error: dbError } = await supabase
             .from('client_documents')
             .insert([{
-                file_name: file.name,
-                file_url: fileName,
-                extraction_status: 'pending',
+                file_name: file.name,          // NOT NULL — obrigatório
+                file_path: filePath,            // caminho no storage
+                file_size: file.size,           // tamanho em bytes
+                mime_type: file.type || 'application/octet-stream', // tipo MIME
+                extraction_status: 'pending',   // status inicial
             }])
-            .select()
+            .select('id')
             .single();
 
         if (dbError) {
@@ -53,7 +55,7 @@ export default function UploadPage() {
 
         // 3. Aciona a Edge Function para extrair os dados com IA
         const { error: fnError } = await supabase.functions.invoke('process-document', {
-            body: { documentId: docData.id, filePath: fileName }
+            body: { documentId: docData.id, filePath }
         });
 
         if (fnError) {
