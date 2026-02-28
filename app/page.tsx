@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type StepStatus = 'idle' | 'loading' | 'ok' | 'error';
 interface Steps { upload: StepStatus; database: StepStatus; ai: StepStatus; aiError: string; }
@@ -29,10 +30,10 @@ export default function UploadPage() {
         const fileExt = file.name.split('.').pop();
         const filePath = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('bomjur-documents').upload(filePath, file);
-        if (uploadError) { setStep('upload', 'error'); return; }
+        if (uploadError) { setStep('upload', 'error', uploadError.message); return; }
         setStep('upload', 'ok');
 
-        // 2. Registro no banco (campos validados com schema real)
+        // 2. Registro no banco
         setStep('database', 'loading');
         const { data: docData, error: dbError } = await supabase
             .from('client_documents')
@@ -48,48 +49,69 @@ export default function UploadPage() {
         if (dbError) { setStep('database', 'error'); return; }
         setStep('database', 'ok');
 
-        // 3. Análise com IA
+        // 3. Dispara a Edge Function sem esperar a resposta (fire-and-forget)
+        // A IA pode demorar > 10s então fazemos polling do status
         setStep('ai', 'loading');
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('process-document', {
+
+        // Invoca de forma assíncrona (não faz await)
+        supabase.functions.invoke('process-document', {
             body: { documentId: docData.id, filePath }
+        }).then(({ error }) => {
+            // Resolve silenciosamente — o polling cuidará do resultado
+            if (error) console.warn('Edge Function async result:', error.message);
         });
-        if (fnError) {
-            const detail = (fnData as Record<string, string>)?.error || fnError.message;
-            setStep('ai', 'error', detail);
-            setDone(true);
-            return;
-        }
-        setStep('ai', 'ok');
-        setDone(true);
 
-        // 4. Redireciona para a página de revisão
-        setTimeout(() => router.push(`/upload/review/${docData.id}`), 800);
+        // 4. Polling: verifica o status a cada 3s por até 90s
+        const docId = docData.id;
+        let attempts = 0;
+        const maxAttempts = 30; // 30 × 3s = 90s
+
+        const poll = setInterval(async () => {
+            attempts++;
+
+            const { data: statusData } = await supabase
+                .from('client_documents')
+                .select('extraction_status, extraction_error')
+                .eq('id', docId)
+                .single();
+
+            const status = statusData?.extraction_status;
+
+            if (status === 'extracted') {
+                clearInterval(poll);
+                setStep('ai', 'ok');
+                setDone(true);
+                setTimeout(() => router.push(`/upload/review/${docId}`), 800);
+                return;
+            }
+
+            if (status === 'error') {
+                clearInterval(poll);
+                setStep('ai', 'error', statusData?.extraction_error || 'Erro desconhecido na extração.');
+                setDone(true);
+                return;
+            }
+
+            if (attempts >= maxAttempts) {
+                clearInterval(poll);
+                setStep('ai', 'error', 'Tempo limite atingido. Por favor, tente novamente.');
+                setDone(true);
+            }
+        }, 3000);
     };
 
-    const stepLabel = (status: StepStatus, label: string, detail?: string) => {
-        const icons: Record<StepStatus, string> = { idle: '○', loading: '⟳', ok: '✓', error: '✕' };
-        const colors: Record<StepStatus, string> = { idle: '#94a3b8', loading: '#6366f1', ok: '#10b981', error: '#ef4444' };
-        return (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                <span style={{
-                    fontSize: 18, color: colors[status], minWidth: 20, lineHeight: '22px',
-                    animation: status === 'loading' ? 'spin 1s linear infinite' : 'none'
-                }}>
-                    {icons[status]}
-                </span>
-                <div>
-                    <span style={{ color: colors[status], fontWeight: 600, fontSize: 14 }}>{label}</span>
-                    {detail && status === 'error' && (
-                        <p style={{ fontSize: 12, color: '#ef4444', margin: '4px 0 0', maxWidth: 400 }}>
-                            ⚠️ {detail}
-                        </p>
-                    )}
-                </div>
-            </div>
-        );
+    const stepIcon = (status: StepStatus) => {
+        if (status === 'idle') return '○';
+        if (status === 'ok') return '✓';
+        if (status === 'error') return '✕';
+        return '⟳';
     };
 
-    const anyActive = Object.values(steps).some(v => v === 'loading');
+    const stepColor: Record<StepStatus, string> = {
+        idle: '#94a3b8', loading: '#6366f1', ok: '#10b981', error: '#ef4444'
+    };
+
+    const anyActive = steps.upload === 'loading' || steps.database === 'loading' || steps.ai === 'loading';
 
     return (
         <div style={{
@@ -123,9 +145,35 @@ export default function UploadPage() {
                     marginTop: 20, padding: '16px 20px', backgroundColor: '#f8fafc',
                     borderRadius: 8, border: '1px solid #e2e8f0'
                 }}>
-                    {stepLabel(steps.upload, 'Upload para o cofre seguro')}
-                    {steps.database !== 'idle' && stepLabel(steps.database, 'Registro no banco de dados')}
-                    {steps.ai !== 'idle' && stepLabel(steps.ai, 'Leitura inteligente com Claude AI', steps.aiError)}
+
+                    {[
+                        { key: 'upload', label: 'Upload para o cofre seguro', status: steps.upload },
+                        { key: 'database', label: 'Registro no banco de dados', status: steps.database },
+                        { key: 'ai', label: 'Leitura inteligente com Claude AI', status: steps.ai },
+                    ].map(s => (
+                        <div key={s.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                            <span style={{
+                                fontSize: 18, color: stepColor[s.status], minWidth: 20, lineHeight: '22px',
+                                animation: s.status === 'loading' ? 'spin 1s linear infinite' : 'none'
+                            }}>
+                                {stepIcon(s.status)}
+                            </span>
+                            <div>
+                                <span style={{ color: stepColor[s.status], fontWeight: 600, fontSize: 14 }}>{s.label}</span>
+                                {s.key === 'ai' && s.status === 'loading' && (
+                                    <p style={{ fontSize: 12, color: '#6366f1', margin: '4px 0 0' }}>
+                                        🕐 Aguardando resposta da IA (pode levar até 60s)...
+                                    </p>
+                                )}
+                                {s.key === 'ai' && s.status === 'error' && steps.aiError && (
+                                    <p style={{ fontSize: 12, color: '#ef4444', margin: '4px 0 0', maxWidth: 400 }}>
+                                        ⚠️ {steps.aiError}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+
                     {done && steps.ai === 'ok' && (
                         <p style={{ marginTop: 10, color: '#10b981', fontWeight: 700, fontSize: 14 }}>
                             ✅ Redirecionando para a revisão...
