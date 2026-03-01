@@ -21,32 +21,32 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
 
-        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        // 1. Autentica com email/senha
+        const { error: authErr } = await supabase.auth.signInWithPassword({
             email,
             password,
         })
 
-        if (authErr || !authData.user) {
+        if (authErr) {
             setError('Email ou senha incorretos. Tente novamente.')
             setLoading(false)
             return
         }
 
-        const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', authData.user.id)
-            .single()
+        // 2. Busca o role via API segura (usa service role key, sem bloqueio de RLS)
+        try {
+            const res = await fetch('/api/auth/role')
+            const data = await res.json()
+            const role = data?.role
 
-        const role = profile?.role
-
-        // ✅ REGRAS DE REDIRECIONAMENTO CORRIGIDAS:
-        // admin OU tenant_admin → vão para o painel de gestão (/admin)
-        // client               → vai para o painel do imigrante (/i485)
-        if (role === 'admin' || role === 'tenant_admin') {
+            if (role === 'admin' || role === 'tenant_admin') {
+                router.push('/admin')
+            } else {
+                router.push('/i485')
+            }
+        } catch {
+            // Se a API falhar, tenta ir para admin e deixa o middleware decidir
             router.push('/admin')
-        } else {
-            router.push('/i485')
         }
     }
 
