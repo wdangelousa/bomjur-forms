@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
     // ── ROTEAMENTO PROTEGIDO ──────────────────────────────────────────────────
     const role = await getUserRole(user.id)
-    const isAdmin = (role === 'admin' || role === 'tenant_admin')
+    const isAdmin = (role === 'admin' || role === 'tenant_admin' || role === 'super_admin')
 
     // Admins em rota de client → manda para /admin
     const isClientRoute = CLIENT_ROUTES.some(r => pathname.startsWith(r))

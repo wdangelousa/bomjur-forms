@@ -6,7 +6,7 @@ import { createBrowserClient } from '@supabase/ssr'
 // ============================================================
 // TYPES — alinhados com a tabela i140_petitions no Supabase
 // ============================================================
-type UserRole = 'admin' | 'tenant_admin' | 'client' | null
+type UserRole = 'super_admin' | 'admin' | 'tenant_admin' | 'client' | null
 type ViewMode = 'table' | 'kanban'
 type PetitionStatus = 'draft' | 'competing' | 'pending' | 'approved'
 
@@ -526,10 +526,10 @@ export default function I140Page() {
         const userRole = profile.role as UserRole
         setRole(userRole)
 
-        const isAdmin = (userRole === 'admin' || userRole === 'tenant_admin')
+        const isAdmin = (userRole === 'admin' || userRole === 'tenant_admin' || userRole === 'super_admin')
 
         if (isAdmin) {
-          // 2A. admin / tenant_admin: busca todas as petições do tenant
+          // 2A. admin / tenant_admin / super_admin: busca todas as petições do tenant
           const { data: rows, error: fetchErr } = await supabase
             .from('i140_petitions')
             .select('id, beneficiary_name, category, status, inserted_at, notes, receipt_number')
@@ -614,7 +614,7 @@ export default function I140Page() {
         {/* Conteúdo por role */}
         {!error && (
           <>
-            {(role === 'tenant_admin' || role === null) && (
+            {(role === 'admin' || role === 'tenant_admin' || role === 'super_admin' || role === null) && (
               <AdminView petitions={petitions} loading={loading} />
             )}
             {role === 'client' && !loading && (

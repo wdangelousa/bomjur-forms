@@ -44,7 +44,7 @@ export default function AdminDashboard() {
                 .single()
 
             const role = adminProfile?.role
-            if (role !== 'admin' && role !== 'tenant_admin') { router.push('/i485'); return }
+            if (role !== 'admin' && role !== 'tenant_admin' && role !== 'super_admin') { router.push('/i485'); return }
             setAdminName(adminProfile?.full_name ?? 'Admin')
 
             // Lista de clientes

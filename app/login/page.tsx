@@ -39,7 +39,7 @@ export default function LoginPage() {
             const data = await res.json()
             const role = data?.role
 
-            if (role === 'admin' || role === 'tenant_admin') {
+            if (role === 'admin' || role === 'tenant_admin' || role === 'super_admin') {
                 router.push('/admin')
             } else {
                 router.push('/i485')
