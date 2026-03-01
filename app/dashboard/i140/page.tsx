@@ -21,6 +21,8 @@ interface I140Petition {
   tenant_id?: string | null
 }
 
+import ClientDashboard from '@/app/components/dashboard/ClientDashboard'
+
 // ============================================================
 // DESIGN TOKENS
 // ============================================================
@@ -525,8 +527,16 @@ export default function I140DashboardPage() {
           </div>
         )}
 
-        {/* ── Empty state ── */}
-        {!loading && !error && total === 0 && (
+        {/* ── Client View (Bifurcação) ── */}
+        {!loading && !error && !isAdmin && (
+          <ClientDashboard
+            petition={petitions.length > 0 ? petitions[0] : null}
+            tenantName={tenantName}
+          />
+        )}
+
+        {/* ── Empty state (Admin) ── */}
+        {!loading && !error && total === 0 && isAdmin && (
           isAdmin ? (
             <EmptyState onNew={() => router.push('/dashboard/i140/new')} />
           ) : (
@@ -540,8 +550,8 @@ export default function I140DashboardPage() {
           )
         )}
 
-        {/* ── Petition list ── */}
-        {!loading && !error && total > 0 && (
+        {/* ── Petition list (Admin) ── */}
+        {!loading && !error && total > 0 && isAdmin && (
           <>
             {/* Results count */}
             {isAdmin && (
