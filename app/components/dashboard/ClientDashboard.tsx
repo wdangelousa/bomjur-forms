@@ -1,7 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 // ============================================================
 // TYPES
@@ -18,6 +19,13 @@ interface I140Petition {
 interface ClientDashboardProps {
     petition: I140Petition | null
     tenantName: string
+}
+
+interface SavedDoc {
+    id: string
+    fileName: string
+    fields: Record<string, string>
+    createdAt: string
 }
 
 // ============================================================
@@ -63,6 +71,56 @@ function getCompletedStages(status: string): number {
 // ============================================================
 export default function ClientDashboard({ petition, tenantName }: ClientDashboardProps) {
     const router = useRouter()
+    const [docs, setDocs] = useState<SavedDoc[]>([])
+    const [docsLoading, setDocsLoading] = useState(true)
+
+    // Busca de documentos do cliente (protegido por RLS)
+    useEffect(() => {
+        async function fetchMyDocs() {
+            setDocsLoading(true)
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            )
+
+            // 1. Busca documentos logados do client_id restrito pelo RLS
+            const { data: docRows } = await supabase
+                .from('client_documents')
+                .select('id, file_name, created_at')
+                .order('created_at', { ascending: false })
+                .limit(10)
+
+            if (!docRows || docRows.length === 0) {
+                setDocsLoading(false)
+                return
+            }
+
+            // 2. Busca campos extraídos vinculados
+            const ids = docRows.map(d => d.id)
+            const { data: fieldRows } = await supabase
+                .from('extracted_fields')
+                .select('document_id, field_key, field_value')
+                .in('document_id', ids)
+
+            const fieldMap: Record<string, Record<string, string>> = {}
+            for (const f of fieldRows ?? []) {
+                if (!fieldMap[f.document_id]) fieldMap[f.document_id] = {}
+                fieldMap[f.document_id][f.field_key] = f.field_value
+            }
+
+            // 3. Mescla tudo
+            const enriched: SavedDoc[] = docRows.map(d => ({
+                id: d.id,
+                fileName: d.file_name ?? 'Documento sem nome',
+                fields: fieldMap[d.id] ?? {},
+                createdAt: d.created_at ?? new Date().toISOString()
+            }))
+
+            setDocs(enriched)
+            setDocsLoading(false)
+        }
+        fetchMyDocs()
+    }, [])
 
     // Se não tem petição vinculada à conta do client
     if (!petition) {
@@ -257,34 +315,92 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                 </div>
             )}
 
-            {/* ── Document Area (Placeholder para os docs do cliente) ── */}
+            {/* ── Document Area (Meus Documentos Validados pela IA) ── */}
             <div style={{
                 background: C.bgCard, border: `1px solid ${C.border}`,
                 borderRadius: 22, padding: '32px 36px',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-                    <div style={{
-                        width: 42, height: 42, borderRadius: 12,
-                        background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20
-                    }}>📂</div>
-                    <h3 style={{ fontSize: 18, fontWeight: 800, color: C.text1, margin: 0 }}>Meus Documentos Validados</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                            width: 42, height: 42, borderRadius: 12,
+                            background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20
+                        }}>📂</div>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: C.text1, margin: 0 }}>Meus Documentos Validados</h3>
+                    </div>
                 </div>
 
-                <div style={{
-                    padding: '28px', borderRadius: 14, border: `1px dashed ${C.border}`,
-                    background: 'rgba(255,255,255,0.02)', textAlign: 'center'
-                }}>
-                    <p style={{ fontSize: 14, color: C.text2, margin: '0 0 16px' }}>
-                        Nesta área, você poderá visualizar os documentos que já enviou e as informações que nossa IA extraiu deles (Passaporte, Diplomas, etc).
-                    </p>
-                    <button style={{
-                        padding: '10px 20px', borderRadius: 10, background: 'rgba(255,255,255,0.05)',
-                        border: `1px solid ${C.border}`, color: C.text1, fontWeight: 600, fontSize: 13, cursor: 'pointer'
+                {docsLoading ? (
+                    <div style={{
+                        padding: '40px', borderRadius: 14, border: `1px dashed ${C.border}`,
+                        background: 'rgba(255,255,255,0.02)', textAlign: 'center',
+                        color: C.text3, fontSize: 14, animation: 'pulse 1.5s infinite'
                     }}>
-                        Acessar Central de Documentos
-                    </button>
-                </div>
+                        Carregando seus documentos...
+                    </div>
+                ) : docs.length === 0 ? (
+                    <div style={{
+                        padding: '40px', borderRadius: 14, border: `1px dashed ${C.border}`,
+                        background: 'rgba(255,255,255,0.02)', textAlign: 'center'
+                    }}>
+                        <p style={{ fontSize: 14, color: C.text2, margin: '0 0 16px' }}>
+                            Nenhum documento processado pela Inteligência Artificial foi encontrado na sua conta.
+                        </p>
+                        <button style={{
+                            padding: '10px 20px', borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${C.border}`, color: C.text1, fontWeight: 600, fontSize: 13, cursor: 'pointer'
+                        }}>
+                            Central de Documentos
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {docs.map(doc => {
+                            const extCount = Object.keys(doc.fields).length
+                            const dateFmt = new Date(doc.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                            return (
+                                <div key={doc.id} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '16px 20px', background: 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${C.border}`, borderRadius: 14, flexWrap: 'wrap', gap: 16,
+                                    transition: 'all 0.2s', cursor: 'default'
+                                }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.06)' }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)' }}>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                        <div style={{ fontSize: 24 }}>📄</div>
+                                        <div>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: C.text1, marginBottom: 4 }}>
+                                                {doc.fileName}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: C.text3 }}>Enviado em {dateFmt}</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        {extCount > 0 ? (
+                                            <div style={{
+                                                padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                                background: 'rgba(34,197,94,0.15)', color: C.success, border: '1px solid rgba(34,197,94,0.3)',
+                                                display: 'flex', alignItems: 'center', gap: 6
+                                            }}>
+                                                <span>✨</span> IA Validou {extCount} campo{extCount !== 1 ? 's' : ''}
+                                            </div>
+                                        ) : (
+                                            <div style={{
+                                                padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                                background: 'rgba(148,163,184,0.1)', color: C.text3, border: `1px solid ${C.border}`
+                                            }}>
+                                                Sem extração
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     )
