@@ -6,7 +6,7 @@ import { createBrowserClient } from '@supabase/ssr'
 // ============================================================
 // TYPES — alinhados com a tabela i140_petitions no Supabase
 // ============================================================
-type UserRole = 'tenant_admin' | 'client' | null
+type UserRole = 'admin' | 'tenant_admin' | 'client' | null
 type ViewMode = 'table' | 'kanban'
 type PetitionStatus = 'draft' | 'competing' | 'pending' | 'approved'
 
@@ -526,8 +526,10 @@ export default function I140Page() {
         const userRole = profile.role as UserRole
         setRole(userRole)
 
-        if (userRole === 'tenant_admin') {
-          // 2A. tenant_admin: busca todas as petições do tenant
+        const isAdmin = (userRole === 'admin' || userRole === 'tenant_admin')
+
+        if (isAdmin) {
+          // 2A. admin / tenant_admin: busca todas as petições do tenant
           const { data: rows, error: fetchErr } = await supabase
             .from('i140_petitions')
             .select('id, beneficiary_name, category, status, inserted_at, notes, receipt_number')

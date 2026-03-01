@@ -11,8 +11,6 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
 
-    // ✅ Client correto: usa @supabase/ssr para gerenciar cookies de sessão
-    // Garante que o middleware reconhece a sessão após o login
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,7 +21,6 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
 
-        // 1. Autentica com Supabase Auth
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -35,7 +32,6 @@ export default function LoginPage() {
             return
         }
 
-        // 2. Busca o role do usuário em user_profiles
         const { data: profile } = await supabase
             .from('user_profiles')
             .select('role')
@@ -44,10 +40,10 @@ export default function LoginPage() {
 
         const role = profile?.role
 
-        // 3. Redireciona conforme o papel
-        // tenant_admin = escritório (PROEX) → painel administrativo
-        // client       = imigrante          → painel do cliente
-        if (role === 'tenant_admin') {
+        // ✅ REGRAS DE REDIRECIONAMENTO CORRIGIDAS:
+        // admin OU tenant_admin → vão para o painel de gestão (/admin)
+        // client               → vai para o painel do imigrante (/i485)
+        if (role === 'admin' || role === 'tenant_admin') {
             router.push('/admin')
         } else {
             router.push('/i485')
@@ -57,7 +53,6 @@ export default function LoginPage() {
     return (
         <div style={S.page}>
             <div style={S.card}>
-                {/* Logo */}
                 <div style={S.logoArea}>
                     <span style={{ fontSize: 40 }}>⚖️</span>
                     <div>
@@ -115,7 +110,6 @@ export default function LoginPage() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         input::placeholder { color: #475569; }
         input:focus { outline: none; border-color: #7c3aed !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
-        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
         </div>
     )
