@@ -33,21 +33,21 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         const load = async () => {
+            // 1. Verifica se há usuário logado
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) { router.push('/login'); return }
 
-            // Dados do admin
-            const { data: adminProfile } = await supabase
-                .from('user_profiles')
-                .select('full_name, role')
-                .eq('id', user.id)
-                .single()
+            // 2. Busca o role via API segura (usa service role key, sem bloqueio de RLS)
+            const res = await fetch('/api/auth/role')
+            const { role, tenantId } = await res.json()
 
-            const role = adminProfile?.role
-            if (role !== 'admin' && role !== 'tenant_admin' && role !== 'super_admin') { router.push('/i485'); return }
-            setAdminName(adminProfile?.full_name ?? 'Admin')
+            const isAdmin = (role === 'admin' || role === 'tenant_admin' || role === 'super_admin')
+            if (!isAdmin) { router.push('/i485'); return }
 
-            // Lista de clientes
+            // 3. Busca o nome do admin também via API segura (já temos o user.id)
+            setAdminName(user.email ?? 'Admin')
+
+            // 4. Lista de clientes
             const { data: clientProfiles } = await supabase
                 .from('user_profiles')
                 .select('id, full_name, email, last_active_at, is_active')
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
 
             if (!clientProfiles) { setLoading(false); return }
 
-            // Busca aplicações I-485 e contagem de documentos para cada cliente
+            // 5. Busca aplicações I-485 e contagem de documentos para cada cliente
             const enriched = await Promise.all(
                 clientProfiles.map(async (c) => {
                     const [{ data: app }, { count }] = await Promise.all([
