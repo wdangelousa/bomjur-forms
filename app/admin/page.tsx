@@ -43,7 +43,8 @@ export default function AdminDashboard() {
                 .eq('id', user.id)
                 .single()
 
-            if (adminProfile?.role !== 'admin') { router.push('/i485'); return }
+            const role = adminProfile?.role
+            if (role !== 'admin' && role !== 'tenant_admin') { router.push('/i485'); return }
             setAdminName(adminProfile?.full_name ?? 'Admin')
 
             // Lista de clientes
@@ -281,7 +282,7 @@ const pill = (color: string): React.CSSProperties => ({
     fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
 })
 
-const S: Record<string, React.CSSProperties> = {
+const S: any = {
     page: {
         minHeight: '100vh',
         background: 'linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)',
