@@ -55,6 +55,13 @@ const TIER_STYLES = {
     grey: { border: '#475569', bg: 'rgba(71,85,105,0.07)', label: '○ Insira manualmente', labelColor: '#94a3b8' },
 }
 
+function badge(color: string): React.CSSProperties {
+    return {
+        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+        background: `${color}18`, color, border: `1px solid ${color}40`,
+    }
+}
+
 function friendlyLabel(key: string) {
     const map: Record<string, string> = {
         nome_completo: 'Nome Completo', data_nascimento: 'Data de Nascimento',
@@ -82,7 +89,7 @@ export default function ReviewPage() {
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // ── Carrega documento + campos ────────────────────────────────────────────
+    // ── Carrega documento + campos via API route (service role key) ────────────
     useEffect(() => {
         if (!id) return
 
@@ -90,34 +97,19 @@ export default function ReviewPage() {
             setLoading(true)
             setError(null)
 
-            // 1. Busca o documento
-            const { data: docData, error: docErr } = await supabase
-                .from('client_documents')
-                .select('id,file_name,file_path,file_url,mime_type,document_type,document_type_confidence,extraction_status,client_id')
-                .eq('id', id)
-                .single()
-
-            if (docErr || !docData) {
+            const res = await fetch(`/api/documents/${id}`)
+            if (!res.ok) {
                 setError('Documento não encontrado.')
                 setLoading(false)
                 return
             }
+
+            const { doc: docData, previewUrl: pUrl, fields: rawFields } = await res.json()
+
             setDoc(docData as Document)
+            if (pUrl) setPreviewUrl(pUrl)
 
-            // 2. Gera URL assinada para o preview
-            const { data: signed } = await supabase.storage
-                .from('bomjur-documents')
-                .createSignedUrl(docData.file_path, 3600)
-            if (signed) setPreviewUrl(signed.signedUrl)
-
-            // 3. Busca os campos extraídos
-            const { data: rawFields } = await supabase
-                .from('extracted_fields')
-                .select('id,field_key,field_value,confidence,review_status,corrected_value,maps_to_i140_field,maps_to_i485_field,maps_to_i485_mission')
-                .eq('document_id', id)
-                .order('confidence', { ascending: false })
-
-            const local: LocalField[] = (rawFields ?? []).map(f => ({
+            const local: LocalField[] = (rawFields ?? []).map((f: ExtractedField) => ({
                 ...f,
                 editedValue: f.corrected_value ?? f.field_value ?? '',
                 isDirty: false,
@@ -261,8 +253,8 @@ export default function ReviewPage() {
                                 <div style={{ ...S.progressFill, width: `${pct}%` }} />
                             </div>
                             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                                <span style={S.badge('#22c55e')}>✓ {greenCt} auto</span>
-                                <span style={S.badge('#a78bfa')}>{confirmed}/{total} revisados</span>
+                                <span style={badge('#22c55e')}>✓ {greenCt} auto</span>
+                                <span style={badge('#a78bfa')}>{confirmed}/{total} revisados</span>
                             </div>
                         </div>
 
@@ -489,10 +481,6 @@ const S: Record<string, React.CSSProperties> = {
     progressMeta: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
     progressBar: { height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden' },
     progressFill: { height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 999, transition: 'width 0.4s ease' },
-    badge: (color: string) => ({
-        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-        background: `${color}18`, color, border: `1px solid ${color}40`,
-    }) as React.CSSProperties,
     confirmBtn: {
         padding: '10px 22px',
         background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
@@ -518,7 +506,7 @@ const S: Record<string, React.CSSProperties> = {
         fontSize: 13, color: '#94a3b8',
     },
     splitView: {
-        flex: 1, display: 'flex', gap: 0,
+        flex: 1, display: 'flex',
         maxWidth: 1400, margin: '0 auto', width: '100%',
         padding: '24px', gap: 20,
         alignItems: 'flex-start',

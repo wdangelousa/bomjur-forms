@@ -1,5 +1,5 @@
 // Supabase Edge Function: process-document
-// v6 — Retorna 202 imediatamente, processa em background via EdgeRuntime.waitUntil
+// v7 — PDF nativo + base64 seguro via Deno std (sem stack overflow)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -9,27 +9,48 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+// Converte ArrayBuffer para base64 byte a byte — sem spread de arrays grandes,
+// eliminando o risco de "Maximum call stack size exceeded" em PDFs maiores.
+function toBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
     }
     return btoa(binary);
 }
 
-// ─── Lógica principal de extração (roda em background) ───────────────────────
+// Determina o media type correto a partir do Blob e da extensão do caminho.
+function resolveMediaType(blob: Blob, filePath: string): { isPdf: boolean; mediaType: string } {
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+    const mime = blob.type ?? '';
+
+    const isPdf = ext === 'pdf' || mime === 'application/pdf';
+    if (isPdf) return { isPdf: true, mediaType: 'application/pdf' };
+
+    if (mime.includes('png') || ext === 'png')   return { isPdf: false, mediaType: 'image/png' };
+    if (mime.includes('gif') || ext === 'gif')   return { isPdf: false, mediaType: 'image/gif' };
+    if (mime.includes('webp') || ext === 'webp') return { isPdf: false, mediaType: 'image/webp' };
+    // fallback: JPEG
+    return { isPdf: false, mediaType: 'image/jpeg' };
+}
+
+// ─── Lógica principal de extração ─────────────────────────────────────────────
 async function extractDocument(
     supabase: ReturnType<typeof createClient>,
     documentId: string,
     filePath: string,
 ) {
+    // Atualiza o banco e loga ao mesmo tempo; em caso de erro sinaliza o status.
     const log = async (msg: string, isError = false) => {
         console.log(`[${documentId}] ${msg}`);
-        const update: Record<string, string> = { extraction_error: msg.substring(0, 500) };
-        if (isError) update.extraction_status = 'error';
-        await supabase.from('client_documents').update(update).eq('id', documentId);
+        const patch: Record<string, string> = { extraction_error: msg.substring(0, 500) };
+        if (isError) patch.extraction_status = 'error';
+        try {
+            await supabase.from('client_documents').update(patch).eq('id', documentId);
+        } catch (dbErr) {
+            console.error(`[${documentId}] Falha ao salvar log no banco:`, dbErr);
+        }
     };
 
     try {
@@ -37,51 +58,53 @@ async function extractDocument(
         await supabase.from('client_documents').update({
             extraction_status: 'processing',
             extraction_started_at: new Date().toISOString(),
-            extraction_error: 'ETAPA: Baixando arquivo...'
+            extraction_error: null,
         }).eq('id', documentId);
 
         // 2. Download do Storage
+        await log('ETAPA: Baixando arquivo do Storage...');
         const { data: fileBlob, error: dlErr } = await supabase.storage
-            .from('bomjur-documents').download(filePath);
+            .from('bomjur-documents')
+            .download(filePath);
         if (dlErr || !fileBlob) throw new Error(`Download falhou: ${dlErr?.message}`);
 
-        await log('ETAPA: Convertendo base64...');
-        const base64Data = arrayBufferToBase64(await fileBlob.arrayBuffer());
+        // 3. Detecta tipo e converte para base64 de forma segura
+        await log('ETAPA: Convertendo para base64...');
+        const { isPdf, mediaType } = resolveMediaType(fileBlob, filePath);
+        const base64Data = toBase64(await fileBlob.arrayBuffer());
 
-        // 3. Tipo de mídia
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const isPdf = ext === 'pdf' || fileBlob.type === 'application/pdf';
+        // 4. Monta o bloco de conteúdo correto para a API do Claude
+        //    - PDF  → type: 'document'  (suporte nativo a multi-página)
+        //    - Imagem → type: 'image'
+        const fileBlock = isPdf
+            ? {
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: base64Data },
+            }
+            : {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64Data },
+            };
 
-        let mediaType = fileBlob.type || 'image/jpeg';
-        if (!isPdf) {
-            if (mediaType.includes('jpg') || mediaType.includes('jpeg')) mediaType = 'image/jpeg';
-            else if (mediaType.includes('png')) mediaType = 'image/png';
-            else if (mediaType.includes('gif')) mediaType = 'image/gif';
-            else if (mediaType.includes('webp')) mediaType = 'image/webp';
-            else mediaType = 'image/jpeg';
-        }
+        // 5. Chama Claude
+        await log(`ETAPA: Chamando Claude (${isPdf ? 'PDF nativo' : mediaType})...`);
 
-        // 4. Chama Claude
-        await log(`ETAPA: Chamando Claude Vision (${isPdf ? 'PDF' : mediaType})...`);
         const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não encontrada.');
+        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não encontrada nas variáveis de ambiente.');
 
-        const headers: Record<string, string> = {
+        const requestHeaders: Record<string, string> = {
             'x-api-key': anthropicKey,
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json',
         };
-        if (isPdf) headers['anthropic-beta'] = 'pdfs-2024-09-25';
+        // Header de beta ainda necessário para PDFs no endpoint atual
+        if (isPdf) requestHeaders['anthropic-beta'] = 'pdfs-2024-09-25';
 
-        const fileBlock = isPdf
-            ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } }
-            : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
-
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers,
+            headers: requestHeaders,
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
+                model: 'claude-sonnet-4-6',
                 max_tokens: 1024,
                 messages: [{
                     role: 'user',
@@ -105,28 +128,28 @@ async function extractDocument(
     "estado_civil": "valor ou null"
   },
   "confidence": 0.92
-}`
-                        }
-                    ]
-                }]
+}`,
+                        },
+                    ],
+                }],
             }),
         });
 
-        if (!res.ok) {
-            const body = await res.text();
-            throw new Error(`Claude Erro ${res.status}: ${body.substring(0, 200)}`);
+        if (!claudeRes.ok) {
+            const body = await claudeRes.text();
+            throw new Error(`Claude erro ${claudeRes.status}: ${body.substring(0, 300)}`);
         }
 
-        const claudeData = await res.json();
+        const claudeData = await claudeRes.json();
         const aiText: string = claudeData.content[0].text;
 
+        // 6. Extrai o JSON da resposta
         await log('ETAPA: Processando resposta da IA...');
-
         const match = aiText.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error(`JSON não encontrado: ${aiText.substring(0, 100)}`);
+        if (!match) throw new Error(`JSON não encontrado na resposta: ${aiText.substring(0, 150)}`);
         const parsed = JSON.parse(match[0]);
 
-        // 5. Salva campos extraídos
+        // 7. Salva campos extraídos
         const rows = Object.entries(parsed.fields || {})
             .filter(([, v]) => v && v !== 'null')
             .map(([key, value]) => ({
@@ -142,7 +165,7 @@ async function extractDocument(
             if (insErr) throw new Error(`Erro ao salvar campos: ${insErr.message}`);
         }
 
-        // 6. Finaliza
+        // 8. Marca como concluído
         await supabase.from('client_documents').update({
             extraction_status: 'extracted',
             document_type: parsed.document_type || 'Desconhecido',
@@ -156,12 +179,20 @@ async function extractDocument(
 
     } catch (e) {
         const msg = (e as Error).message;
-        console.error(`[${documentId}] ERRO: ${msg}`);
-        await log(`ERRO: ${msg}`, true);
+        console.error(`[${documentId}] ERRO:`, msg);
+        // Garante que o erro é sempre persistido, mesmo que o log() acima já tenha falhado
+        try {
+            await supabase.from('client_documents').update({
+                extraction_status: 'error',
+                extraction_error: msg.substring(0, 500),
+            }).eq('id', documentId);
+        } catch (dbErr) {
+            console.error(`[${documentId}] Falha ao persistir erro no banco:`, dbErr);
+        }
     }
 }
 
-// ─── Handler HTTP ─────────────────────────────────────────────────────────────
+// ─── Handler HTTP ──────────────────────────────────────────────────────────────
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -169,31 +200,32 @@ serve(async (req) => {
 
     try {
         const { documentId, filePath } = await req.json();
-        if (!documentId || !filePath) throw new Error('documentId e filePath obrigatórios.');
+        if (!documentId || !filePath) {
+            throw new Error('documentId e filePath são obrigatórios.');
+        }
 
         const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
         );
 
-        // Retorna 202 IMEDIATAMENTE e processa em background
+        // Retorna 202 imediatamente e processa em background via waitUntil
         const edgeRuntime = (globalThis as any).EdgeRuntime;
         if (edgeRuntime?.waitUntil) {
             edgeRuntime.waitUntil(extractDocument(supabase, documentId, filePath));
         } else {
-            // Fallback síncrono (ex: ambiente local)
             extractDocument(supabase, documentId, filePath);
         }
 
         return new Response(
             JSON.stringify({ status: 'processing', message: 'Extração iniciada em background.' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 }
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 },
         );
 
     } catch (e) {
         return new Response(
             JSON.stringify({ error: (e as Error).message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
         );
     }
 });

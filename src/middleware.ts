@@ -1,11 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// ============================================================
+// ROLES PADRONIZADOS
+// tenant_admin = escritório / PROEX (acessa /admin e /dashboard)
+// client       = imigrante          (acessa /i485 e /upload)
+// ============================================================
+
 // Rotas públicas — não exigem autenticação
 const PUBLIC_ROUTES = ['/login']
-// Rotas exclusivas para admins
-const ADMIN_ROUTES = ['/admin']
-// Rotas exclusivas para clientes
+// Rotas exclusivas para tenant_admin
+const ADMIN_ROUTES = ['/admin', '/dashboard']
+// Rotas exclusivas para client
 const CLIENT_ROUTES = ['/i485', '/upload']
 
 export async function middleware(request: NextRequest) {
@@ -30,7 +36,7 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    // Atualiza a sessão (necessário para manter cookies de auth)
+    // Atualiza a sessão (necessário para manter cookies de auth ativos)
     const { data: { user } } = await supabase.auth.getUser()
 
     // ── Rota pública ───────────────────────────────────────────────────────────
@@ -43,7 +49,7 @@ export async function middleware(request: NextRequest) {
                 .eq('id', user.id)
                 .single()
 
-            const dest = profile?.role === 'admin' ? '/admin' : '/i485'
+            const dest = profile?.role === 'tenant_admin' ? '/admin' : '/i485'
             return NextResponse.redirect(new URL(dest, request.url))
         }
         return response
@@ -63,15 +69,15 @@ export async function middleware(request: NextRequest) {
 
     const role = profile?.role ?? 'client'
 
-    // ── Admin tenta acessar rota de cliente → redireciona para /admin ──────────
+    // ── tenant_admin tenta acessar rota de client → redireciona para /admin ────
     const isClientRoute = CLIENT_ROUTES.some(r => pathname.startsWith(r))
-    if (isClientRoute && role === 'admin') {
+    if (isClientRoute && role === 'tenant_admin') {
         return NextResponse.redirect(new URL('/admin', request.url))
     }
 
-    // ── Cliente tenta acessar rota de admin → redireciona para /i485 ───────────
+    // ── client tenta acessar rota de admin → redireciona para /i485 ─────────
     const isAdminRoute = ADMIN_ROUTES.some(r => pathname.startsWith(r))
-    if (isAdminRoute && role !== 'admin') {
+    if (isAdminRoute && role !== 'tenant_admin') {
         return NextResponse.redirect(new URL('/i485', request.url))
     }
 

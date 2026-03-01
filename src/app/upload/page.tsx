@@ -122,16 +122,49 @@ export default function UploadPage() {
                     'Authorization': `Bearer ${supabaseAnonKey}`,
                     'apikey': supabaseAnonKey,
                 },
-                body: JSON.stringify({ document_id: docRecord.id }),
+                body: JSON.stringify({ documentId: docRecord.id, filePath: storageData.path }),
             })
 
             if (!response.ok) {
                 const errBody = await response.text()
                 edgeError = `Análise falhou (${response.status}): ${errBody}`
             } else {
-                const result = await response.json()
-                fieldsExtracted = result.fields_extracted ?? 0
-                documentType = result.document_type ?? 'Documento'
+                // Edge Function returns 202 — processing happens in background.
+                // Poll the DB until extraction_status becomes 'extracted' or 'error'.
+                const POLL_INTERVAL_MS = 3000
+                const POLL_TIMEOUT_MS = 90000
+                const deadline = Date.now() + POLL_TIMEOUT_MS
+
+                while (Date.now() < deadline) {
+                    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+
+                    const { data: doc } = await supabase
+                        .from('client_documents')
+                        .select('extraction_status, document_type, extraction_error')
+                        .eq('id', docRecord.id)
+                        .single()
+
+                    if (!doc) continue
+
+                    if (doc.extraction_status === 'extracted') {
+                        const { count } = await supabase
+                            .from('extracted_fields')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('document_id', docRecord.id)
+                        fieldsExtracted = count ?? 0
+                        documentType = doc.document_type ?? 'Documento'
+                        break
+                    }
+
+                    if (doc.extraction_status === 'error') {
+                        edgeError = doc.extraction_error ?? 'Erro desconhecido na extração.'
+                        break
+                    }
+                }
+
+                if (!edgeError && fieldsExtracted === 0 && documentType === 'Documento') {
+                    edgeError = 'Tempo limite atingido. O documento foi salvo, mas a análise não concluiu a tempo.'
+                }
             }
         } catch (fetchErr) {
             edgeError = `Erro de rede ao chamar a análise: ${String(fetchErr)}`

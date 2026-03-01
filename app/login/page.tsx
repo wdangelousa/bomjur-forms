@@ -2,12 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
@@ -15,6 +10,13 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
+
+    // ✅ Client correto: usa @supabase/ssr para gerenciar cookies de sessão
+    // Garante que o middleware reconhece a sessão após o login
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -43,7 +45,9 @@ export default function LoginPage() {
         const role = profile?.role
 
         // 3. Redireciona conforme o papel
-        if (role === 'admin') {
+        // tenant_admin = escritório (PROEX) → painel administrativo
+        // client       = imigrante          → painel do cliente
+        if (role === 'tenant_admin') {
             router.push('/admin')
         } else {
             router.push('/i485')
