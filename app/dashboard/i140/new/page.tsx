@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 import {
   createI140Petition,
   type I140PetitionPayload,
@@ -37,21 +38,21 @@ interface ToastState {
 // DESIGN TOKENS
 // ============================================================
 const C = {
-  bgPage:        'linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%)',
-  bgCard:        'rgba(255,255,255,0.05)',
-  bgInput:       'rgba(255,255,255,0.06)',
-  bgInputFocus:  'rgba(255,255,255,0.09)',
-  border:        'rgba(255,255,255,0.08)',
-  borderAccent:  'rgba(167,139,250,0.4)',
-  borderFocus:   'rgba(167,139,250,0.6)',
-  textPrimary:   '#f1f5f9',
+  bgPage: 'linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%)',
+  bgCard: 'rgba(255,255,255,0.05)',
+  bgInput: 'rgba(255,255,255,0.06)',
+  bgInputFocus: 'rgba(255,255,255,0.09)',
+  border: 'rgba(255,255,255,0.08)',
+  borderAccent: 'rgba(167,139,250,0.4)',
+  borderFocus: 'rgba(167,139,250,0.6)',
+  textPrimary: '#f1f5f9',
   textSecondary: '#94a3b8',
-  textMuted:     '#64748b',
-  accent:        '#a78bfa',
-  accentDark:    '#7c3aed',
-  success:       '#22c55e',
-  gold:          '#f59e0b',
-  error:         '#ef4444',
+  textMuted: '#64748b',
+  accent: '#a78bfa',
+  accentDark: '#7c3aed',
+  success: '#22c55e',
+  gold: '#f59e0b',
+  error: '#ef4444',
 }
 
 const F = "'Inter', system-ui, sans-serif"
@@ -71,12 +72,12 @@ interface CategoryInfo {
 }
 
 const VISA_CATEGORIES: CategoryInfo[] = [
-  { id: 'EB-1A',      label: 'EB-1A',      subtitle: 'Alien of Extraordinary Ability',       icon: '🏆', color: '#fbbf24', colorBg: 'rgba(251,191,36,0.08)',  colorBorder: 'rgba(251,191,36,0.3)',  tag: 'Sem Patrocinador'   },
-  { id: 'EB-1B',      label: 'EB-1B',      subtitle: 'Outstanding Researcher or Professor',   icon: '🔬', color: '#60a5fa', colorBg: 'rgba(96,165,250,0.08)',   colorBorder: 'rgba(96,165,250,0.3)',  tag: 'Requer Patrocinador' },
-  { id: 'EB-2 NIW',   label: 'EB-2 NIW',   subtitle: 'National Interest Waiver',              icon: '🌎', color: '#a78bfa', colorBg: 'rgba(167,139,250,0.08)', colorBorder: 'rgba(167,139,250,0.3)', tag: 'Sem Patrocinador'   },
-  { id: 'EB-2',       label: 'EB-2',       subtitle: 'Advanced Degree Professionals',         icon: '🎓', color: '#34d399', colorBg: 'rgba(52,211,153,0.08)',   colorBorder: 'rgba(52,211,153,0.3)',  tag: 'Requer Patrocinador' },
-  { id: 'EB-3',       label: 'EB-3',       subtitle: 'Skilled Workers & Professionals',       icon: '⚙️', color: '#f472b6', colorBg: 'rgba(244,114,182,0.08)', colorBorder: 'rgba(244,114,182,0.3)', tag: 'Requer Patrocinador' },
-  { id: 'EB-3 Other', label: 'EB-3 Other', subtitle: 'Other Workers (unskilled)',             icon: '🛠️', color: '#fb923c', colorBg: 'rgba(251,146,60,0.08)',   colorBorder: 'rgba(251,146,60,0.3)',  tag: 'Requer Patrocinador' },
+  { id: 'EB-1A', label: 'EB-1A', subtitle: 'Alien of Extraordinary Ability', icon: '🏆', color: '#fbbf24', colorBg: 'rgba(251,191,36,0.08)', colorBorder: 'rgba(251,191,36,0.3)', tag: 'Sem Patrocinador' },
+  { id: 'EB-1B', label: 'EB-1B', subtitle: 'Outstanding Researcher or Professor', icon: '🔬', color: '#60a5fa', colorBg: 'rgba(96,165,250,0.08)', colorBorder: 'rgba(96,165,250,0.3)', tag: 'Requer Patrocinador' },
+  { id: 'EB-2 NIW', label: 'EB-2 NIW', subtitle: 'National Interest Waiver', icon: '🌎', color: '#a78bfa', colorBg: 'rgba(167,139,250,0.08)', colorBorder: 'rgba(167,139,250,0.3)', tag: 'Sem Patrocinador' },
+  { id: 'EB-2', label: 'EB-2', subtitle: 'Advanced Degree Professionals', icon: '🎓', color: '#34d399', colorBg: 'rgba(52,211,153,0.08)', colorBorder: 'rgba(52,211,153,0.3)', tag: 'Requer Patrocinador' },
+  { id: 'EB-3', label: 'EB-3', subtitle: 'Skilled Workers & Professionals', icon: '⚙️', color: '#f472b6', colorBg: 'rgba(244,114,182,0.08)', colorBorder: 'rgba(244,114,182,0.3)', tag: 'Requer Patrocinador' },
+  { id: 'EB-3 Other', label: 'EB-3 Other', subtitle: 'Other Workers (unskilled)', icon: '🛠️', color: '#fb923c', colorBg: 'rgba(251,146,60,0.08)', colorBorder: 'rgba(251,146,60,0.3)', tag: 'Requer Patrocinador' },
 ]
 
 const COUNTRIES = [
@@ -120,17 +121,17 @@ function matchCountry(raw: string): string {
 // STEPPER
 // ============================================================
 const STEPS = [
-  { number: 1, label: 'Petição',      icon: '📋' },
+  { number: 1, label: 'Petição', icon: '📋' },
   { number: 2, label: 'Beneficiário', icon: '👤' },
-  { number: 3, label: 'Revisão',      icon: '✅' },
+  { number: 3, label: 'Revisão', icon: '✅' },
 ]
 
 function Stepper({ current }: { current: Step }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 40 }}>
       {STEPS.map((step, idx) => {
-        const isDone    = current > step.number
-        const isActive  = current === step.number
+        const isDone = current > step.number
+        const isActive = current === step.number
         const isPending = current < step.number
         return (
           <React.Fragment key={step.number}>
@@ -197,15 +198,15 @@ function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
   if (!toast.visible) return null
 
   const isSuccess = toast.variant === 'success'
-  const isInfo    = toast.variant === 'info'
-  const bg     = isSuccess ? 'linear-gradient(135deg, rgba(22,163,74,0.18), rgba(34,197,94,0.10))'
-    : isInfo    ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.10))'
-                : 'linear-gradient(135deg, rgba(185,28,28,0.18), rgba(239,68,68,0.10))'
-  const bdr    = isSuccess ? 'rgba(34,197,94,0.4)'  : isInfo ? 'rgba(99,102,241,0.4)'  : 'rgba(239,68,68,0.4)'
-  const shadow = isSuccess ? 'rgba(34,197,94,0.2)'  : isInfo ? 'rgba(99,102,241,0.2)'  : 'rgba(239,68,68,0.2)'
-  const tColor = isSuccess ? '#4ade80'               : isInfo ? '#818cf8'               : '#f87171'
-  const label  = isSuccess ? 'Sucesso!'              : isInfo ? 'Atenção'               : 'Erro'
-  const icon   = isSuccess ? '✓'                     : isInfo ? 'ℹ'                     : '✕'
+  const isInfo = toast.variant === 'info'
+  const bg = isSuccess ? 'linear-gradient(135deg, rgba(22,163,74,0.18), rgba(34,197,94,0.10))'
+    : isInfo ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.10))'
+      : 'linear-gradient(135deg, rgba(185,28,28,0.18), rgba(239,68,68,0.10))'
+  const bdr = isSuccess ? 'rgba(34,197,94,0.4)' : isInfo ? 'rgba(99,102,241,0.4)' : 'rgba(239,68,68,0.4)'
+  const shadow = isSuccess ? 'rgba(34,197,94,0.2)' : isInfo ? 'rgba(99,102,241,0.2)' : 'rgba(239,68,68,0.2)'
+  const tColor = isSuccess ? '#4ade80' : isInfo ? '#818cf8' : '#f87171'
+  const label = isSuccess ? 'Sucesso!' : isInfo ? 'Atenção' : 'Erro'
+  const icon = isSuccess ? '✓' : isInfo ? 'ℹ' : '✕'
 
   return (
     <div style={{
@@ -239,6 +240,163 @@ function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
 }
 
 // ============================================================
+// EXISTING DOCS CARD — Pré-preenche via extracted_fields do banco
+// ============================================================
+interface SavedDoc {
+  id: string
+  fileName: string
+  fields: Record<string, string>
+}
+
+function ExistingDocsCard({
+  onAutofill, onToast,
+}: {
+  onAutofill: (partial: Partial<PetitionForm>) => void
+  onToast: (variant: ToastVariant, message: string) => void
+}) {
+  const [docs, setDocs] = useState<SavedDoc[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    async function fetchDocs() {
+      // Busca documentos que já têm campos extraídos
+      const { data: docRows } = await supabase
+        .from('client_documents')
+        .select('id, file_name')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (!docRows?.length) { setLoading(false); return }
+
+      const ids = docRows.map(d => d.id)
+      const { data: fieldRows } = await supabase
+        .from('extracted_fields')
+        .select('document_id, field_key, field_value')
+        .in('document_id', ids)
+
+      // Agrupa por document_id
+      const fieldMap: Record<string, Record<string, string>> = {}
+      for (const f of fieldRows ?? []) {
+        if (!fieldMap[f.document_id]) fieldMap[f.document_id] = {}
+        fieldMap[f.document_id][f.field_key] = f.field_value
+      }
+
+      // Filtra apenas docs com dados extraídos
+      const enriched: SavedDoc[] = docRows
+        .filter(d => Object.keys(fieldMap[d.id] ?? {}).length > 0)
+        .map(d => ({ id: d.id, fileName: d.file_name ?? 'Documento', fields: fieldMap[d.id] }))
+
+      setDocs(enriched)
+      setLoading(false)
+    }
+    fetchDocs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function applyDoc(doc: SavedDoc) {
+    setSelectedId(doc.id)
+    const f = doc.fields
+    const patch: Partial<PetitionForm> = {}
+
+    // nome_completo → fullName (pega apenas a primeira pessoa se houver '|')
+    const nome = f['nome_completo']?.split('|')[0]?.split('e ')[0]?.trim()
+    if (nome) patch.fullName = nome
+
+    // data_nascimento → birthDate (tenta parsear)
+    const dataNasc = f['data_nascimento']
+    if (dataNasc) {
+      // Tenta extrair primeira data no formato DD.MM.YYYY
+      const m = dataNasc.match(/(\d{2})[./-](\d{2})[./-](\d{4})/)
+      if (m) patch.birthDate = `${m[3]}-${m[2]}-${m[1]}`
+    }
+
+    // nacionalidade → birthCountry
+    const nat = f['nacionalidade']
+    if (nat) {
+      const matched = matchCountry(nat)
+      if (matched) patch.birthCountry = matched
+    }
+
+    const count = Object.keys(patch).length
+    onAutofill(patch)
+    onToast(
+      count > 0 ? 'success' : 'info',
+      count > 0
+        ? `${count} campo${count > 1 ? 's preenchidos' : ' preenchido'} com dados do documento!`
+        : 'Dados encontrados, mas sem campos mapeáveis. Preencha manualmente.',
+    )
+  }
+
+  if (loading || docs.length === 0) return null
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(16,185,129,0.04) 100%)',
+      border: '1.5px solid rgba(34,197,94,0.25)', borderRadius: 18,
+      padding: '20px 22px', marginBottom: 16,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10,
+          background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+        }}>🗂️</div>
+        <div>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#f1f5f9', margin: 0 }}>
+            Documentos com dados extraídos
+          </h3>
+          <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+            Clique para pré-preencher o formulário com os dados extraídos pela IA
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {docs.map(doc => {
+          const isSelected = selectedId === doc.id
+          const fieldCount = Object.keys(doc.fields).length
+          return (
+            <button
+              key={doc.id}
+              onClick={() => applyDoc(doc)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: 10, textAlign: 'left',
+                background: isSelected ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
+                border: `1.5px solid ${isSelected ? 'rgba(34,197,94,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                cursor: 'pointer', transition: 'all 0.2s', fontFamily: F, width: '100%',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{doc.fileName.endsWith('.pdf') ? '📄' : '🖼️'}</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>{doc.fileName}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{fieldCount} campos extraídos</p>
+                </div>
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                background: isSelected ? 'rgba(34,197,94,0.2)' : 'rgba(167,139,250,0.1)',
+                color: isSelected ? '#22c55e' : '#a78bfa',
+                border: `1px solid ${isSelected ? 'rgba(34,197,94,0.35)' : 'rgba(167,139,250,0.2)'}`,
+              }}>
+                {isSelected ? '✓ Aplicado' : 'Usar dados'}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // FAST TRACK CARD — Upload real + chamada IA
 // ============================================================
 function FastTrackCard({
@@ -251,7 +409,7 @@ function FastTrackCard({
   onReadingChange: (reading: boolean) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
-  const [reading,  setReading]  = useState(false)
+  const [reading, setReading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function setReadingState(v: boolean) {
@@ -265,7 +423,7 @@ function FastTrackCard({
       const fd = new FormData()
       fd.append('file', file)
 
-      const res  = await fetch('/api/fast-track', { method: 'POST', body: fd })
+      const res = await fetch('/api/fast-track', { method: 'POST', body: fd })
       const json = await res.json()
 
       if (!res.ok) throw new Error(json.error || 'Erro ao processar o documento.')
@@ -276,9 +434,9 @@ function FastTrackCard({
       if (json.category && VISA_CATEGORIES.some(c => c.id === json.category)) {
         patch.category = json.category as VisaCategory
       }
-      if (json.priorityDate)      patch.priorityDate = json.priorityDate
-      if (json.fullName?.trim())  patch.fullName     = json.fullName.trim()
-      if (json.birthDate)         patch.birthDate    = json.birthDate
+      if (json.priorityDate) patch.priorityDate = json.priorityDate
+      if (json.fullName?.trim()) patch.fullName = json.fullName.trim()
+      if (json.birthDate) patch.birthDate = json.birthDate
       if (json.birthCountry) {
         const matched = matchCountry(json.birthCountry)
         if (matched) patch.birthCountry = matched
@@ -404,13 +562,13 @@ function FastTrackCard({
             }}
             onMouseEnter={e => {
               if (reading) return
-              ;(e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,146,60,0.18))'
-              ;(e.currentTarget as HTMLButtonElement).style.boxShadow  = '0 4px 20px rgba(245,158,11,0.25)'
+                ; (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,146,60,0.18))'
+                ; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(245,158,11,0.25)'
             }}
             onMouseLeave={e => {
               if (reading) return
-              ;(e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,146,60,0.12))'
-              ;(e.currentTarget as HTMLButtonElement).style.boxShadow  = 'none'
+                ; (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,146,60,0.12))'
+                ; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
             }}
           >
             {reading ? (
@@ -684,6 +842,8 @@ function Step1({
 }) {
   return (
     <div>
+      <ExistingDocsCard onAutofill={onAutofill} onToast={onToast} />
+
       <FastTrackCard
         onAutofill={onAutofill}
         onToast={onToast}
@@ -865,9 +1025,9 @@ function Step3({
       </ReviewSection>
 
       <ReviewSection title="Dados do Beneficiário" icon="👤" onEdit={() => onGoToStep(2)}>
-        <ReviewRow label="Nome Completo"      value={form.fullName} />
-        <ReviewRow label="E-mail"             value={form.email} />
-        <ReviewRow label="Telefone"           value={form.phone} />
+        <ReviewRow label="Nome Completo" value={form.fullName} />
+        <ReviewRow label="E-mail" value={form.email} />
+        <ReviewRow label="Telefone" value={form.phone} />
         <ReviewRow label="País de Nascimento" value={form.birthCountry} />
         <ReviewRow label="Data de Nascimento" value={formatDate(form.birthDate)} />
       </ReviewSection>
@@ -923,12 +1083,12 @@ function WizardFooter({
         }}
         onMouseEnter={e => {
           if (blocked) return
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.18)'
-          ;(e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
+            ; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.18)'
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
         }}
         onMouseLeave={e => {
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = C.border
-          ;(e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
+          ; (e.currentTarget as HTMLButtonElement).style.borderColor = C.border
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
         }}
       >
         ← {step === 1 ? 'Dashboard' : 'Voltar'}
@@ -1005,10 +1165,10 @@ function WizardFooter({
 export default function NewI140Page() {
   const router = useRouter()
 
-  const [step,     setStep]     = useState<Step>(1)
+  const [step, setStep] = useState<Step>(1)
   const [creating, setCreating] = useState(false)
-  const [reading,  setReading]  = useState(false)          // IA lendo documento
-  const [toast,    setToast]    = useState<ToastState>({ visible: false, variant: 'success', message: '' })
+  const [reading, setReading] = useState(false)          // IA lendo documento
+  const [toast, setToast] = useState<ToastState>({ visible: false, variant: 'success', message: '' })
   const [form, setForm] = useState<PetitionForm>({
     category: '', priorityDate: '', notes: '',
     fullName: '', email: '', phone: '', birthCountry: '', birthDate: '',
@@ -1030,8 +1190,8 @@ export default function NewI140Page() {
   const canAdvance =
     !reading && (
       step === 1 ? !!form.category :
-      step === 2 ? !!(form.fullName.trim() && form.email.trim() && form.birthCountry) :
-      true
+        step === 2 ? !!(form.fullName.trim() && form.email.trim() && form.birthCountry) :
+          true
     )
 
   const handleBack = () => {
@@ -1108,12 +1268,12 @@ export default function NewI140Page() {
             cursor: 'pointer', transition: 'all 0.2s',
           }}
           onMouseEnter={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
+              ; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
           }}
           onMouseLeave={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = C.border
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
+              ; (e.currentTarget as HTMLButtonElement).style.borderColor = C.border
           }}
         >
           ← Dashboard
