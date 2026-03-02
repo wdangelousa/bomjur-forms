@@ -7,8 +7,10 @@ import ProexpandSignature from './ProexpandSignature'
 export default function LayoutSignatures() {
     const pathname = usePathname()
 
-    // Não exibir assinaturas na página de login
-    if (pathname === '/login') return null
+    // Na página de login, exibir apenas a Bomjur e com o tema apropriado se necessário
+    if (pathname === '/login') {
+        return <BomjurSignature />
+    }
 
     return (
         <>
