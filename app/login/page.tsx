@@ -51,12 +51,12 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 relative overflow-hidden">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 sm:p-10 z-10">
+        <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 relative">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 z-10">
                 <img
-                    src="/proexpandbrasil-logo.png"
+                    src="/proexpand_brasil_logo.png"
                     alt="Proexpand"
-                    className="h-16 sm:h-20 w-auto mx-auto mb-8 object-contain"
+                    className="h-20 w-auto mx-auto object-contain mb-8"
                 />
 
                 <div className="text-center mb-8">
@@ -64,7 +64,7 @@ export default function LoginPage() {
                     <p className="text-sm text-slate-500 mt-1">PROEX VENTURE LLC · Acesso seguro</p>
                 </div>
 
-                <form onSubmit={handleLogin} className="flex flex-col gap-5">
+                <form onSubmit={handleLogin} className="flex flex-col gap-6">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-slate-600">E-mail</label>
                         <input
@@ -73,7 +73,7 @@ export default function LoginPage() {
                             onChange={e => setEmail(e.target.value)}
                             placeholder="seu@email.com"
                             required
-                            className="bg-white border text-sm px-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all outline-none text-slate-800 placeholder:text-slate-400"
+                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400 outline-none"
                         />
                     </div>
 
@@ -85,7 +85,7 @@ export default function LoginPage() {
                             onChange={e => setPassword(e.target.value)}
                             placeholder="••••••••"
                             required
-                            className="bg-white border text-sm px-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all outline-none text-slate-800 placeholder:text-slate-400"
+                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400 outline-none"
                         />
                     </div>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl hover:-translate-y-0.5 shadow-md transition-all active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {loading ? '⟳ Entrando...' : 'Entrar →'}
                     </button>
@@ -109,9 +109,9 @@ export default function LoginPage() {
                 </p>
             </div>
 
-            <div className="fixed bottom-6 right-6 flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity z-10">
-                <span className="text-xs font-medium text-slate-600">Powered by Bomjur Technology</span>
-                <img src="/bomjur-logo.png" alt="Bomjur" className="h-6 w-auto object-contain" />
+            <div className="absolute bottom-6 right-6 flex items-center gap-2 opacity-75">
+                <span className="text-xs text-slate-500 font-medium">Powered by Bomjur Technology</span>
+                <img src="/bomjur_logo.png" alt="Bomjur" className="h-6 w-auto object-contain" />
             </div>
         </div>
     )
