@@ -51,21 +51,13 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
-            {/* Background elements for premium visual depth */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-100/40 blur-3xl"></div>
-                <div className="absolute top-[60%] -right-[10%] w-[40%] h-[60%] rounded-full bg-slate-200/50 blur-3xl"></div>
-            </div>
-
-            <div className="w-full max-w-md bg-white/80 backdrop-blur-xl shadow-xl rounded-2xl p-10 border border-white/60 z-10">
-                <div className="flex justify-center mb-8">
-                    <img
-                        src="/proexpandbrasil-logo.png"
-                        alt="Proexpand Logo"
-                        className="h-24 w-auto object-contain drop-shadow-sm"
-                    />
-                </div>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 relative overflow-hidden">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 sm:p-10 z-10">
+                <img
+                    src="/proexpandbrasil-logo.png"
+                    alt="Proexpand"
+                    className="h-16 sm:h-20 w-auto mx-auto mb-8 object-contain"
+                />
 
                 <div className="text-center mb-8">
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Entrar na plataforma</h2>
@@ -81,7 +73,7 @@ export default function LoginPage() {
                             onChange={e => setEmail(e.target.value)}
                             placeholder="seu@email.com"
                             required
-                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                            className="bg-white border text-sm px-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all outline-none text-slate-800 placeholder:text-slate-400"
                         />
                     </div>
 
@@ -93,7 +85,7 @@ export default function LoginPage() {
                             onChange={e => setPassword(e.target.value)}
                             placeholder="••••••••"
                             required
-                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                            className="bg-white border text-sm px-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all outline-none text-slate-800 placeholder:text-slate-400"
                         />
                     </div>
 
@@ -106,7 +98,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl hover:-translate-y-0.5 shadow-md transition-all active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                         {loading ? '⟳ Entrando...' : 'Entrar →'}
                     </button>
@@ -117,10 +109,9 @@ export default function LoginPage() {
                 </p>
             </div>
 
-            {/* Bomjur Signature */}
-            <div className="fixed bottom-4 right-4 flex items-center gap-2 z-50 bg-white/60 backdrop-blur-md px-3 py-2 rounded-full shadow-sm border border-slate-200/50 pointer-events-none">
-                <span className="text-xs text-slate-400 font-medium">Powered by Bomjur Technology</span>
-                <img src="/bomjur-logo.png" alt="Bomjur" className="h-6 w-auto object-contain opacity-80" />
+            <div className="fixed bottom-6 right-6 flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity z-10">
+                <span className="text-xs font-medium text-slate-600">Powered by Bomjur Technology</span>
+                <img src="/bomjur-logo.png" alt="Bomjur" className="h-6 w-auto object-contain" />
             </div>
         </div>
     )
