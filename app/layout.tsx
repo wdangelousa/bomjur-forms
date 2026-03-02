@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     description:
         'Plataforma de imigração Employment-Based Green Card — desenvolvida e operada pela Proexpand Brasil, com tecnologia Bomjur.',
     icons: {
-        icon: '/proexpandbrasil-logo.png',
+        icon: '/proexpand-logo.png',
     },
 }
 

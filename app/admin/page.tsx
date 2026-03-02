@@ -9,6 +9,9 @@ const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// ============================================================
+// TYPES & INTERFACES
+// ============================================================
 interface Client {
     id: string
     full_name: string
@@ -24,6 +27,20 @@ interface Client {
     documents_count?: number
 }
 
+// ============================================================
+// DESIGN TOKENS (Proexpand Palette)
+// ============================================================
+const C = {
+    primary: '#22c55e', // Verde Proexpand
+    secondary: '#0f172a', // Slate 900
+    accent: '#22c55e', // Verde Proexpand (unificado)
+    blue: '#2563eb',   // Azul semântico (status "filed" apenas)
+    border: '#e2e8f0',
+    bg: '#f8fafc',
+    textMain: '#1e293b',
+    textMuted: '#64748b'
+}
+
 export default function AdminDashboard() {
     const [clients, setClients] = useState<Client[]>([])
     const [adminName, setAdminName] = useState('')
@@ -33,21 +50,17 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         const load = async () => {
-            // 1. Verifica se há usuário logado
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) { router.push('/login'); return }
 
-            // 2. Busca o role via API segura (usa service role key, sem bloqueio de RLS)
             const res = await fetch('/api/auth/role')
-            const { role, tenantId } = await res.json()
+            const { role } = await res.json()
 
             const isAdmin = (role === 'admin' || role === 'tenant_admin' || role === 'super_admin')
             if (!isAdmin) { router.push('/i485'); return }
 
-            // 3. Busca o nome do admin também via API segura (já temos o user.id)
             setAdminName(user.email ?? 'Admin')
 
-            // 4. Lista de clientes
             const { data: clientProfiles } = await supabase
                 .from('user_profiles')
                 .select('id, full_name, email, last_active_at, is_active')
@@ -56,7 +69,6 @@ export default function AdminDashboard() {
 
             if (!clientProfiles) { setLoading(false); return }
 
-            // 5. Busca aplicações I-485 e contagem de documentos para cada cliente
             const enriched = await Promise.all(
                 clientProfiles.map(async (c) => {
                     const [{ data: app }, { count }] = await Promise.all([
@@ -80,21 +92,16 @@ export default function AdminDashboard() {
         load()
     }, [router])
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut()
-        router.push('/login')
-    }
-
     const filtered = clients.filter(c =>
         c.full_name?.toLowerCase().includes(search.toLowerCase()) ||
         c.email?.toLowerCase().includes(search.toLowerCase())
     )
 
     const statusColor = (status?: string) => {
-        if (!status) return '#475569'
+        if (!status) return C.textMuted
         const map: Record<string, string> = {
-            draft: '#94a3b8', in_progress: '#6366f1', pending_review: '#f59e0b',
-            filed: '#22c55e', approved: '#10b981', denied: '#ef4444',
+            draft: '#94a3b8', in_progress: C.primary, pending_review: '#f59e0b',
+            filed: C.blue, approved: '#10b981', denied: '#ef4444',
         }
         return map[status] ?? '#94a3b8'
     }
@@ -102,219 +109,124 @@ export default function AdminDashboard() {
     const statusLabel = (status?: string) => {
         if (!status) return 'Sem processo'
         const map: Record<string, string> = {
-            draft: 'Rascunho', in_progress: 'Em andamento',
-            pending_review: 'Ag. revisão', filed: 'Protocolado',
-            approved: 'Aprovado', denied: 'Negado',
+            draft: 'Rascunho', in_progress: 'Em análise',
+            pending_review: 'Revisão', filed: 'Protocolado',
+            approved: 'Concluído', denied: 'Negado',
         }
         return map[status] ?? status
     }
 
     if (loading) return (
-        <div style={{
-            minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: '#f8fafc', fontFamily: 'Inter, sans-serif'
-        }}>
-            <p style={{ color: '#64748b' }}>Carregando clientes...</p>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
+            <div style={{ animation: 'pulse 2s infinite', color: C.textMuted, fontWeight: 600 }}>Sincronizando plataforma...</div>
         </div>
     )
 
     return (
-        <div style={S.page}>
+        <div style={{ minHeight: '100vh', background: C.bg, paddingTop: '120px', fontFamily: 'Inter, sans-serif' }}>
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        input::placeholder { color: #475569; }
-        input:focus { outline: none; border-color: #7c3aed !important; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-      `}</style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                input:focus { outline: none; border-color: ${C.primary} !important; box-shadow: 0 0 0 4px ${C.primary}15; }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+            `}</style>
 
-            {/* ── Header ── */}
-            <header style={S.header}>
-                <div style={S.headerInner}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: 24 }}>⚖️</span>
-                        <div>
-                            <h1 style={S.logoTitle}>Bomjur · Admin</h1>
-                            <p style={S.logoSub}>PROEX VENTURE LLC</p>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <span style={{ fontSize: 13, color: '#94a3b8' }}>👤 {adminName}</span>
-                        <button style={S.logoutBtn} onClick={handleLogout}>Sair →</button>
-                    </div>
-                </div>
-            </header>
-
-            {/* ── Métricas ── */}
-            <div style={S.metrics}>
+            {/* ── MÉTRICAS (TECH STYLE) ── */}
+            <div style={{ display: 'flex', gap: 20, padding: '0 40px', maxWidth: 1240, margin: '0 auto' }}>
                 {[
-                    { label: 'Clientes ativos', value: clients.filter(c => c.is_active).length, icon: '👥', color: '#6366f1' },
-                    { label: 'Com I-485 aberto', value: clients.filter(c => c.application).length, icon: '📋', color: '#a78bfa' },
-                    { label: 'Waiver assinado', value: clients.filter(c => c.application?.i485_waiver_accepted_at).length, icon: '✅', color: '#22c55e' },
-                    { label: 'Documentos totais', value: clients.reduce((a, c) => a + (c.documents_count ?? 0), 0), icon: '📁', color: '#f59e0b' },
+                    { label: 'Usuários na Fila', value: clients.length, icon: '👥', color: C.secondary },
+                    { label: 'Processos I-485', value: clients.filter(c => c.application).length, icon: '🚀', color: C.primary },
+                    { label: 'Documentos Extraídos', value: clients.reduce((a, c) => a + (c.documents_count ?? 0), 0), icon: '📑', color: C.accent },
                 ].map(m => (
-                    <div key={m.label} style={S.metricCard}>
-                        <span style={{ fontSize: 24 }}>{m.icon}</span>
+                    <div key={m.label} style={{
+                        flex: 1, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 20, padding: '24px',
+                        display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)'
+                    }}>
+                        <div style={{ fontSize: 28 }}>{m.icon}</div>
                         <div>
-                            <p style={{ fontSize: 26, fontWeight: 800, color: m.color }}>{m.value}</p>
-                            <p style={{ fontSize: 11, color: '#64748b' }}>{m.label}</p>
+                            <p style={{ fontSize: 28, fontWeight: 800, color: m.color, lineHeight: 1 }}>{m.value}</p>
+                            <p style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 }}>{m.label}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* ── Barra de pesquisa ── */}
-            <div style={S.searchWrap}>
+            {/* ── BUSCA INTELIGENTE ── */}
+            <div style={{ maxWidth: 1240, margin: '32px auto 0', padding: '0 40px' }}>
                 <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="🔍  Buscar cliente por nome ou e-mail..."
-                    style={S.searchInput}
+                    placeholder="Filtrar clientes por nome ou e-mail..."
+                    style={{
+                        width: '100%', padding: '16px 20px', background: '#fff', border: `1px solid ${C.border}`,
+                        borderRadius: 16, fontSize: 14, fontWeight: 500, color: C.textMain, transition: 'all 0.2s'
+                    }}
                 />
             </div>
 
-            {/* ── Tabela de clientes ── */}
-            <div style={S.tableWrap}>
-                <table style={S.table}>
-                    <thead>
-                        <tr style={S.thead}>
-                            {['Cliente', 'E-mail', 'Documentos', 'Waiver I-485', 'Status do Processo', 'Progresso', ''].map(h => (
-                                <th key={h} style={S.th}>{h}</th>
+            {/* ── LISTA DE CLIENTES (CLEAN TABLE) ── */}
+            <div style={{ maxWidth: 1240, margin: '24px auto 80px', padding: '0 40px' }}>
+                <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 24, overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ background: '#fcfdfe', borderBottom: `1px solid ${C.border}` }}>
+                                {['Beneficiário', 'Ficheiros', 'Waiver', 'Status do Caso', 'Progresso', ''].map(h => (
+                                    <th key={h} style={{ padding: '18px 24px', fontSize: 11, fontWeight: 800, color: C.textMuted, textAlign: 'left', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map(client => (
+                                <tr key={client.id} style={{ borderBottom: `1px solid ${C.bg}`, transition: 'background 0.2s' }}>
+                                    <td style={{ padding: '20px 24px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                            <div style={{ width: 44, height: 44, borderRadius: 14, background: `${C.primary}10`, color: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
+                                                {(client.full_name ?? 'C')[0]}
+                                            </div>
+                                            <div>
+                                                <p style={{ fontWeight: 700, color: C.secondary, fontSize: 15 }}>{client.full_name || 'Sem nome'}</p>
+                                                <p style={{ fontSize: 12, color: C.textMuted }}>{client.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '20px 24px' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.accent }}>{client.documents_count} itens</span>
+                                    </td>
+                                    <td style={{ padding: '20px 24px' }}>
+                                        {client.application?.i485_waiver_accepted_at
+                                            ? <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#10b98115', padding: '4px 10px', borderRadius: 8 }}>✓ Firmado</span>
+                                            : <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, background: '#f1f5f9', padding: '4px 10px', borderRadius: 8 }}>Pendente</span>}
+                                    </td>
+                                    <td style={{ padding: '20px 24px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor(client.application?.status) }} />
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: C.secondary }}>{statusLabel(client.application?.status)}</span>
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '20px 24px' }}>
+                                        <div style={{ width: 120 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                <span style={{ fontSize: 11, fontWeight: 800, color: C.primary }}>{Math.round(client.application?.overall_progress ?? 0)}%</span>
+                                            </div>
+                                            <div style={{ height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', background: C.primary, borderRadius: 10, width: `${client.application?.overall_progress ?? 0}%` }} />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '20px 24px', textAlign: 'right' }}>
+                                        <button
+                                            onClick={() => router.push(`/admin/clients/${client.id}`)}
+                                            style={{ padding: '10px 20px', background: C.secondary, color: '#fff', borderRadius: 12, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'transform 0.2s' }}
+                                        >
+                                            Gerenciar
+                                        </button>
+                                    </td>
+                                </tr>
                             ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filtered.length === 0 && (
-                            <tr>
-                                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#475569', fontSize: 14 }}>
-                                    Nenhum cliente encontrado.
-                                </td>
-                            </tr>
-                        )}
-                        {filtered.map(client => (
-                            <tr key={client.id} style={S.tr}>
-                                {/* Nome */}
-                                <td style={S.td}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{ ...S.avatar, background: client.is_active ? '#6366f118' : '#47556918' }}>
-                                            {(client.full_name ?? 'C')[0].toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 14 }}>
-                                                {client.full_name ?? '—'}
-                                            </p>
-                                            <p style={{ fontSize: 11, color: client.is_active ? '#22c55e' : '#475569' }}>
-                                                {client.is_active ? '● Ativo' : '● Inativo'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                {/* Email */}
-                                <td style={{ ...S.td, color: '#94a3b8', fontSize: 13 }}>{client.email}</td>
-
-                                {/* Documentos */}
-                                <td style={S.tdCenter}>
-                                    <span style={S.pill('#6366f1')}>{client.documents_count} docs</span>
-                                </td>
-
-                                {/* Waiver */}
-                                <td style={S.tdCenter}>
-                                    {client.application?.i485_waiver_accepted_at
-                                        ? <span style={S.pill('#22c55e')}>✓ Assinado</span>
-                                        : <span style={S.pill('#475569')}>Pendente</span>}
-                                </td>
-
-                                {/* Status */}
-                                <td style={S.tdCenter}>
-                                    <span style={{
-                                        ...S.pill(statusColor(client.application?.status)),
-                                        minWidth: 100, textAlign: 'center',
-                                    }}>
-                                        {statusLabel(client.application?.status)}
-                                    </span>
-                                </td>
-
-                                {/* Progresso */}
-                                <td style={{ ...S.td, minWidth: 120 }}>
-                                    {client.application ? (
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                                <span style={{ fontSize: 11, color: '#64748b' }}>I-485</span>
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa' }}>
-                                                    {Math.round(client.application.overall_progress ?? 0)}%
-                                                </span>
-                                            </div>
-                                            <div style={{ height: 5, background: 'rgba(255,255,255,0.07)', borderRadius: 999, overflow: 'hidden' }}>
-                                                <div style={{
-                                                    height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)',
-                                                    borderRadius: 999, width: `${client.application.overall_progress ?? 0}%`,
-                                                }} />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <span style={{ fontSize: 12, color: '#475569' }}>—</span>
-                                    )}
-                                </td>
-
-                                {/* Ação */}
-                                <td style={S.tdCenter}>
-                                    <button
-                                        onClick={() => router.push(`/admin/clients/${client.id}`)}
-                                        style={S.actionBtn}
-                                    >
-                                        Ver →
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     )
-}
-
-// ─── Helpers de estilo ──────────────────────────────────────────────────────
-const pill = (color: string): React.CSSProperties => ({
-    display: 'inline-block', padding: '3px 10px', borderRadius: 999,
-    background: `${color}18`, color, border: `1px solid ${color}30`,
-    fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-})
-
-const S: any = {
-    page: {
-        minHeight: '100vh',
-        background: '#f8fafc',
-        fontFamily: "'Inter', system-ui, sans-serif",
-    },
-    header: { background: '#ffffff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 50 },
-    headerInner: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-    logoTitle: { fontSize: 16, fontWeight: 700, background: 'linear-gradient(90deg,#2563eb,#3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-    logoSub: { fontSize: 11, color: '#64748b' },
-    logoutBtn: { padding: '7px 16px', background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(37,99,235,0.2)', color: '#334155', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
-    metrics: { display: 'flex', gap: 16, padding: '24px 24px 0', maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap' as const },
-    metricCard: {
-        flex: 1, minWidth: 160,
-        background: '#ffffff', border: '1px solid #e2e8f0',
-        borderRadius: 14, padding: '18px 20px',
-        display: 'flex', gap: 14, alignItems: 'center',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.02)',
-    },
-    searchWrap: { maxWidth: 1200, margin: '20px auto 0', padding: '0 24px' },
-    searchInput: {
-        width: '100%', padding: '12px 16px',
-        background: '#ffffff', border: '1px solid #e2e8f0',
-        borderRadius: 10, color: '#0f172a', fontSize: 14, fontFamily: 'inherit',
-    },
-    tableWrap: { maxWidth: 1200, margin: '20px auto 40px', padding: '0 24px', overflowX: 'auto' as const },
-    table: { width: '100%', borderCollapse: 'collapse' as const, background: '#ffffff', borderRadius: 14, overflow: 'hidden', border: '1px solid #e2e8f0' },
-    thead: { background: '#f8fafc' },
-    th: { padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textAlign: 'left' as const, textTransform: 'uppercase' as const, letterSpacing: 0.5, borderBottom: '1px solid #e2e8f0' },
-    tr: { borderBottom: '1px solid #e2e8f0', transition: 'background 0.15s' },
-    td: { padding: '14px 16px', verticalAlign: 'middle' as const, color: '#334155' },
-    tdCenter: { padding: '14px 16px', verticalAlign: 'middle' as const, textAlign: 'center' as const },
-    avatar: { width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#2563eb', border: '1px solid rgba(37,99,235,0.2)', flexShrink: 0 },
-    pill: (color: string) => pill(color),
-    actionBtn: { padding: '6px 14px', background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.25)', color: '#2563eb', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 },
 }

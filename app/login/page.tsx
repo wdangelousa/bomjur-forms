@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import { ShieldCheck, ArrowRight, Mail, Lock } from 'lucide-react'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
     const router = useRouter()
 
     const supabase = createBrowserClient(
@@ -16,24 +16,18 @@ export default function LoginPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setLoading(true)
-        setError(null)
 
-        // 1. Autentica com email/senha
-        const { error: authErr } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
+        const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
 
         if (authErr) {
-            setError('Email ou senha incorretos. Tente novamente.')
+            alert('E-mail ou senha incorretos. Tente novamente.')
             setLoading(false)
             return
         }
 
-        // 2. Busca o role via API segura (usa service role key, sem bloqueio de RLS)
         try {
             const res = await fetch('/api/auth/role')
             const data = await res.json()
@@ -45,74 +39,109 @@ export default function LoginPage() {
                 router.push('/i485')
             }
         } catch {
-            // Se a API falhar, tenta ir para admin e deixa o middleware decidir
             router.push('/admin')
         }
     }
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 relative">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 z-10">
-                <img
-                    src="/proexpand_brasil_logo.png"
-                    alt="Proexpand"
-                    className="h-20 w-auto mx-auto object-contain mb-8"
-                />
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#fafafa] p-4 font-sans text-slate-900">
 
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Entrar na plataforma</h2>
-                    <p className="text-sm text-slate-500 mt-1">PROEX VENTURE LLC · Acesso seguro</p>
-                </div>
+            {/* Logo e Título Superior */}
+            <div className="flex flex-col items-center mb-8">
+                <img src="/proexpand-logo.png" alt="Proexpand Brasil" className="h-12 w-auto mb-6" />
+                <h1 className="text-2xl font-bold tracking-tight text-center">Acesse sua conta</h1>
+                <p className="text-slate-500 text-sm mt-1">Plataforma de Tecnologia de Imigração</p>
+            </div>
 
-                <form onSubmit={handleLogin} className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-semibold text-slate-600">E-mail</label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            placeholder="seu@email.com"
-                            required
-                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400 outline-none"
-                        />
-                    </div>
+            {/* Cartão de Login */}
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-8 md:p-10">
+                <form onSubmit={handleLogin} className="space-y-6">
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-semibold text-slate-600">Senha</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            required
-                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all placeholder:text-slate-400 outline-none"
-                        />
-                    </div>
-
-                    {error && (
-                        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
-                            ⚠️ {error}
+                    {/* E-mail */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">
+                            E-mail
+                        </label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                            <input
+                                type="email"
+                                required
+                                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all placeholder:text-slate-300"
+                                placeholder="nome@exemplo.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
                         </div>
-                    )}
+                    </div>
 
+                    {/* Senha */}
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                Senha
+                            </label>
+                            <button type="button" className="text-xs font-bold text-emerald-600 hover:text-emerald-700">
+                                Esqueceu?
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                            <input
+                                type="password"
+                                required
+                                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all placeholder:text-slate-300"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Botão de Entrar */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full group py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
                     >
-                        {loading ? '⟳ Entrando...' : 'Entrar →'}
+                        {loading ? 'Verificando...' : 'Entrar na Plataforma'}
+                        {!loading && <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />}
                     </button>
                 </form>
 
-                <p className="mt-8 text-xs text-slate-400 text-center">
-                    Não tem acesso? Entre em contato com a equipe PROEX.
-                </p>
+                {/* Divisor */}
+                <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-100"></div>
+                    </div>
+                    <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
+                        <span className="bg-white px-4 text-slate-300">Ambiente Seguro</span>
+                    </div>
+                </div>
+
+                {/* Badges de Segurança */}
+                <div className="flex justify-between items-center opacity-40 grayscale hover:grayscale-0 transition-all">
+                    <div className="flex flex-col items-center gap-1">
+                        <ShieldCheck size={16} />
+                        <span className="text-[8px] font-bold uppercase">USCIS Ready</span>
+                    </div>
+                    <div className="h-6 w-[1px] bg-slate-200"></div>
+                    <div className="flex flex-col items-center gap-1">
+                        <Lock size={16} />
+                        <span className="text-[8px] font-bold uppercase">AES-256 Bit</span>
+                    </div>
+                    <div className="h-6 w-[1px] bg-slate-200"></div>
+                    <div className="flex flex-col items-center gap-1">
+                        <img src="/bomjur-logo.png" alt="Bomjur" className="h-3 w-auto" />
+                        <span className="text-[8px] font-bold uppercase">Powered by</span>
+                    </div>
+                </div>
             </div>
 
-            <div className="absolute bottom-6 right-6 flex items-center gap-2 opacity-75">
-                <span className="text-xs text-slate-500 font-medium">Powered by Bomjur Technology</span>
-                <img src="/bomjur_logo.png" alt="Bomjur" className="h-6 w-auto object-contain" />
-            </div>
+            {/* Link para ajuda ou footer sutil */}
+            <p className="mt-8 text-sm text-slate-400">
+                Problemas com o acesso? <a href="#" className="text-slate-600 font-semibold hover:underline">Fale com seu consultor</a>
+            </p>
         </div>
     )
 }
