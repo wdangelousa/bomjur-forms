@@ -215,7 +215,7 @@ export default function AdminDashboard() {
                                     </td>
                                     <td style={{ padding: '20px 24px', textAlign: 'right' }}>
                                         <button
-                                            onClick={() => router.push(`/admin/clients/${client.id}`)}
+                                            onClick={() => router.push(`/admin/${client.id}`)}
                                             style={{ padding: '10px 20px', background: C.secondary, color: '#fff', borderRadius: 12, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'transform 0.2s' }}
                                         >
                                             Gerenciar
