@@ -51,119 +51,77 @@ export default function LoginPage() {
     }
 
     return (
-        <div style={S.page}>
-            <div style={S.card}>
-                <div style={S.logoArea}>
-                    <span style={{ fontSize: 40 }}>⚖️</span>
-                    <div>
-                        <h1 style={S.logoTitle}>Bomjur</h1>
-                        <p style={S.logoSub}>Plataforma de Imigração</p>
-                    </div>
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
+            {/* Background elements for premium visual depth */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-100/40 blur-3xl"></div>
+                <div className="absolute top-[60%] -right-[10%] w-[40%] h-[60%] rounded-full bg-slate-200/50 blur-3xl"></div>
+            </div>
+
+            <div className="w-full max-w-md bg-white/80 backdrop-blur-xl shadow-xl rounded-2xl p-10 border border-white/60 z-10">
+                <div className="flex justify-center mb-8">
+                    <img
+                        src="/proexpandbrasil-logo.png"
+                        alt="Proexpand Logo"
+                        className="h-24 w-auto object-contain drop-shadow-sm"
+                    />
                 </div>
 
-                <h2 style={S.formTitle}>Entrar na plataforma</h2>
-                <p style={S.formSub}>PROEX VENTURE LLC · Acesso seguro</p>
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Entrar na plataforma</h2>
+                    <p className="text-sm text-slate-500 mt-1">PROEX VENTURE LLC · Acesso seguro</p>
+                </div>
 
-                <form onSubmit={handleLogin} style={S.form}>
-                    <div style={S.fieldWrap}>
-                        <label style={S.label}>E-mail</label>
+                <form onSubmit={handleLogin} className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-600">E-mail</label>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             placeholder="seu@email.com"
                             required
-                            style={S.input}
+                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
                         />
                     </div>
 
-                    <div style={S.fieldWrap}>
-                        <label style={S.label}>Senha</label>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-600">Senha</label>
                         <input
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder="••••••••"
                             required
-                            style={S.input}
+                            className="bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
                         />
                     </div>
 
-                    {error && <p style={S.errorMsg}>⚠️ {error}</p>}
+                    {error && (
+                        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+                            ⚠️ {error}
+                        </div>
+                    )}
 
                     <button
                         type="submit"
                         disabled={loading}
-                        style={{ ...S.submitBtn, opacity: loading ? 0.7 : 1 }}
+                        className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {loading ? '⟳ Entrando...' : 'Entrar →'}
                     </button>
                 </form>
 
-                <p style={S.footer}>
+                <p className="mt-8 text-xs text-slate-400 text-center">
                     Não tem acesso? Entre em contato com a equipe PROEX.
                 </p>
             </div>
 
-            <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        input::placeholder { color: #475569; }
-        input:focus { outline: none; border-color: #7c3aed !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
-      `}</style>
+            {/* Bomjur Signature */}
+            <div className="fixed bottom-4 right-4 flex items-center gap-2 z-50 bg-white/60 backdrop-blur-md px-3 py-2 rounded-full shadow-sm border border-slate-200/50 pointer-events-none">
+                <span className="text-xs text-slate-400 font-medium">Powered by Bomjur Technology</span>
+                <img src="/bomjur-logo.png" alt="Bomjur" className="h-6 w-auto object-contain opacity-80" />
+            </div>
         </div>
     )
-}
-
-const S: Record<string, React.CSSProperties> = {
-    page: {
-        minHeight: '100vh',
-        background: '#f8fafc',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Inter', system-ui, sans-serif", padding: 20,
-    },
-    card: {
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 20, padding: '44px 40px',
-        width: '100%', maxWidth: 420,
-        boxShadow: '0 10px 40px rgba(0,0,0,0.05)',
-    },
-    logoArea: {
-        display: 'flex', gap: 14, alignItems: 'center',
-        marginBottom: 32, justifyContent: 'center',
-    },
-    logoTitle: {
-        fontSize: 24, fontWeight: 800,
-        background: 'linear-gradient(90deg,#2563eb,#3b82f6)',
-        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-    },
-    logoSub: { fontSize: 12, color: '#64748b' },
-    formTitle: { fontSize: 20, fontWeight: 700, color: '#1e293b', textAlign: 'center', marginBottom: 4 },
-    formSub: { fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 28 },
-    form: { display: 'flex', flexDirection: 'column', gap: 18 },
-    fieldWrap: { display: 'flex', flexDirection: 'column', gap: 6 },
-    label: { fontSize: 13, fontWeight: 600, color: '#475569' },
-    input: {
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
-        borderRadius: 10, padding: '12px 16px',
-        color: '#0f172a', fontSize: 14, fontFamily: 'inherit',
-        transition: 'all 0.2s',
-    },
-    errorMsg: {
-        fontSize: 13, color: '#b91c1c',
-        background: 'rgba(239,68,68,0.1)',
-        border: '1px solid rgba(239,68,68,0.2)',
-        borderRadius: 8, padding: '10px 14px',
-    },
-    submitBtn: {
-        padding: '14px', marginTop: 4,
-        background: 'linear-gradient(135deg,#3b82f6,#2563eb)',
-        color: '#fff', fontWeight: 700, fontSize: 15,
-        border: 'none', borderRadius: 12, cursor: 'pointer',
-        boxShadow: '0 4px 14px rgba(37,99,235,0.2)',
-        transition: 'all 0.2s',
-    },
-    footer: { marginTop: 24, fontSize: 12, color: '#64748b', textAlign: 'center' },
 }
