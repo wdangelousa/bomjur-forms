@@ -464,7 +464,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
                 >
                     <option value="">Selecione...</option>
                     <option value="Male">Masculino (M)</option>
@@ -475,7 +475,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
                 >
                     <option value="">Selecione o tipo...</option>
                     <option value="Principal">Principal Applicant</option>
@@ -486,7 +486,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
                 >
                     <option value="">Selecione a categoria...</option>
                     <option value="EB-1A">Alien of Extraordinary Ability (EB-1A)</option>
@@ -504,7 +504,7 @@ export default function I485StartPage() {
                     type={type}
                     placeholder={placeholder}
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
                 />
             )
         }
@@ -546,7 +546,7 @@ export default function I485StartPage() {
                     <p
                         style={{
                             fontSize: 14,
-                            color: '#94a3b8',
+                            color: '#475569',
                             marginTop: 12,
                             marginBottom: 28,
                             lineHeight: 1.6,
@@ -617,7 +617,7 @@ export default function I485StartPage() {
                         alt="Proexpand Brasil"
                         style={{ height: 42, width: 'auto' }}
                     />
-                    <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.15)' }} />
+                    <div style={{ width: 1, height: 24, background: ''#e2e8f0'' }} />
                     <img
                         src="/bomjur-logo.png"
                         alt="Bomjur Platform"
@@ -756,7 +756,7 @@ export default function I485StartPage() {
                                                 style={{
                                                     fontSize: 15,
                                                     fontWeight: 700,
-                                                    color: '#e2e8f0',
+                                                    color: '#1e293b',
                                                     display: 'block',
                                                 }}
                                             >
@@ -869,7 +869,7 @@ export default function I485StartPage() {
 
                             {i140Scenario === 'loading' && (
                                 <div
-                                    style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}
+                                    style={{ textAlign: 'center', padding: '32px 0', color: '#475569' }}
                                 >
                                     <span
                                         style={{
@@ -965,7 +965,7 @@ export default function I485StartPage() {
                                                     style={{
                                                         fontSize: 26,
                                                         fontWeight: 800,
-                                                        color: '#f1f5f9',
+                                                        color: '#0f172a',
                                                         minWidth: 36,
                                                         textAlign: 'center',
                                                     }}
@@ -984,7 +984,7 @@ export default function I485StartPage() {
                                                 >
                                                     +
                                                 </button>
-                                                <span style={{ fontSize: 13, color: '#94a3b8' }}>
+                                                <span style={{ fontSize: 13, color: '#475569' }}>
                                                     {triage.childrenCount === 1
                                                         ? 'filho(a)'
                                                         : 'filhos(as)'}
@@ -1051,7 +1051,7 @@ export default function I485StartPage() {
                                             style={{
                                                 marginTop: 10,
                                                 height: 4,
-                                                background: 'rgba(255,255,255,0.07)',
+                                                background: ''#f1f5f9'',
                                                 borderRadius: 999,
                                                 overflow: 'hidden',
                                             }}
@@ -1113,12 +1113,12 @@ export default function I485StartPage() {
                                                         ? 'rgba(34,197,94,0.06)'
                                                         : hasError
                                                             ? 'rgba(239,68,68,0.06)'
-                                                            : 'rgba(255,255,255,0.02)',
+                                                            : ''#f8fafc'',
                                                     border: `1px solid ${isDone
                                                         ? 'rgba(34,197,94,0.3)'
                                                         : hasError
                                                             ? 'rgba(239,68,68,0.3)'
-                                                            : 'rgba(255,255,255,0.07)'
+                                                            : ''#f1f5f9''
                                                         }`,
                                                     borderRadius: 12,
                                                     transition: 'all 0.3s ease',
@@ -1298,7 +1298,7 @@ export default function I485StartPage() {
                         <div style={S.wizardCard}>
                             {isFetchingData ? (
                                 <div
-                                    style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}
+                                    style={{ textAlign: 'center', padding: 40, color: '#475569' }}
                                 >
                                     <span
                                         style={{
@@ -1331,7 +1331,7 @@ export default function I485StartPage() {
                                                     <span
                                                         style={{
                                                             fontSize: 14,
-                                                            color: '#94a3b8',
+                                                            color: '#475569',
                                                             fontWeight: 400,
                                                         }}
                                                     >
@@ -1434,7 +1434,7 @@ export default function I485StartPage() {
                                                     <span
                                                         style={{
                                                             fontSize: 14,
-                                                            color: '#94a3b8',
+                                                            color: '#475569',
                                                             fontWeight: 400,
                                                         }}
                                                     >
@@ -1566,7 +1566,7 @@ function FullscreenMsg({
                 justifyContent: 'center',
                 background: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)',
                 fontFamily: "'Inter', system-ui, sans-serif",
-                color: '#e2e8f0',
+                color: '#1e293b',
                 gap: 12,
             }}
         >
@@ -1578,7 +1578,7 @@ function FullscreenMsg({
             >
                 {icon}
             </span>
-            <p style={{ fontSize: 16, color: '#94a3b8' }}>{text}</p>
+            <p style={{ fontSize: 16, color: '#475569' }}>{text}</p>
             {children}
         </div>
     )
@@ -1605,8 +1605,8 @@ function ToggleRow({
                 padding: '16px 20px',
                 borderRadius: 14,
                 cursor: 'pointer',
-                background: checked ? 'rgba(34,197,94,0.07)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${checked ? 'rgba(34,197,94,0.35)' : 'rgba(255,255,255,0.07)'
+                background: checked ? 'rgba(34,197,94,0.07)' : ''#f8fafc'',
+                border: `1px solid ${checked ? 'rgba(34,197,94,0.35)' : ''#f1f5f9''
                     }`,
                 transition: 'all 0.25s ease',
                 userSelect: 'none',
@@ -1633,7 +1633,7 @@ function ToggleRow({
                     flexShrink: 0,
                     background: checked
                         ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-                        : 'rgba(255,255,255,0.1)',
+                        : ''#cbd5e1'',
                     borderRadius: 999,
                     transition: 'background 0.25s ease',
                     boxShadow: checked ? '0 0 14px rgba(34,197,94,0.45)' : 'none',
@@ -1670,18 +1670,20 @@ const S: Record<string, React.CSSProperties> = {
         alignItems: 'center',
         gap: 14,
         padding: '20px 32px',
-        background: '#ffffff',
+        background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(12px)',
         borderBottom: '1px solid #e2e8f0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
     },
     logoIcon: { fontSize: 28 },
     logoTitle: {
         fontSize: 18,
-        fontWeight: 700,
-        background: 'linear-gradient(90deg,#2563eb,#3b82f6)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
+        fontWeight: 800,
+        color: '#0f172a',
     },
-    logoSub: { fontSize: 12, color: '#64748b' },
+    logoSub: { fontSize: 13, color: '#64748b', fontWeight: 500 },
     main: {
         display: 'flex',
         alignItems: 'center',
@@ -1692,52 +1694,53 @@ const S: Record<string, React.CSSProperties> = {
 
     // ── Card simples (Step 1, 5) ──
     card: {
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(34,197,94,0.3)',
-        borderRadius: 20,
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 32,
         padding: '48px 40px',
         maxWidth: 520,
         textAlign: 'center',
-        boxShadow: '0 0 40px rgba(34,197,94,0.1)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.05)',
         animation: 'fadeIn 0.5s ease both',
     },
     cardIcon: { fontSize: 48, marginBottom: 20 },
-    cardTitle: { fontSize: 22, fontWeight: 700, color: '#f1f5f9', marginBottom: 12 },
-    cardDesc: { fontSize: 14, color: '#94a3b8', lineHeight: 1.7, marginBottom: 24 },
+    cardTitle: { fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 16 },
+    cardDesc: { fontSize: 15, color: '#475569', lineHeight: 1.7, marginBottom: 24 },
     badge: {
         display: 'inline-block',
         padding: '8px 20px',
-        background: 'rgba(34,197,94,0.118)',
-        border: '1px solid rgba(34,197,94,0.3)',
+        background: '#f0fdf4',
+        border: '1px solid #bbf7d0',
         borderRadius: 999,
         fontSize: 13,
-        fontWeight: 600,
-        color: '#22c55e',
+        fontWeight: 700,
+        color: '#16a34a',
     },
     linkBtn: {
         display: 'inline-block',
         marginTop: 16,
-        padding: '10px 24px',
-        background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-        color: '#fff',
+        padding: '12px 28px',
+        background: '#0f172a',
+        color: '#ffffff',
         fontWeight: 700,
         fontSize: 14,
-        borderRadius: 10,
+        borderRadius: 14,
         textDecoration: 'none',
+        boxShadow: '0 8px 20px rgba(15,23,42,0.15)',
     },
     startBtn: {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px 32px',
-        borderRadius: 14,
-        background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+        padding: '16px 36px',
+        borderRadius: 16,
+        background: '#0f172a',
         border: 'none',
-        color: '#fff',
+        color: '#ffffff',
         fontFamily: "'Inter', system-ui, sans-serif",
         fontSize: 15,
         fontWeight: 800,
-        boxShadow: '0 8px 24px rgba(34,197,94,0.35)',
+        boxShadow: '0 10px 25px rgba(15,23,42,0.15)',
         transition: 'all 0.2s ease',
         cursor: 'pointer',
     },
@@ -1745,26 +1748,27 @@ const S: Record<string, React.CSSProperties> = {
     // ── Step 2 — Indicador ──
     stepPill: {
         display: 'inline-block',
-        padding: '5px 14px',
-        background: 'rgba(167,139,250,0.15)',
-        border: '1px solid rgba(167,139,250,0.3)',
+        padding: '6px 16px',
+        background: '#f1f5f9',
+        border: '1px solid #e2e8f0',
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 700,
-        color: '#a78bfa',
+        color: '#64748b',
         letterSpacing: 0.5,
-        marginBottom: 14,
+        marginBottom: 16,
         textTransform: 'uppercase' as const,
     },
     stepBigTitle: {
-        fontSize: 26,
-        fontWeight: 800,
-        color: '#f1f5f9',
-        marginBottom: 10,
+        fontSize: 32,
+        fontWeight: 900,
+        color: '#0f172a',
+        marginBottom: 12,
+        letterSpacing: '-0.5px',
     },
     stepSubtitle: {
-        fontSize: 14,
-        color: '#64748b',
+        fontSize: 15,
+        color: '#475569',
         lineHeight: 1.6,
         maxWidth: 520,
         margin: '0 auto',
@@ -1774,12 +1778,10 @@ const S: Record<string, React.CSSProperties> = {
     vipBanner: {
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: 18,
-        padding: '28px 32px',
-        background:
-            'linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(16,185,129,0.14) 60%, rgba(245,158,11,0.12) 100%)',
-        border: '1px solid rgba(167,139,250,0.5)',
-        boxShadow: '0 0 60px rgba(124,58,237,0.2), 0 0 20px rgba(16,185,129,0.08)',
+        borderRadius: 24,
+        padding: '32px',
+        background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)',
+        border: '1px solid #bbf7d0',
         marginBottom: 8,
     },
     vipGlow: {
@@ -1788,85 +1790,87 @@ const S: Record<string, React.CSSProperties> = {
         right: -60,
         width: 200,
         height: 200,
-        background: 'radial-gradient(circle, rgba(167,139,250,0.3) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)',
         animation: 'vipPulse 3s ease-in-out infinite',
         pointerEvents: 'none',
     },
     vipBadge: {
         display: 'inline-block',
-        padding: '4px 14px',
-        background: 'linear-gradient(135deg, #7c3aed, #10b981)',
+        padding: '6px 16px',
+        background: '#22c55e',
         borderRadius: 999,
         fontSize: 11,
         fontWeight: 800,
-        color: '#fff',
+        color: '#ffffff',
         letterSpacing: 1.2,
-        marginBottom: 14,
+        marginBottom: 16,
         textTransform: 'uppercase' as const,
+        boxShadow: '0 4px 12px rgba(34,197,94,0.25)',
     },
     vipTitle: {
-        fontSize: 18,
-        fontWeight: 700,
-        color: '#f1f5f9',
-        lineHeight: 1.5,
-        marginBottom: 10,
+        fontSize: 20,
+        fontWeight: 800,
+        color: '#0f172a',
+        lineHeight: 1.4,
+        marginBottom: 12,
     },
     vipDesc: {
-        fontSize: 14,
-        color: '#94a3b8',
+        fontSize: 15,
+        color: '#475569',
         lineHeight: 1.6,
-        marginBottom: 16,
+        marginBottom: 20,
     },
     vipChip: {
         display: 'inline-block',
-        padding: '5px 12px',
-        background: 'rgba(255,255,255,0.07)',
-        border: '1px solid rgba(255,255,255,0.12)',
+        padding: '6px 14px',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
         borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        color: '#e2e8f0',
+        fontSize: 13,
+        fontWeight: 700,
+        color: '#334155',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
     },
 
     // ── Dropzone I-140 (Cenário B) ──
     dropzoneSection: {
-        padding: '24px 28px',
-        background: 'rgba(99,102,241,0.07)',
-        border: '1px solid rgba(99,102,241,0.35)',
-        borderRadius: 18,
+        padding: '32px',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        borderRadius: 24,
         marginBottom: 8,
     },
     dropzoneBadge: {
         display: 'inline-block',
-        padding: '4px 12px',
-        background: 'rgba(99,102,241,0.2)',
-        border: '1px solid rgba(99,102,241,0.4)',
+        padding: '6px 14px',
+        background: '#eff6ff',
+        border: '1px solid #bfdbfe',
         borderRadius: 999,
         fontSize: 11,
-        fontWeight: 700,
-        color: '#818cf8',
+        fontWeight: 800,
+        color: '#2563eb',
         letterSpacing: 0.8,
-        marginBottom: 10,
+        marginBottom: 16,
         textTransform: 'uppercase' as const,
     },
     dropzoneTitle: {
-        fontSize: 17,
-        fontWeight: 700,
-        color: '#e2e8f0',
-        marginBottom: 8,
+        fontSize: 20,
+        fontWeight: 800,
+        color: '#0f172a',
+        marginBottom: 10,
     },
     dropzoneDesc: {
-        fontSize: 14,
-        color: '#94a3b8',
+        fontSize: 15,
+        color: '#475569',
         lineHeight: 1.6,
-        marginBottom: 18,
+        marginBottom: 24,
     },
     dropzoneBox: {
         display: 'block',
-        padding: '32px 24px',
-        background: 'rgba(99,102,241,0.06)',
-        border: '2px dashed rgba(99,102,241,0.45)',
-        borderRadius: 14,
+        padding: '40px 24px',
+        background: '#ffffff',
+        border: '2px dashed #cbd5e1',
+        borderRadius: 20,
         textAlign: 'center',
         cursor: 'pointer',
         transition: 'all 0.25s ease',
@@ -1875,32 +1879,32 @@ const S: Record<string, React.CSSProperties> = {
         display: 'flex',
         alignItems: 'center',
         gap: 16,
-        padding: '18px 22px',
-        background: 'rgba(167,139,250,0.07)',
-        border: '1px solid rgba(167,139,250,0.3)',
-        borderRadius: 12,
+        padding: '24px',
+        background: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: 16,
     },
 
     // ── Seção headers (Step 2) ──
     sectionHeader: {
         display: 'flex',
         alignItems: 'center',
-        gap: 14,
-        marginBottom: 4,
+        gap: 16,
+        marginBottom: 8,
     },
-    sectionIconLg: { fontSize: 26, flexShrink: 0 },
-    sectionTitle2: { fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 },
-    sectionSubtitle2: { fontSize: 13, color: '#64748b' },
+    sectionIconLg: { fontSize: 28, flexShrink: 0 },
+    sectionTitle2: { fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 4 },
+    sectionSubtitle2: { fontSize: 14, color: '#64748b' },
 
     // ── Counter Btn ──
     counterBtn: {
-        width: 38,
-        height: 38,
-        borderRadius: 10,
-        background: 'rgba(167,139,250,0.15)',
-        border: '1px solid rgba(167,139,250,0.3)',
-        color: '#a78bfa',
-        fontSize: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        background: '#f1f5f9',
+        border: '1px solid #e2e8f0',
+        color: '#334155',
+        fontSize: 22,
         fontWeight: 700,
         cursor: 'pointer',
         display: 'flex',
@@ -1917,114 +1921,117 @@ const S: Record<string, React.CSSProperties> = {
         animation: 'fadeIn 0.5s ease both',
     },
     progressWrapper: {
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: 16,
-        padding: '16px 24px',
-        marginBottom: 24,
-        border: '1px solid rgba(255,255,255,0.05)',
+        background: '#ffffff',
+        borderRadius: 20,
+        padding: '20px 28px',
+        marginBottom: 32,
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
     },
-    progressHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: 10 },
-    progressText: { fontSize: 14, fontWeight: 600, color: '#a78bfa' },
-    progressPercent: { fontSize: 14, fontWeight: 700, color: '#22c55e' },
+    progressHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: 14 },
+    progressText: { fontSize: 15, fontWeight: 700, color: '#475569' },
+    progressPercent: { fontSize: 15, fontWeight: 800, color: '#22c55e' },
     progressBarBg: {
-        height: 8,
-        background: 'rgba(255,255,255,0.1)',
+        height: 10,
+        background: '#f1f5f9',
         borderRadius: 999,
         overflow: 'hidden',
     },
     progressBarFill: {
         height: '100%',
-        background: 'linear-gradient(90deg, #8b5cf6, #3b82f6, #22c55e)',
+        background: 'linear-gradient(90deg, #3b82f6, #22c55e)',
         transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+        borderRadius: 999,
     },
     wizardCard: {
-        background: 'rgba(20,20,35,0.6)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 24,
-        padding: 40,
-        boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(10px)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: 32,
+        padding: 48,
+        boxShadow: '0 20px 50px rgba(0,0,0,0.05)',
     },
-    stepHeader: { display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 },
+    stepHeader: { display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32 },
     backBtnStep: {
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        color: '#94a3b8',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        color: '#475569',
         cursor: 'pointer',
         fontSize: 14,
-        fontWeight: 600,
-        padding: '8px 16px',
-        borderRadius: 8,
+        fontWeight: 700,
+        padding: '10px 20px',
+        borderRadius: 12,
         transition: 'all 0.2s ease',
         fontFamily: "'Inter', system-ui, sans-serif",
     },
-    wizardTitle: { fontSize: 24, fontWeight: 800, color: '#f1f5f9' },
-    formGrid: { display: 'flex', flexDirection: 'column', gap: 32 },
+    wizardTitle: { fontSize: 28, fontWeight: 900, color: '#0f172a', letterSpacing: '-0.5px' },
+    formGrid: { display: 'flex', flexDirection: 'column', gap: 36 },
     formSection: {
-        background: 'rgba(255,255,255,0.02)',
-        padding: 24,
-        borderRadius: 16,
-        border: '1px solid rgba(255,255,255,0.04)',
+        background: '#f8fafc',
+        padding: 32,
+        borderRadius: 24,
+        border: '1px solid #e2e8f0',
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: 700,
-        color: '#e2e8f0',
-        marginBottom: 16,
+        fontSize: 14,
+        fontWeight: 800,
+        color: '#0f172a',
+        marginBottom: 20,
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
     row: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: 20,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 24,
     },
-    formGroup: { display: 'flex', flexDirection: 'column', gap: 8 },
-    label: { fontSize: 13, fontWeight: 500, color: '#94a3b8' },
+    formGroup: { display: 'flex', flexDirection: 'column', gap: 10 },
+    label: { fontSize: 13, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' },
     inputWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
     input: {
         width: '100%',
-        padding: '12px 40px 12px 16px',
-        borderRadius: 10,
-        background: 'rgba(0,0,0,0.2)',
-        border: '1px solid',
-        color: '#f1f5f9',
-        fontSize: 14,
+        padding: '14px 44px 14px 18px',
+        borderRadius: 14,
+        background: '#ffffff',
+        border: '1px solid #cbd5e1',
+        color: '#0f172a',
+        fontSize: 15,
+        fontWeight: 500,
         outline: 'none',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.2s ease',
         fontFamily: "'Inter', system-ui, sans-serif",
+        boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
     },
-    checkIcon: { position: 'absolute', right: 12, fontSize: 14, animation: 'fadeIn 0.3s ease' },
+    checkIcon: { position: 'absolute', right: 14, fontSize: 16, animation: 'fadeIn 0.3s ease' },
     actionRow: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 40,
-        paddingTop: 32,
-        borderTop: '1px solid rgba(255,255,255,0.08)',
+        marginTop: 48,
+        paddingTop: 36,
+        borderTop: '1px solid #e2e8f0',
     },
     draftBtn: {
-        padding: '14px 24px',
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        color: '#e2e8f0',
-        fontSize: 14,
-        fontWeight: 600,
-        borderRadius: 12,
+        padding: '16px 28px',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        color: '#475569',
+        fontSize: 15,
+        fontWeight: 700,
+        borderRadius: 14,
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         fontFamily: "'Inter', system-ui, sans-serif",
     },
     submitBtn: {
-        padding: '14px 32px',
-        background: 'linear-gradient(135deg, #10b981, #059669)',
+        padding: '16px 36px',
+        background: '#0f172a',
         border: 'none',
-        color: '#fff',
+        color: '#ffffff',
         fontSize: 15,
-        fontWeight: 700,
-        borderRadius: 12,
+        fontWeight: 800,
+        borderRadius: 14,
         cursor: 'pointer',
-        boxShadow: '0 10px 25px rgba(16,185,129,0.3)',
+        boxShadow: '0 10px 25px rgba(15,23,42,0.15)',
         transition: 'all 0.2s ease',
         fontFamily: "'Inter', system-ui, sans-serif",
     },
@@ -2033,19 +2040,18 @@ const S: Record<string, React.CSSProperties> = {
         top: 24,
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(15,23,42,0.95)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(34,197,94,0.4)',
+        background: '#ffffff',
+        border: '1px solid #bbf7d0',
         borderRadius: 999,
-        padding: '12px 24px',
+        padding: '14px 28px',
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        color: '#22c55e',
+        color: '#16a34a',
         fontSize: 14,
-        fontWeight: 600,
+        fontWeight: 700,
         zIndex: 9999,
-        boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+        boxShadow: '0 10px 40px rgba(34,197,94,0.15)',
         animation: 'dropIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         whiteSpace: 'nowrap',
     },
