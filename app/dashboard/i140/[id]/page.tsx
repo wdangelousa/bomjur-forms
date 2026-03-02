@@ -28,19 +28,19 @@ interface I140Petition {
 // DESIGN TOKENS
 // ============================================================
 const C = {
-  bgPage:        'linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%)',
-  bgCard:        'rgba(255,255,255,0.05)',
-  bgCardStrong:  'rgba(255,255,255,0.07)',
-  border:        'rgba(255,255,255,0.08)',
-  borderAccent:  'rgba(167,139,250,0.35)',
-  textPrimary:   '#f1f5f9',
-  textSecondary: '#94a3b8',
-  textMuted:     '#64748b',
-  accent:        '#a78bfa',
-  accentDark:    '#7c3aed',
-  success:       '#22c55e',
-  gold:          '#f59e0b',
-  error:         '#ef4444',
+  bgPage: '#f8fafc',
+  bgCard: '#ffffff',
+  bgCardStrong: '#f1f5f9',
+  border: '#e2e8f0',
+  borderAccent: 'rgba(37,99,235,0.3)',
+  textPrimary: '#1e293b',
+  textSecondary: '#475569',
+  textMuted: '#64748b',
+  accent: '#3b82f6',
+  accentDark: '#2563eb',
+  success: '#16a34a',
+  gold: '#d97706',
+  error: '#dc2626',
 }
 const F = "'Inter', system-ui, sans-serif"
 
@@ -50,23 +50,23 @@ const F = "'Inter', system-ui, sans-serif"
 const STATUS_CONFIG: Record<string, {
   label: string; color: string; bg: string; border: string; icon: string
 }> = {
-  draft:      { label: 'Rascunho',     color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.28)', icon: '📝' },
-  pending:    { label: 'Pendente',     color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.28)',  icon: '⏳' },
-  submitted:  { label: 'Protocolado', color: '#818cf8', bg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.28)', icon: '📬' },
-  processing: { label: 'Em Análise',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.28)',  icon: '⚖️' },
-  approved:   { label: 'Aprovado',    color: '#22c55e', bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.28)',   icon: '✅' },
-  denied:     { label: 'Negado',      color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.28)',   icon: '❌' },
+  draft: { label: 'Rascunho', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.28)', icon: '📝' },
+  pending: { label: 'Pendente', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.28)', icon: '⏳' },
+  submitted: { label: 'Protocolado', color: '#818cf8', bg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.28)', icon: '📬' },
+  processing: { label: 'Em Análise', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.28)', icon: '⚖️' },
+  approved: { label: 'Aprovado', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.28)', icon: '✅' },
+  denied: { label: 'Negado', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.28)', icon: '❌' },
 }
 
 // ============================================================
 // CATEGORY CONFIG
 // ============================================================
 const CATEGORY_MAP: Record<string, { icon: string; color: string; subtitle: string; bg: string }> = {
-  'EB-1A':      { icon: '🏆', color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  subtitle: 'Alien of Extraordinary Ability' },
-  'EB-1B':      { icon: '🔬', color: '#60a5fa', bg: 'rgba(96,165,250,0.10)', subtitle: 'Outstanding Researcher or Professor' },
-  'EB-2 NIW':   { icon: '🌎', color: '#a78bfa', bg: 'rgba(167,139,250,0.10)', subtitle: 'National Interest Waiver' },
-  'EB-2':       { icon: '🎓', color: '#34d399', bg: 'rgba(52,211,153,0.10)', subtitle: 'Advanced Degree Professionals' },
-  'EB-3':       { icon: '⚙️', color: '#f472b6', bg: 'rgba(244,114,182,0.10)', subtitle: 'Skilled Workers & Professionals' },
+  'EB-1A': { icon: '🏆', color: '#fbbf24', bg: 'rgba(251,191,36,0.10)', subtitle: 'Alien of Extraordinary Ability' },
+  'EB-1B': { icon: '🔬', color: '#60a5fa', bg: 'rgba(96,165,250,0.10)', subtitle: 'Outstanding Researcher or Professor' },
+  'EB-2 NIW': { icon: '🌎', color: '#a78bfa', bg: 'rgba(167,139,250,0.10)', subtitle: 'National Interest Waiver' },
+  'EB-2': { icon: '🎓', color: '#34d399', bg: 'rgba(52,211,153,0.10)', subtitle: 'Advanced Degree Professionals' },
+  'EB-3': { icon: '⚙️', color: '#f472b6', bg: 'rgba(244,114,182,0.10)', subtitle: 'Skilled Workers & Professionals' },
   'EB-3 Other': { icon: '🛠️', color: '#fb923c', bg: 'rgba(251,146,60,0.10)', subtitle: 'Other Workers' },
 }
 
@@ -74,21 +74,21 @@ const CATEGORY_MAP: Record<string, { icon: string; color: string; subtitle: stri
 // JOURNEY STAGES
 // ============================================================
 const JOURNEY_STAGES = [
-  { key: 'created',    label: 'Iniciada',    icon: '📋', desc: 'Dados registrados com sucesso'     },
-  { key: 'documents',  label: 'Documentos',  icon: '📎', desc: 'Upload de documentos necessário'   },
-  { key: 'filed',      label: 'Protocolo',   icon: '📬', desc: 'Petição enviada ao USCIS'          },
-  { key: 'processing', label: 'Em Análise',  icon: '⚖️',  desc: 'USCIS revisando a petição'        },
-  { key: 'approved',   label: 'Aprovada!',   icon: '🏆', desc: 'Aprovado — Pronto para I-485'     },
+  { key: 'created', label: 'Iniciada', icon: '📋', desc: 'Dados registrados com sucesso' },
+  { key: 'documents', label: 'Documentos', icon: '📎', desc: 'Upload de documentos necessário' },
+  { key: 'filed', label: 'Protocolo', icon: '📬', desc: 'Petição enviada ao USCIS' },
+  { key: 'processing', label: 'Em Análise', icon: '⚖️', desc: 'USCIS revisando a petição' },
+  { key: 'approved', label: 'Aprovada!', icon: '🏆', desc: 'Aprovado — Pronto para I-485' },
 ]
 
 function getCompletedStages(status: string): number {
   switch (status) {
-    case 'draft':       return 1
-    case 'pending':     return 2
-    case 'submitted':   return 3
-    case 'processing':  return 4
-    case 'approved':    return 5
-    default:            return 1
+    case 'draft': return 1
+    case 'pending': return 2
+    case 'submitted': return 3
+    case 'processing': return 4
+    case 'approved': return 5
+    default: return 1
   }
 }
 
@@ -155,7 +155,7 @@ function LoadingView() {
         borderRadius: 18, padding: '28px 32px', marginBottom: 24,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
       }}>
-        {[1,2,3,4,5].map(i => (
+        {[1, 2, 3, 4, 5].map(i => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: 1 }}>
             <Bone width={44} height={44} radius={50} />
             <Bone width="60%" height={12} />
@@ -164,14 +164,14 @@ function LoadingView() {
       </div>
       {/* Cards skeleton */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-        {[1,2].map(i => (
+        {[1, 2].map(i => (
           <div key={i} style={{
             background: C.bgCard, border: `1px solid ${C.border}`,
             borderRadius: 18, padding: '24px 28px',
             display: 'flex', flexDirection: 'column', gap: 16,
           }}>
             <Bone width="50%" height={18} />
-            {[1,2,3,4].map(j => (
+            {[1, 2, 3, 4].map(j => (
               <div key={j} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                 <Bone width="35%" height={14} />
                 <Bone width="45%" height={14} />
@@ -249,7 +249,7 @@ function StatusBadge({ status }: { status: string }) {
 // ============================================================
 function JourneyTracker({ status }: { status: string }) {
   const completed = getCompletedStages(status)
-  const isDenied  = status === 'denied'
+  const isDenied = status === 'denied'
 
   if (isDenied) {
     return (
@@ -288,8 +288,8 @@ function JourneyTracker({ status }: { status: string }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
         {JOURNEY_STAGES.map((stage, idx) => {
-          const isDone    = completed > idx
-          const isActive  = completed === idx + 1
+          const isDone = completed > idx
+          const isActive = completed === idx + 1
           const isPending = completed < idx + 1
 
           return (
@@ -491,12 +491,12 @@ function DocumentsSection({ petitionId }: { petitionId: string }) {
             transition: 'all 0.2s',
           }}
           onMouseEnter={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,146,60,0.18))'
-            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(245,158,11,0.2)'
+            ; (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(251,146,60,0.18))'
+              ; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(245,158,11,0.2)'
           }}
           onMouseLeave={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,146,60,0.12))'
-            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
+            ; (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,146,60,0.12))'
+              ; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
           }}
         >
           <span style={{ fontSize: 16 }}>📎</span>
@@ -629,12 +629,12 @@ function I485Banner({ isApproved }: { isApproved: boolean }) {
           }}
           onMouseEnter={e => {
             if (!isApproved) return
-            ;(e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 10px 32px rgba(34,197,94,0.55)'
+              ; (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
+              ; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 10px 32px rgba(34,197,94,0.55)'
           }}
           onMouseLeave={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
-            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = isApproved ? '0 6px 24px rgba(34,197,94,0.45)' : 'none'
+            ; (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
+              ; (e.currentTarget as HTMLButtonElement).style.boxShadow = isApproved ? '0 6px 24px rgba(34,197,94,0.45)' : 'none'
           }}
         >
           {isApproved ? '🚀 Iniciar I-485 →' : '🔒 Aguardando aprovação'}
@@ -648,14 +648,14 @@ function I485Banner({ isApproved }: { isApproved: boolean }) {
 // MAIN PAGE
 // ============================================================
 export default function I140DetailPage() {
-  const router    = useRouter()
-  const params    = useParams()
-  const id        = params?.id as string
+  const router = useRouter()
+  const params = useParams()
+  const id = params?.id as string
 
-  const [petition,  setPetition]  = useState<I140Petition | null>(null)
-  const [loading,   setLoading]   = useState(true)
-  const [notFound,  setNotFound]  = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
+  const [petition, setPetition] = useState<I140Petition | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showCelebration, setShowCelebration] = useState(false)
 
   // Fetch petition data
@@ -664,7 +664,7 @@ export default function I140DetailPage() {
     async function load() {
       setLoading(true)
       try {
-        const res  = await fetch(`/api/petitions/${id}`)
+        const res = await fetch(`/api/petitions/${id}`)
         const json = await res.json()
         if (res.status === 404) { setNotFound(true); return }
         if (!res.ok) throw new Error(json.error ?? 'Erro ao buscar petição.')
@@ -682,10 +682,10 @@ export default function I140DetailPage() {
     load()
   }, [id])
 
-  const catInfo    = petition ? (CATEGORY_MAP[petition.category] ?? null) : null
-  const statusCfg  = petition ? (STATUS_CONFIG[petition.status] ?? STATUS_CONFIG.draft) : null
+  const catInfo = petition ? (CATEGORY_MAP[petition.category] ?? null) : null
+  const statusCfg = petition ? (STATUS_CONFIG[petition.status] ?? STATUS_CONFIG.draft) : null
   const isApproved = petition?.status === 'approved'
-  const initials   = petition ? getInitials(petition.beneficiary_name) : '??'
+  const initials = petition ? getInitials(petition.beneficiary_name) : '??'
 
   // ── Loading ────────────────────────────────────────────────
   if (loading) {
@@ -696,7 +696,7 @@ export default function I140DetailPage() {
           @keyframes spin { to { transform: rotate(360deg); } }
           * { box-sizing: border-box; }
         `}</style>
-        <nav style={{ height: 60, borderBottom: `1px solid ${C.border}`, background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 12 }}>
+        <nav style={{ height: 60, borderBottom: `1px solid ${C.border}`, background: '#ffffff', backdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 12 }}>
           <div style={{ width: 100, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.07)', animation: 'skeletonPulse 1.6s ease-in-out infinite' }} />
         </nav>
         <LoadingView />
@@ -740,7 +740,7 @@ export default function I140DetailPage() {
       <nav style={{
         height: 60, borderBottom: `1px solid ${C.border}`,
         display: 'flex', alignItems: 'center', padding: '0 32px', gap: 16,
-        background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(18px)',
+        background: '#ffffff', backdropFilter: 'blur(18px)',
         position: 'sticky', top: 0, zIndex: 100,
       }}>
         <button
@@ -753,12 +753,12 @@ export default function I140DetailPage() {
             cursor: 'pointer', transition: 'all 0.2s',
           }}
           onMouseEnter={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
+              ; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
           }}
           onMouseLeave={e => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = C.border
+            ; (e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
+              ; (e.currentTarget as HTMLButtonElement).style.borderColor = C.border
           }}
         >
           ← Dashboard
@@ -883,12 +883,12 @@ export default function I140DetailPage() {
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}
                 onMouseEnter={e => {
-                  ;(e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
-                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
+                  ; (e.currentTarget as HTMLButtonElement).style.color = C.textPrimary
+                    ; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.16)'
                 }}
                 onMouseLeave={e => {
-                  ;(e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
-                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = C.border
+                  ; (e.currentTarget as HTMLButtonElement).style.color = C.textSecondary
+                    ; (e.currentTarget as HTMLButtonElement).style.borderColor = C.border
                 }}
               >
                 ✏️ Editar
@@ -905,9 +905,9 @@ export default function I140DetailPage() {
 
           {/* Biographical data */}
           <SectionCard title="Dados Biográficos" icon="👤" accentColor="#a78bfa">
-            <DataRow icon="👤" label="Nome completo"    value={petition.beneficiary_name} />
-            <DataRow icon="📧" label="E-mail"           value={petition.beneficiary_email} />
-            <DataRow icon="📱" label="Telefone"         value={petition.beneficiary_phone} />
+            <DataRow icon="👤" label="Nome completo" value={petition.beneficiary_name} />
+            <DataRow icon="📧" label="E-mail" value={petition.beneficiary_email} />
+            <DataRow icon="📱" label="Telefone" value={petition.beneficiary_phone} />
             <DataRow icon="🌍" label="País de nascimento" value={petition.birth_country} />
             <DataRow icon="🎂" label="Data de nascimento" value={formatDate(petition.birth_date)} />
           </SectionCard>
@@ -921,7 +921,7 @@ export default function I140DetailPage() {
               accent={catInfo?.color}
             />
             <DataRow icon="📅" label="Data de prioridade" value={formatDate(petition.priority_date)} />
-            <DataRow icon="🕐" label="Data de criação"     value={formatDate(petition.created_at)}    />
+            <DataRow icon="🕐" label="Data de criação" value={formatDate(petition.created_at)} />
             <DataRow
               icon={statusCfg?.icon ?? '📌'}
               label="Status atual"

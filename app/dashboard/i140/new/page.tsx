@@ -38,21 +38,21 @@ interface ToastState {
 // DESIGN TOKENS
 // ============================================================
 const C = {
-  bgPage: 'linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%)',
-  bgCard: 'rgba(255,255,255,0.05)',
-  bgInput: 'rgba(255,255,255,0.06)',
-  bgInputFocus: 'rgba(255,255,255,0.09)',
-  border: 'rgba(255,255,255,0.08)',
-  borderAccent: 'rgba(167,139,250,0.4)',
-  borderFocus: 'rgba(167,139,250,0.6)',
-  textPrimary: '#f1f5f9',
-  textSecondary: '#94a3b8',
+  bgPage: '#f8fafc',
+  bgCard: '#ffffff',
+  bgInput: '#ffffff',
+  bgInputFocus: '#f8fafc',
+  border: '#e2e8f0',
+  borderAccent: 'rgba(37,99,235,0.4)',
+  borderFocus: 'rgba(37,99,235,0.6)',
+  textPrimary: '#1e293b',
+  textSecondary: '#475569',
   textMuted: '#64748b',
-  accent: '#a78bfa',
-  accentDark: '#7c3aed',
-  success: '#22c55e',
-  gold: '#f59e0b',
-  error: '#ef4444',
+  accent: '#3b82f6',
+  accentDark: '#2563eb',
+  success: '#16a34a',
+  gold: '#d97706',
+  error: '#dc2626',
 }
 
 const F = "'Inter', system-ui, sans-serif"

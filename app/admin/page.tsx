@@ -112,9 +112,9 @@ export default function AdminDashboard() {
     if (loading) return (
         <div style={{
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)', fontFamily: 'Inter, sans-serif'
+            background: '#f8fafc', fontFamily: 'Inter, sans-serif'
         }}>
-            <p style={{ color: '#94a3b8' }}>Carregando clientes...</p>
+            <p style={{ color: '#64748b' }}>Carregando clientes...</p>
         </div>
     )
 
@@ -285,35 +285,36 @@ const pill = (color: string): React.CSSProperties => ({
 const S: any = {
     page: {
         minHeight: '100vh',
-        background: 'linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)',
+        background: '#f8fafc',
         fontFamily: "'Inter', system-ui, sans-serif",
     },
-    header: { background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'sticky', top: 0, zIndex: 50 },
+    header: { background: '#ffffff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 50 },
     headerInner: { maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-    logoTitle: { fontSize: 16, fontWeight: 700, background: 'linear-gradient(90deg,#a78bfa,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+    logoTitle: { fontSize: 16, fontWeight: 700, background: 'linear-gradient(90deg,#2563eb,#3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
     logoSub: { fontSize: 11, color: '#64748b' },
-    logoutBtn: { padding: '7px 16px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
+    logoutBtn: { padding: '7px 16px', background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(37,99,235,0.2)', color: '#334155', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
     metrics: { display: 'flex', gap: 16, padding: '24px 24px 0', maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap' as const },
     metricCard: {
         flex: 1, minWidth: 160,
-        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+        background: '#ffffff', border: '1px solid #e2e8f0',
         borderRadius: 14, padding: '18px 20px',
         display: 'flex', gap: 14, alignItems: 'center',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.02)',
     },
     searchWrap: { maxWidth: 1200, margin: '20px auto 0', padding: '0 24px' },
     searchInput: {
         width: '100%', padding: '12px 16px',
-        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 10, color: '#f1f5f9', fontSize: 14, fontFamily: 'inherit',
+        background: '#ffffff', border: '1px solid #e2e8f0',
+        borderRadius: 10, color: '#0f172a', fontSize: 14, fontFamily: 'inherit',
     },
     tableWrap: { maxWidth: 1200, margin: '20px auto 40px', padding: '0 24px', overflowX: 'auto' as const },
-    table: { width: '100%', borderCollapse: 'collapse' as const },
-    thead: { background: 'rgba(255,255,255,0.03)' },
-    th: { padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textAlign: 'left' as const, textTransform: 'uppercase' as const, letterSpacing: 0.5, borderBottom: '1px solid rgba(255,255,255,0.07)' },
-    tr: { borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.15s' },
-    td: { padding: '14px 16px', verticalAlign: 'middle' as const, color: '#e2e8f0' },
+    table: { width: '100%', borderCollapse: 'collapse' as const, background: '#ffffff', borderRadius: 14, overflow: 'hidden', border: '1px solid #e2e8f0' },
+    thead: { background: '#f8fafc' },
+    th: { padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textAlign: 'left' as const, textTransform: 'uppercase' as const, letterSpacing: 0.5, borderBottom: '1px solid #e2e8f0' },
+    tr: { borderBottom: '1px solid #e2e8f0', transition: 'background 0.15s' },
+    td: { padding: '14px 16px', verticalAlign: 'middle' as const, color: '#334155' },
     tdCenter: { padding: '14px 16px', verticalAlign: 'middle' as const, textAlign: 'center' as const },
-    avatar: { width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)', flexShrink: 0 },
+    avatar: { width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#2563eb', border: '1px solid rgba(37,99,235,0.2)', flexShrink: 0 },
     pill: (color: string) => pill(color),
-    actionBtn: { padding: '6px 14px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+    actionBtn: { padding: '6px 14px', background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.25)', color: '#2563eb', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 },
 }

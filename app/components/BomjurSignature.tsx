@@ -8,7 +8,7 @@ export default function BomjurSignature() {
                 Powered by Bomjur Technology
             </span>
             <img
-                src="/bomjur_logo.png"
+                src="/bomjur-logo.png"
                 alt="Bomjur Technology"
                 className="h-6 w-auto object-contain block opacity-90 mr-1"
             />

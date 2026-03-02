@@ -7,7 +7,7 @@ export default function ProexpandTopBar() {
             {/* Logo Proexpand - Destaque Absoluto */}
             <div className="flex items-center">
                 <img
-                    src="/proexpand_brasil_logo.png"
+                    src="/proexpandbrasil-logo.png"
                     alt="Proexpand Brasil"
                     className="h-16 w-auto object-contain block"
                 />

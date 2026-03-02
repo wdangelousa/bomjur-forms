@@ -31,7 +31,7 @@ const CLAUSES = [
     },
     {
         id: 'isencao_responsabilidade',
-        icon: '⚖️',
+        icon: '🛡️',
         title: 'Isenção de Responsabilidade',
         text: 'Declaro que decidi, por minha própria conta e risco, prosseguir com o pedido de Ajuste de Status via I-485, isentando expressamente a PROEX VENTURE LLC de qualquer responsabilidade civil, administrativa ou imigratória sobre o mérito legal, deferimento ou indeferimento da solicitação.',
     },
@@ -86,7 +86,7 @@ export default function I485WaiverModal({ applicationId, clientName, onAccepted 
                 {/* ── Cabeçalho ── */}
                 <div style={S.header}>
                     <div style={S.headerTop}>
-                        <span style={S.logoIcon}>⚖️</span>
+                        <span style={S.logoIcon}>🚀</span>
                         <div>
                             <p style={S.headerEyebrow}>PROEX VENTURE LLC · Plataforma Bomjur</p>
                             <h2 style={S.headerTitle}>Aditivo de Escopo e Declaração de Diretrizes</h2>

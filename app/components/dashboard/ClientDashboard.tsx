@@ -151,6 +151,19 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
 
             {/* ── Welcome Header ── */}
             <div style={{ marginBottom: 32 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                    <img
+                        src="/proexpandbrasil-logo.png"
+                        alt="Proexpand Brasil"
+                        style={{ height: 48, width: 'auto' }}
+                    />
+                    <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.1)' }} />
+                    <img
+                        src="/bomjur-logo.png"
+                        alt="Bomjur Platform"
+                        style={{ height: 28, width: 'auto', opacity: 0.7 }}
+                    />
+                </div>
                 <h2 style={{ fontSize: 28, fontWeight: 900, color: C.text1, letterSpacing: -0.5, marginBottom: 6 }}>
                     Olá, {petition.beneficiary_name.split(' ')[0]}! Bem-vindo ao seu portal.
                 </h2>

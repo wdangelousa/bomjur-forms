@@ -27,21 +27,21 @@ import ClientDashboard from '@/app/components/dashboard/ClientDashboard'
 // DESIGN TOKENS
 // ============================================================
 const C = {
-  bgPage: 'linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%)',
-  bgCard: 'rgba(255,255,255,0.05)',
-  bgCardStrong: 'rgba(255,255,255,0.07)',
-  bgHover: 'rgba(255,255,255,0.08)',
-  border: 'rgba(255,255,255,0.08)',
-  borderAccent: 'rgba(167,139,250,0.3)',
-  text1: '#f1f5f9',
-  text2: '#94a3b8',
+  bgPage: '#f8fafc',
+  bgCard: '#ffffff',
+  bgCardStrong: '#f1f5f9',
+  bgHover: '#f1f5f9',
+  border: '#e2e8f0',
+  borderAccent: 'rgba(37,99,235,0.3)',
+  text1: '#1e293b',
+  text2: '#475569',
   text3: '#64748b',
-  accent: '#a78bfa',
-  accentDk: '#7c3aed',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#60a5fa',
+  accent: '#3b82f6',
+  accentDk: '#2563eb',
+  success: '#16a34a',
+  warning: '#d97706',
+  error: '#dc2626',
+  info: '#2563eb',
 }
 const F = "'Inter', system-ui, sans-serif"
 
@@ -336,7 +336,7 @@ export default function I140DashboardPage() {
       {/* ── Header ── */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(15,12,41,0.85)', backdropFilter: 'blur(20px)',
+        background: '#ffffff', backdropFilter: 'blur(20px)',
         borderBottom: `1px solid ${C.border}`,
       }}>
         <div style={{
