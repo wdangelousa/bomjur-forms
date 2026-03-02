@@ -464,7 +464,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : '#cbd5e1' }}
                 >
                     <option value="">Selecione...</option>
                     <option value="Male">Masculino (M)</option>
@@ -475,7 +475,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : '#cbd5e1' }}
                 >
                     <option value="">Selecione o tipo...</option>
                     <option value="Principal">Principal Applicant</option>
@@ -486,7 +486,7 @@ export default function I485StartPage() {
             InputComponent = (
                 <select
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : '#cbd5e1' }}
                 >
                     <option value="">Selecione a categoria...</option>
                     <option value="EB-1A">Alien of Extraordinary Ability (EB-1A)</option>
@@ -504,7 +504,7 @@ export default function I485StartPage() {
                     type={type}
                     placeholder={placeholder}
                     {...register(name)}
-                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : ''#cbd5e1'' }}
+                    style={{ ...S.input, borderColor: isFilled ? '#22c55e' : '#cbd5e1' }}
                 />
             )
         }
@@ -617,7 +617,7 @@ export default function I485StartPage() {
                         alt="Proexpand Brasil"
                         style={{ height: 42, width: 'auto' }}
                     />
-                    <div style={{ width: 1, height: 24, background: ''#e2e8f0'' }} />
+                    <div style={{ width: 1, height: 24, background: '#e2e8f0' }} />
                     <img
                         src="/bomjur-logo.png"
                         alt="Bomjur Platform"
@@ -1051,7 +1051,7 @@ export default function I485StartPage() {
                                             style={{
                                                 marginTop: 10,
                                                 height: 4,
-                                                background: ''#f1f5f9'',
+                                                background: '#f1f5f9',
                                                 borderRadius: 999,
                                                 overflow: 'hidden',
                                             }}
@@ -1113,12 +1113,12 @@ export default function I485StartPage() {
                                                         ? 'rgba(34,197,94,0.06)'
                                                         : hasError
                                                             ? 'rgba(239,68,68,0.06)'
-                                                            : ''#f8fafc'',
+                                                            : '#f8fafc',
                                                     border: `1px solid ${isDone
                                                         ? 'rgba(34,197,94,0.3)'
                                                         : hasError
                                                             ? 'rgba(239,68,68,0.3)'
-                                                            : ''#f1f5f9''
+                                                            : '#f1f5f9'
                                                         }`,
                                                     borderRadius: 12,
                                                     transition: 'all 0.3s ease',
@@ -1193,7 +1193,7 @@ export default function I485StartPage() {
                                                         border: `1px solid ${isDone
                                                             ? 'rgba(34,197,94,0.3)'
                                                             : 'rgba(99,102,241,0.4)'
-                                                            }`,
+                                                            } `,
                                                         background: isDone
                                                             ? 'rgba(34,197,94,0.1)'
                                                             : 'rgba(99,102,241,0.15)',
@@ -1290,7 +1290,7 @@ export default function I485StartPage() {
                             </div>
                             <div style={S.progressBarBg}>
                                 <div
-                                    style={{ ...S.progressBarFill, width: `${progressPercent}%` }}
+                                    style={{ ...S.progressBarFill, width: `${progressPercent}% ` }}
                                 />
                             </div>
                         </div>
@@ -1524,20 +1524,20 @@ export default function I485StartPage() {
             </main>
 
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes dropIn { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
-                @keyframes vipPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-                .i485-spinner {
-                    width: 34px;
-                    height: 34px;
-                    border: 3px solid rgba(167,139,250,0.25);
-                    border-top-color: #a78bfa;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    flex-shrink: 0;
+                                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+                * { box- sizing: border-box; margin: 0; padding: 0; }
+                                    @keyframes spin {to {transform: rotate(360deg); } }
+                                    @keyframes fadeIn {from {opacity: 0; transform: translateY(10px); } to {opacity: 1; transform: translateY(0); } }
+                                    @keyframes dropIn {from {opacity: 0; transform: translate(-50%, -20px); } to {opacity: 1; transform: translate(-50%, 0); } }
+                                    @keyframes vipPulse {0 %, 100 % { opacity: 0.6; } 50% {opacity: 1; } }
+                                    .i485-spinner {
+                                        width: 34px;
+                                    height: 34px;
+                                    border: 3px solid rgba(167,139,250,0.25);
+                                    border-top-color: #a78bfa;
+                                    border-radius: 50%;
+                                    animation: spin 0.8s linear infinite;
+                                    flex-shrink: 0;
                 }
             `}</style>
         </div>
@@ -1605,8 +1605,8 @@ function ToggleRow({
                 padding: '16px 20px',
                 borderRadius: 14,
                 cursor: 'pointer',
-                background: checked ? 'rgba(34,197,94,0.07)' : ''#f8fafc'',
-                border: `1px solid ${checked ? 'rgba(34,197,94,0.35)' : ''#f1f5f9''
+                background: checked ? 'rgba(34,197,94,0.07)' : '#f8fafc',
+                border: `1px solid ${checked ? 'rgba(34,197,94,0.35)' : '#f1f5f9'
                     }`,
                 transition: 'all 0.25s ease',
                 userSelect: 'none',
@@ -1633,7 +1633,7 @@ function ToggleRow({
                     flexShrink: 0,
                     background: checked
                         ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-                        : ''#cbd5e1'',
+                        : '#cbd5e1',
                     borderRadius: 999,
                     transition: 'background 0.25s ease',
                     boxShadow: checked ? '0 0 14px rgba(34,197,94,0.45)' : 'none',
