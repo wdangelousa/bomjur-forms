@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import ProexpandTopBar from './components/ProexpandTopBar'
-import BomjurSignature from './components/BomjurSignature'
+import LayoutSignatures from './components/LayoutSignatures'
 
 export const metadata: Metadata = {
     title: 'Proexpand Brasil · Immigration Platform',
@@ -16,14 +15,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="pt-BR" suppressHydrationWarning>
             <body suppressHydrationWarning>
-                {/* Barra de marca global — topo fixo em todas as páginas */}
-                <ProexpandTopBar />
-
-                {/* Conteúdo de cada página */}
+                {/* Conteúdo de cada página (Tela de Login, etc) */}
                 {children}
 
-                {/* Assinatura da fornecedora — canto inferior direito fixo */}
-                <BomjurSignature />
+                {/* Assinaturas de marca — fixas no rodapé (exclui /login) */}
+                <LayoutSignatures />
             </body>
         </html>
     )
