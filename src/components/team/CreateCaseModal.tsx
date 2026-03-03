@@ -35,7 +35,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ magicLink: string | null; docsCount: number } | null>(null)
+  const [result, setResult] = useState<{ magicLink: string | null; docsCount: number; emailSent: boolean } | null>(null)
   const [copied, setCopied] = useState(false)
 
   if (!open) return null
@@ -67,6 +67,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
       setResult({
         magicLink: data.magicLink,
         docsCount: data.documentsCreated,
+        emailSent: data.emailSent || false,
       })
     } catch (err: any) {
       setError(err.message || 'Erro de conexão')
@@ -272,6 +273,11 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                   <p className="text-bomjur-muted text-sm mt-1">
                     {result.docsCount} documentos inicializados
                   </p>
+                  {result.emailSent ? (
+                    <p className="text-green-400 text-xs mt-2">✅ Email de convite enviado ao cliente</p>
+                  ) : (
+                    <p className="text-yellow-400 text-xs mt-2">⚠️ Email não enviado — copie o link abaixo para enviar manualmente</p>
+                  )}
                 </div>
 
                 {result.magicLink && (
