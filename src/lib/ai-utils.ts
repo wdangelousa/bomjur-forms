@@ -3,7 +3,7 @@
 // Importar daqui em vez de duplicar nas rotas de API
 // ============================================================
 
-import type { I485ExtractedData } from '@/src/types/i485-schema'
+import type { I485ExtractedData } from '@/types/i485-schema'
 
 /**
  * Converte um ArrayBuffer em string Base64.

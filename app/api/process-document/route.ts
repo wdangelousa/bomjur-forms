@@ -6,7 +6,7 @@ import {
     buildFileBlock,
     callClaude,
     extractJson,
-} from '@/src/lib/ai-utils'
+} from '@/lib/ai-utils'
 
 // Allows up to 60 seconds on Vercel Pro; on Hobby this is capped at 10s.
 export const maxDuration = 60

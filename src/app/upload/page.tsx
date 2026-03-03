@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/src/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { FileText, CheckCircle, UploadCloud, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { DocumentRequirement, ScreeningAnswers } from '@/src/types/i485-schema';
+import { DocumentRequirement, ScreeningAnswers } from '@/types/i485-schema';
 
 // --- CONFIGURAÇÃO DE REGRAS DE NEGÓCIO (PROEXPAND) ---
 const DOCS_CONFIG: DocumentRequirement[] = [

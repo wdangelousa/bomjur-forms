@@ -6,7 +6,7 @@ import {
     buildFileBlock,
     callClaude,
     extractJson,
-} from '@/src/lib/ai-utils'
+} from '@/lib/ai-utils'
 
 export const maxDuration = 60
 

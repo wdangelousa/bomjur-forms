@@ -1,0 +1,264 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import type { Profile, UserRole } from '@/types'
+import {
+  LayoutDashboard,
+  FileText,
+  FolderOpen,
+  Bell,
+  Users,
+  ClipboardCheck,
+  Settings,
+  Kanban,
+  LogOut,
+  Globe,
+} from 'lucide-react'
+
+interface NavItem {
+  label: string
+  labelPt: string
+  href: string
+  icon: React.ReactNode
+}
+
+const navConfig: Record<UserRole, NavItem[]> = {
+  client: [
+    { label: 'Dashboard', labelPt: 'Início', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { label: 'Documents', labelPt: 'Documentos', href: '/documents', icon: <FileText size={20} /> },
+    { label: 'My Case', labelPt: 'Meu Caso', href: '/case', icon: <FolderOpen size={20} /> },
+    { label: 'Notifications', labelPt: 'Avisos', href: '/notifications', icon: <Bell size={20} /> },
+  ],
+  team: [
+    { label: 'Cases', labelPt: 'Casos', href: '/team', icon: <FolderOpen size={20} /> },
+    { label: 'Review', labelPt: 'Revisão', href: '/team/review', icon: <ClipboardCheck size={20} /> },
+    { label: 'Clients', labelPt: 'Clientes', href: '/team/clients', icon: <Users size={20} /> },
+    { label: 'Notifications', labelPt: 'Avisos', href: '/notifications', icon: <Bell size={20} /> },
+  ],
+  super_admin: [
+    { label: 'Dashboard', labelPt: 'Dashboard', href: '/admin', icon: <LayoutDashboard size={20} /> },
+    { label: 'Pipeline', labelPt: 'Pipeline', href: '/admin/pipeline', icon: <Kanban size={20} /> },
+    { label: 'Team', labelPt: 'Equipe', href: '/admin/team', icon: <Users size={20} /> },
+    { label: 'Settings', labelPt: 'Config', href: '/admin/settings', icon: <Settings size={20} /> },
+  ],
+}
+
+function NotificationBell({ count }: { count: number }) {
+  return (
+    <button className="relative p-2 rounded-lg hover:bg-bomjur-card transition-colors">
+      <Bell size={20} className="text-bomjur-muted" />
+      {count > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function LanguageToggle({ lang, onToggle }: { lang: 'pt' | 'en'; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-bomjur-muted hover:text-bomjur-text hover:bg-bomjur-card transition-colors"
+    >
+      <Globe size={14} />
+      {lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+    </button>
+  )
+}
+
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [lang, setLang] = useState<'pt' | 'en'>('pt')
+  const [loading, setLoading] = useState(true)
+  const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (data) {
+        setProfile(data as Profile)
+        setLang((data.preferred_language as 'pt' | 'en') || 'pt')
+      }
+
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false)
+
+      setUnreadCount(count || 0)
+      setLoading(false)
+    }
+
+    loadProfile()
+
+    const channel = supabase
+      .channel('notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+      }, () => {
+        setUnreadCount(prev => prev + 1)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const toggleLang = async () => {
+    const newLang = lang === 'pt' ? 'en' : 'pt'
+    setLang(newLang)
+    if (profile) {
+      await supabase
+        .from('profiles')
+        .update({ preferred_language: newLang })
+        .eq('id', profile.id)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-bomjur-lime border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!profile) return <>{children}</>
+
+  const navItems = navConfig[profile.role] || navConfig.client
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-[260px] min-h-screen border-r border-bomjur-border bg-bomjur-card fixed left-0 top-0 z-40">
+        <div className="px-6 py-5 border-b border-bomjur-border">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">🛫</span>
+            <span className="text-xl font-extrabold text-bomjur-lime tracking-tight">Bomjur</span>
+          </div>
+          <p className="text-[11px] text-bomjur-dim mt-1">Immigration Platform</p>
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive(item.href)
+                ? 'bg-bomjur-lime/10 text-bomjur-lime border border-bomjur-lime/20'
+                : 'text-bomjur-muted hover:text-bomjur-text hover:bg-bomjur-bg'
+                }`}
+            >
+              {item.icon}
+              {lang === 'pt' ? item.labelPt : item.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="px-4 py-4 border-t border-bomjur-border">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-bomjur-lime/20 flex items-center justify-center text-bomjur-lime text-sm font-bold">
+              {profile.full_name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-bomjur-text truncate">{profile.full_name}</p>
+              <p className="text-[11px] text-bomjur-dim capitalize">{profile.role.replace('_', ' ')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <LanguageToggle lang={lang} onToggle={toggleLang} />
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-bomjur-dim hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            >
+              <LogOut size={14} />
+              Sair
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-[260px] pb-20 lg:pb-0">
+        {/* Mobile Header */}
+        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-bomjur-border bg-bomjur-bg/95 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🛫</span>
+            <span className="text-base font-extrabold text-bomjur-lime">Bomjur</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <LanguageToggle lang={lang} onToggle={toggleLang} />
+            <NotificationBell count={unreadCount} />
+          </div>
+        </header>
+
+        {/* Desktop Header */}
+        <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-bomjur-border bg-bomjur-bg">
+          <div>
+            <h2 className="text-lg font-bold text-bomjur-text">
+              {lang === 'pt' ? 'Olá' : 'Hello'}, {profile.full_name?.split(' ')[0]}! 👋
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell count={unreadCount} />
+          </div>
+        </header>
+
+        <div className="animate-fade-in">
+          {children}
+        </div>
+      </main>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-bomjur-border bg-bomjur-card/95 backdrop-blur-sm safe-bottom">
+        <div className="flex items-center justify-around px-2 py-1">
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-colors ${isActive(item.href) ? 'text-bomjur-lime' : 'text-bomjur-dim'
+                }`}
+            >
+              <span className={isActive(item.href) ? 'scale-110 transition-transform' : ''}>
+                {item.icon}
+              </span>
+              <span className="text-[10px] font-medium">
+                {lang === 'pt' ? item.labelPt : item.label}
+              </span>
+            </a>
+          ))}
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg text-bomjur-dim min-w-[56px]"
+          >
+            <LogOut size={20} />
+            <span className="text-[10px] font-medium">Sair</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  )
+}
