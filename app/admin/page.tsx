@@ -131,6 +131,42 @@ export default function AdminDashboard() {
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
             `}</style>
 
+            {/* ── TOP NAV BAR ── */}
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, height: 72,
+                background: '#fff', borderBottom: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0 40px', zIndex: 100, boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <button
+                        onClick={() => router.back()}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: C.textMuted, fontWeight: 600, fontSize: 13 }}
+                    >
+                        ← Voltar
+                    </button>
+                    <div style={{ width: 1, height: 24, background: C.border }} />
+                    <h1 style={{ fontSize: 18, fontWeight: 800, color: C.secondary, margin: 0 }}>
+                        Olá, <span style={{ color: C.primary }}>{adminName.split('@')[0]}</span> 👋
+                    </h1>
+                </div>
+
+                <button
+                    onClick={async () => {
+                        await supabase.auth.signOut()
+                        router.push('/login')
+                    }}
+                    style={{
+                        padding: '8px 16px', borderRadius: 8, background: '#fee2e2', color: '#ef4444',
+                        border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#fecaca')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fee2e2')}
+                >
+                    Sair da Conta
+                </button>
+            </div>
+
             {/* ── MÉTRICAS (TECH STYLE) ── */}
             <div style={{ display: 'flex', gap: 20, padding: '0 40px', maxWidth: 1240, margin: '0 auto' }}>
                 {[
@@ -169,54 +205,56 @@ export default function AdminDashboard() {
                 <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 24, overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr style={{ background: '#fcfdfe', borderBottom: `1px solid ${C.border}` }}>
+                            <tr style={{ background: '#f8fafc', borderBottom: `2px solid ${C.border}` }}>
                                 {['Beneficiário', 'Ficheiros', 'Waiver', 'Status do Caso', 'Progresso', ''].map(h => (
-                                    <th key={h} style={{ padding: '18px 24px', fontSize: 11, fontWeight: 800, color: C.textMuted, textAlign: 'left', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                                    <th key={h} style={{ padding: '20px 24px', fontSize: 12, fontWeight: 700, color: '#475569', textAlign: 'left', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.map(client => (
-                                <tr key={client.id} style={{ borderBottom: `1px solid ${C.bg}`, transition: 'background 0.2s' }}>
-                                    <td style={{ padding: '20px 24px' }}>
+                                <tr key={client.id} style={{ borderBottom: `1px solid ${C.border}`, transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                    <td style={{ padding: '24px 24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                                            <div style={{ width: 44, height: 44, borderRadius: 14, background: `${C.primary}10`, color: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
+                                            <div style={{ width: 44, height: 44, borderRadius: 14, background: `${C.primary}15`, color: C.secondary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
                                                 {(client.full_name ?? 'C')[0]}
                                             </div>
                                             <div>
                                                 <p style={{ fontWeight: 700, color: C.secondary, fontSize: 15 }}>{client.full_name || 'Sem nome'}</p>
-                                                <p style={{ fontSize: 12, color: C.textMuted }}>{client.email}</p>
+                                                <p style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>{client.email}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '20px 24px' }}>
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.accent }}>{client.documents_count} itens</span>
+                                    <td style={{ padding: '24px 24px' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.secondary, background: '#f1f5f9', padding: '6px 12px', borderRadius: 8 }}>{client.documents_count} itens</span>
                                     </td>
-                                    <td style={{ padding: '20px 24px' }}>
+                                    <td style={{ padding: '24px 24px' }}>
                                         {client.application?.i485_waiver_accepted_at
-                                            ? <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', background: '#10b98115', padding: '4px 10px', borderRadius: 8 }}>✓ Firmado</span>
-                                            : <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, background: '#f1f5f9', padding: '4px 10px', borderRadius: 8 }}>Pendente</span>}
+                                            ? <span style={{ fontSize: 12, fontWeight: 700, color: '#059669', background: '#d1fae5', padding: '6px 10px', borderRadius: 8 }}>✓ Firmado</span>
+                                            : <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', background: '#f1f5f9', padding: '6px 10px', borderRadius: 8 }}>Pendente</span>}
                                     </td>
-                                    <td style={{ padding: '20px 24px' }}>
+                                    <td style={{ padding: '24px 24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor(client.application?.status) }} />
+                                            <div style={{ width: 10, height: 10, borderRadius: '50%', background: statusColor(client.application?.status) }} />
                                             <span style={{ fontSize: 13, fontWeight: 700, color: C.secondary }}>{statusLabel(client.application?.status)}</span>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '20px 24px' }}>
-                                        <div style={{ width: 120 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                <span style={{ fontSize: 11, fontWeight: 800, color: C.primary }}>{Math.round(client.application?.overall_progress ?? 0)}%</span>
+                                    <td style={{ padding: '24px 24px' }}>
+                                        <div style={{ width: 140 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span style={{ fontSize: 12, fontWeight: 800, color: C.secondary }}>{Math.round(client.application?.overall_progress ?? 0)}%</span>
                                             </div>
-                                            <div style={{ height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
+                                            <div style={{ height: 6, background: '#e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
                                                 <div style={{ height: '100%', background: C.primary, borderRadius: 10, width: `${client.application?.overall_progress ?? 0}%` }} />
                                             </div>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '20px 24px', textAlign: 'right' }}>
+                                    <td style={{ padding: '24px 24px', textAlign: 'right' }}>
                                         <button
                                             onClick={() => router.push(`/admin/clients/${client.id}`)}
-                                            style={{ padding: '10px 20px', background: C.secondary, color: '#fff', borderRadius: 12, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'transform 0.2s' }}
+                                            style={{ padding: '10px 20px', background: C.secondary, color: '#fff', borderRadius: 12, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                                         >
                                             Gerenciar
                                         </button>

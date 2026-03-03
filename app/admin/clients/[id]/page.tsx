@@ -363,6 +363,7 @@ export default function ClientCommandCenter() {
     const [packageStatus, setPackageStatus] = useState<PackageStatus>('draft')
     const [trackingInput, setTrackingInput] = useState('')
     const [showTrackingField, setShowTrackingField] = useState(false)
+    const [showPreview, setShowPreview] = useState(false) // 👈 NOVO ESTADO PARA O MODAL DE PREVIEW
 
     // ── LIVE INDICATOR ─────────────────────────────────────
     // TODO: Supabase Realtime — subscribes to extracted_fields changes for this client
@@ -447,39 +448,39 @@ export default function ClientCommandCenter() {
         emoji: string
         style: (active: boolean, done: boolean) => React.CSSProperties
     }[] = [
-        {
-            key: 'approved',
-            from: 'draft',
-            label: 'Aprovar Revisão',
-            activeLabel: 'Revisão Aprovada',
-            emoji: '✅',
-            style: (active, done) => ({
-                background: done ? '#dcfce7' : active ? '#fff' : '#f8fafc',
-                color: done ? '#166534' : active ? '#0f172a' : '#94a3b8',
-                border: `1.5px solid ${done ? '#86efac' : active ? '#d1d5db' : '#e2e8f0'}`,
-                cursor: active ? 'pointer' : 'default',
-                boxShadow: active ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-            }),
-        },
-        {
-            key: 'printing',
-            from: 'approved',
-            label: '🖨️ Autorizar Impressão do Pacote',
-            activeLabel: '⏳ Pacote em Impressão...',
-            emoji: '🖨️',
-            style: (active, done) => ({
-                background: done
-                    ? '#fef3c7'
-                    : active
-                        ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                        : '#f8fafc',
-                color: done ? '#92400e' : active ? '#fff' : '#94a3b8',
-                border: 'none',
-                cursor: active ? 'pointer' : 'default',
-                boxShadow: active ? '0 4px 14px rgba(34,197,94,0.35)' : 'none',
-            }),
-        },
-    ]
+            {
+                key: 'approved',
+                from: 'draft',
+                label: 'Aprovar Revisão',
+                activeLabel: 'Revisão Aprovada',
+                emoji: '✅',
+                style: (active, done) => ({
+                    background: done ? '#dcfce7' : active ? '#fff' : '#f8fafc',
+                    color: done ? '#166534' : active ? '#0f172a' : '#94a3b8',
+                    border: `1.5px solid ${done ? '#86efac' : active ? '#d1d5db' : '#e2e8f0'}`,
+                    cursor: active ? 'pointer' : 'default',
+                    boxShadow: active ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                }),
+            },
+            {
+                key: 'printing',
+                from: 'approved',
+                label: '🖨️ Autorizar Impressão do Pacote',
+                activeLabel: '⏳ Pacote em Impressão...',
+                emoji: '🖨️',
+                style: (active, done) => ({
+                    background: done
+                        ? '#fef3c7'
+                        : active
+                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                            : '#f8fafc',
+                    color: done ? '#92400e' : active ? '#fff' : '#94a3b8',
+                    border: 'none',
+                    cursor: active ? 'pointer' : 'default',
+                    boxShadow: active ? '0 4px 14px rgba(34,197,94,0.35)' : 'none',
+                }),
+            },
+        ]
 
     // ── RENDER ─────────────────────────────────────────────
     return (
@@ -734,15 +735,17 @@ export default function ClientCommandCenter() {
 
                             {/* Action buttons */}
                             <div style={{ display: 'flex', gap: 10 }}>
-                                <button style={{
-                                    flex: 1, padding: '13px 18px', borderRadius: 11,
-                                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                                    color: '#fff', border: 'none', cursor: 'pointer',
-                                    fontSize: 13, fontWeight: 800,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                                    boxShadow: '0 4px 14px rgba(34,197,94,0.3)',
-                                    letterSpacing: '-0.1px',
-                                }}>
+                                <button
+                                    onClick={() => setShowPreview(true)}
+                                    style={{
+                                        flex: 1, padding: '13px 18px', borderRadius: 11,
+                                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                                        color: '#fff', border: 'none', cursor: 'pointer',
+                                        fontSize: 13, fontWeight: 800,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                        boxShadow: '0 4px 14px rgba(34,197,94,0.3)',
+                                        letterSpacing: '-0.1px',
+                                    }}>
                                     👁️ Visualizar I-485 (Modelo USCIS)
                                 </button>
                                 <button style={{
@@ -1186,6 +1189,58 @@ export default function ClientCommandCenter() {
                     </div>
                 </div>
             </div>
+
+            {/* ════════════════════════════════════════════════════
+                PDF PREVIEW MODAL
+            ════════════════════════════════════════════════════ */}
+            {showPreview && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 40,
+                }}>
+                    <div style={{
+                        background: '#fff', borderRadius: 24, width: '100%', maxWidth: 1000, height: '100%',
+                        display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
+                    }}>
+                        <div style={{
+                            padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>📄 Visualização Dinâmica do I-485</h3>
+                                <p style={{ margin: 0, fontSize: 12, color: '#64748b', marginTop: 2 }}>Os dados extraídos da IA já estão injetados neste modelo fiscal do USCIS.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowPreview(false)}
+                                style={{
+                                    background: '#e2e8f0', border: 'none', color: '#475569', width: 32, height: 32,
+                                    borderRadius: '50%', cursor: 'pointer', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#cbd5e1'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#e2e8f0'}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div style={{ flex: 1, background: '#e2e8f0', position: 'relative' }}>
+                            {/* Componente real consumirá a rota em PDF. Provisório injetando mock */}
+                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+                                <div className="ai-shimmer" style={{ width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🤖</div>
+                                <h4 style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>Renderizando o formulário...</h4>
+                                <p style={{ margin: 0, color: '#64748b', fontSize: 14, textAlign: 'center', maxWidth: 400 }}>A Plataforma irá compilar os dados do cliente <strong>{client.full_name}</strong> diretamente nos campos interativos do i485_draft_v2.pdf em tempo real.</p>
+                            </div>
+                        </div>
+                        <div style={{ padding: '16px 24px', background: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                            <button onClick={() => setShowPreview(false)} style={{ padding: '10px 20px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, color: '#475569', fontWeight: 700, cursor: 'pointer' }}>Fechar</button>
+                            <button style={{ padding: '10px 20px', background: '#2563eb', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <span>📥</span> Baixar Draft PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

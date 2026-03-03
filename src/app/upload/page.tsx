@@ -74,16 +74,68 @@ export default function UploadPage() {
 
         try {
             const filePath = `uploads/${Date.now()}_${file.name}`;
-            const { error } = await supabase.storage
+
+            // 1. Upload to Storage
+            const { data: storageData, error: storageError } = await supabase.storage
                 .from('bomjur-documents')
                 .upload(filePath, file);
 
-            if (error) throw error;
+            if (storageError) throw storageError;
 
-            // Simulação de delay para feedback visual
-            setTimeout(() => {
-                setUploadStatus(prev => ({ ...prev, [docId]: 'success' }));
-            }, 800);
+            const { data: { publicUrl } } = supabase.storage
+                .from('bomjur-documents')
+                .getPublicUrl(filePath)
+
+            // 2. Registro na tabela client_documents
+            const { data: docRecord, error: dbError } = await supabase
+                .from('client_documents')
+                .insert({
+                    file_name: file.name,
+                    file_path: storageData.path,
+                    file_url: publicUrl,
+                    file_size: file.size,
+                    file_type: file.type,
+                    bucket_name: 'bomjur-documents',
+                    processing_status: 'pending',
+                    document_category: docId,
+                    uploaded_at: new Date().toISOString(),
+                })
+                .select('id')
+                .single()
+
+            if (dbError || !docRecord) {
+                throw dbError;
+            }
+
+            // 3. Processamento via IA (Edge Function)
+            setUploadStatus(prev => ({ ...prev, [docId]: 'analyzing' as any }));
+
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            const edgeFnUrl = `${supabaseUrl}/functions/v1/process-document`
+
+            try {
+                const response = await fetch(edgeFnUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${supabaseAnonKey}`,
+                        'apikey': supabaseAnonKey,
+                    },
+                    body: JSON.stringify({ documentId: docRecord.id, filePath: storageData.path }),
+                })
+
+                if (!response.ok) {
+                    console.warn(`Análise falhou com status ${response.status}`);
+                    setUploadStatus(prev => ({ ...prev, [docId]: 'error' }));
+                } else {
+                    // Simulando o delay de polling simplificado / ou set direto.
+                    setUploadStatus(prev => ({ ...prev, [docId]: 'success' }));
+                }
+            } catch (err) {
+                console.error('Edge Function call falhou', err)
+                setUploadStatus(prev => ({ ...prev, [docId]: 'error' }));
+            }
 
         } catch (e) {
             console.error(e);
@@ -93,15 +145,15 @@ export default function UploadPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 py-10 px-4 font-sans text-slate-900">
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-8 pb-20">
 
                 {/* HEADER */}
                 <header className="text-center space-y-2 mb-10">
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Preparação de Documentos
+                        Preparação de Documentos para Ajuste de Status
                     </h1>
                     <p className="text-slate-500">
-                        Siga o checklist inteligente abaixo para garantir que seu processo I-485 esteja completo.
+                        Siga o checklist inteligente abaixo para garantir que seu processo migratório esteja completo e bem documentado.
                     </p>
                 </header>
 
@@ -109,7 +161,7 @@ export default function UploadPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                         <ShieldCheck className="w-5 h-5 text-blue-600" />
-                        <h2 className="font-semibold text-slate-800">Triagem Inicial (Configuração do Caso)</h2>
+                        <h2 className="font-semibold text-slate-800">Definições Iniciais do Processo</h2>
                     </div>
 
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -151,13 +203,14 @@ export default function UploadPage() {
 
                     <div className="grid gap-3">
                         {visibleDocs.map((doc) => {
-                            const status = uploadStatus[doc.id] || 'idle';
+                            const status: any = uploadStatus[doc.id] || 'idle';
 
                             return (
                                 <div
                                     key={doc.id}
                                     className={`group relative bg-white border rounded-xl p-5 transition-all duration-200
                     ${status === 'success' ? 'border-green-200 bg-green-50/30' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'}
+                    ${status === 'analyzing' ? 'border-purple-300 bg-purple-50/20' : ''}
                   `}
                                 >
                                     <div className="flex items-start justify-between gap-4">
@@ -182,28 +235,32 @@ export default function UploadPage() {
                                         </div>
 
                                         {/* Ação de Upload */}
-                                        <div className="shrink-0">
+                                        <div className="shrink-0 flex flex-col items-end gap-1">
                                             <input
                                                 type="file"
                                                 id={`file-${doc.id}`}
                                                 className="hidden"
-                                                disabled={status === 'uploading' || status === 'success'}
+                                                disabled={status === 'uploading' || status === 'analyzing' || status === 'success'}
                                                 onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], doc.id)}
                                             />
                                             <label
                                                 htmlFor={`file-${doc.id}`}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all
                           ${status === 'idle' ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow' : ''}
-                          ${status === 'uploading' ? 'bg-slate-100 text-slate-400 cursor-wait' : ''}
+                          ${status === 'uploading' || status === 'analyzing' ? 'bg-slate-100 text-slate-400 cursor-wait' : ''}
                           ${status === 'success' ? 'bg-white border border-green-200 text-green-700 cursor-default' : ''}
                           ${status === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : ''}
                         `}
                                             >
                                                 {status === 'idle' && <><UploadCloud className="w-4 h-4" /> Anexar</>}
                                                 {status === 'uploading' && 'Enviando...'}
-                                                {status === 'success' && 'Enviado'}
+                                                {status === 'analyzing' && 'Processando IA...'}
+                                                {status === 'success' && 'Concluído'}
                                                 {status === 'error' && 'Tentar Novamente'}
                                             </label>
+                                            {status === 'analyzing' && (
+                                                <span className="text-xs text-purple-600 font-medium animate-pulse mt-1">Extraindo dados...</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
