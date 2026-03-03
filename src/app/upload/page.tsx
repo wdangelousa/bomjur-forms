@@ -1,28 +1,256 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/src/lib/supabase/client'
+import type { DocumentRequirement, DocumentCategory, ScreeningAnswers, DocumentCondition } from '@/src/types/i485-schema'
 
-// ─── Tipos ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// DOCS_CONFIG — Fonte da verdade para os cards de upload.
+// Tipado como DocumentRequirement[] para garantir consistência
+// com o schema central em src/types/i485-schema.ts.
+// Para adicionar ou remover documentos, edite apenas este array.
+// ══════════════════════════════════════════════════════════
+const DOCS_CONFIG: DocumentRequirement[] = [
+    // ── Identificação e Viagem ──────────────────────────────
+    {
+        id: 'passport',
+        category: 'identification_travel',
+        label: 'Passaporte',
+        labelEn: 'Passport — Photo Page',
+        emoji: '🛂',
+        description: 'Página com foto e dados pessoais do passaporte atual.',
+        required: true,
+        assemblyOrder: 1,
+    },
+    {
+        id: 'i94',
+        category: 'identification_travel',
+        label: 'Formulário I-94',
+        labelEn: 'Form I-94 — Arrival/Departure Record',
+        emoji: '✈️',
+        description: 'Print do site i94.cbp.dhs.gov com histórico de entradas nos EUA.',
+        required: true,
+        assemblyOrder: 2,
+    },
+    {
+        id: 'current_visa',
+        category: 'identification_travel',
+        label: 'Visto Atual (Página Completa)',
+        labelEn: 'Current Visa — Full Page',
+        emoji: '📋',
+        description: 'Página do passaporte com o visto vigente e carimbo de entrada.',
+        required: true,
+        assemblyOrder: 3,
+    },
+    // ── Documentos Civis ────────────────────────────────────
+    {
+        id: 'birth_cert_primary',
+        category: 'civil_documents',
+        label: 'Certidão de Nascimento',
+        labelEn: 'Birth Certificate — Primary Applicant',
+        emoji: '👶',
+        description: 'Sua certidão com tradução juramentada para inglês.',
+        required: true,
+        assemblyOrder: 4,
+    },
+    {
+        id: 'birth_cert_child',
+        category: 'civil_documents',
+        label: 'Certidão de Nascimento (Filhos)',
+        labelEn: 'Birth Certificate — Children',
+        emoji: '👶',
+        description: 'Uma por filho incluído no processo, com tradução juramentada para inglês.',
+        required: false,
+        conditions: [{ field: 'hasChildren', operator: 'eq', value: true }],
+        assemblyOrder: 5,
+    },
+    {
+        id: 'marriage_cert',
+        category: 'civil_documents',
+        label: 'Certidão de Casamento',
+        labelEn: 'Marriage Certificate',
+        emoji: '💍',
+        description: 'Com tradução juramentada para inglês.',
+        required: false,
+        conditions: [{ field: 'isMarried', operator: 'eq', value: true }],
+        assemblyOrder: 7,
+    },
+    {
+        id: 'divorce_cert',
+        category: 'civil_documents',
+        label: 'Averbação de Divórcio ou Certidão de Óbito',
+        labelEn: 'Divorce Decree or Death Certificate',
+        emoji: '📁',
+        description: 'Necessário para cada casamento anterior do requerente ou cônjuge.',
+        required: false,
+        conditions: [{ field: 'hasPreviousMarriages', operator: 'eq', value: true }],
+        assemblyOrder: 8,
+    },
+    // ── Base da Imigração ───────────────────────────────────
+    {
+        id: 'i797_i140',
+        category: 'immigration_base',
+        label: 'Aprovação do I-140 (Form I-797)',
+        labelEn: 'I-797 Notice of Action — I-140 Approval',
+        emoji: '📄',
+        description: 'Notice of Action do USCIS confirmando a aprovação do I-140.',
+        required: true,
+        assemblyOrder: 9,
+    },
+    {
+        id: 'status_history',
+        category: 'immigration_base',
+        label: 'Histórico de Status (I-20, Vistos Anteriores)',
+        labelEn: 'Immigration Status History',
+        emoji: '📁',
+        description: 'Todos os documentos de status desde a primeira entrada nos EUA.',
+        required: true,
+        assemblyOrder: 10,
+    },
+    // ── Médico e Biometria ──────────────────────────────────
+    {
+        id: 'passport_photos',
+        category: 'medical_biometrics',
+        label: '2 Fotos Estilo Passaporte (5x5 cm)',
+        labelEn: '2 Passport-Style Photos (2"x2")',
+        emoji: '📸',
+        description: 'Fundo branco, rosto descoberto, tiradas nos últimos 6 meses.',
+        hint: 'Escreva seu nome e data de nascimento a lápis no verso de cada foto.',
+        required: true,
+        assemblyOrder: 11,
+    },
+    {
+        id: 'medical_receipt',
+        category: 'medical_biometrics',
+        label: 'Exame Médico (Form I-693)',
+        labelEn: 'Medical Examination Receipt — Form I-693',
+        emoji: '🩺',
+        description: 'Foto do recibo do exame realizado com médico credenciado USCIS.',
+        hint: 'Apenas a foto do recibo. Entregue o envelope lacrado fisicamente ao advogado — nunca abra.',
+        required: true,
+        assemblyOrder: 12,
+    },
+]
 
-type FilePhase =
-    | 'uploading'   // Fazendo upload para o Storage
-    | 'analyzing'   // Chamando a Edge Function / Claude Vision
-    | 'success'     // Tudo concluído com sucesso
-    | 'error'       // Erro em qualquer etapa
-
-interface UploadedFile {
-    name: string
-    size: number
-    phase: FilePhase
-    fieldsExtracted?: number
-    documentType?: string
-    errorMessage?: string
+// ── Metadados de exibição por categoria ────────────────────
+const CATEGORY_META: Record<DocumentCategory, { label: string; icon: string }> = {
+    identification_travel: { label: 'Identificação e Viagem', icon: '🛂' },
+    civil_documents:       { label: 'Documentos Civis',       icon: '📜' },
+    immigration_base:      { label: 'Base da Imigração',      icon: '📋' },
+    medical_biometrics:    { label: 'Médico e Biometria',     icon: '🩺' },
+    fees_payments:         { label: 'Taxas e Pagamentos',     icon: '💳' },
 }
 
-// ─── Utilitários ─────────────────────────────────────────────────────────────
+// Categorias únicas em ordem de aparição no DOCS_CONFIG
+const CATEGORIES = [...new Set(DOCS_CONFIG.map(d => d.category))]
 
-function formatBytes(bytes: number, decimals = 2) {
+// ── Avalia se todas as condições de um doc são satisfeitas ─
+// Definida no módulo para não ser recriada a cada render.
+function evaluateConditions(
+    conditions: DocumentCondition[] | undefined,
+    answers: ScreeningAnswers,
+): boolean {
+    if (!conditions || conditions.length === 0) return false
+    return conditions.every(cond => {
+        const val = answers[cond.field]
+        switch (cond.operator) {
+            case 'eq':     return val === cond.value
+            case 'neq':    return val !== cond.value
+            case 'gte':    return typeof val === 'number' && val >= (cond.value as number)
+            case 'lte':    return typeof val === 'number' && val <= (cond.value as number)
+            case 'exists': return val !== undefined && val !== null
+            default:       return false
+        }
+    })
+}
+
+// ── Sub-componentes do Questionário de Triagem ─────────────
+
+/** Linha de uma pergunta: label à esquerda, controle à direita */
+function TriagemRow({ label, sub = false, last = false, children }: {
+    label:    string
+    sub?:     boolean
+    last?:    boolean
+    children: React.ReactNode
+}) {
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 20,
+            padding:      sub ? '10px 28px 10px 52px' : '16px 28px',
+            borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)',
+        }}>
+            <span style={{
+                fontSize: sub ? 13 : 14,
+                fontWeight: sub ? 400 : 500,
+                color: sub ? '#94a3b8' : '#cbd5e1',
+            }}>
+                {sub && <span style={{ marginRight: 6, opacity: 0.5 }}>↳</span>}
+                {label}
+            </span>
+            {children}
+        </div>
+    )
+}
+
+/** Botões Sim / Não */
+function TogglePair({ value, onChange }: {
+    value:    boolean
+    onChange: (v: boolean) => void
+}) {
+    const base: React.CSSProperties = {
+        padding: '7px 20px', borderRadius: 8,
+        fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
+        transition: 'all 0.15s ease',
+    }
+    const active: React.CSSProperties = {
+        ...base,
+        background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+        color: '#fff',
+        boxShadow: '0 2px 10px rgba(124,58,237,0.4)',
+    }
+    const inactive: React.CSSProperties = {
+        ...base,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        color: '#475569',
+    }
+    return (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button style={value ? active : inactive} onClick={() => onChange(true)}>Sim</button>
+            <button style={!value ? active : inactive} onClick={() => onChange(false)}>Não</button>
+        </div>
+    )
+}
+
+/** Estilo dos botões +/− do contador de filhos */
+const stepBtnStyle: React.CSSProperties = {
+    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+    background: 'rgba(139,92,246,0.15)',
+    border: '1px solid rgba(139,92,246,0.3)',
+    color: '#a78bfa', fontSize: 18, fontWeight: 700,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    lineHeight: 1,
+}
+
+// ══════════════════════════════════════════════════════════
+// TIPOS INTERNOS
+// ══════════════════════════════════════════════════════════
+type DocPhase = 'idle' | 'uploading' | 'analyzing' | 'success' | 'error'
+
+interface DocUploadState {
+    phase:            DocPhase
+    fileName?:        string
+    fileSize?:        number
+    fieldsExtracted?: number
+    documentType?:    string
+    errorMessage?:    string
+}
+
+// ══════════════════════════════════════════════════════════
+// UTILITÁRIOS
+// ══════════════════════════════════════════════════════════
+function formatBytes(bytes: number, decimals = 1): string {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
@@ -30,97 +258,119 @@ function formatBytes(bytes: number, decimals = 2) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i]
 }
 
-function getFileIcon(fileName: string) {
-    const ext = fileName.split('.').pop()?.toLowerCase()
-    if (ext === 'pdf') return '📄'
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext ?? '')) return '🖼️'
-    if (['doc', 'docx'].includes(ext ?? '')) return '📝'
-    if (['xls', 'xlsx'].includes(ext ?? '')) return '📊'
-    return '📁'
-}
-
-// ─── Componente principal ─────────────────────────────────────────────────────
-
+// ══════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ══════════════════════════════════════════════════════════
 export default function UploadPage() {
-    const [isDragging, setIsDragging] = useState(false)
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-    const [isUploading, setIsUploading] = useState(false)
-
     const supabase = createClient()
 
-    // Atualiza os dados de um arquivo específico na lista pelo nome
-    const updateFile = (name: string, patch: Partial<UploadedFile>) => {
-        setUploadedFiles((prev) =>
-            prev.map((f) => (f.name === name ? { ...f, ...patch } : f))
-        )
+    // ── Respostas de triagem ────────────────────────────────
+    const [answers, setAnswers] = useState<ScreeningAnswers>({
+        isMarried:            false,
+        hasChildren:          false,
+        childrenCount:        0,
+        hasPreviousMarriages: false,
+        hasI140Approved:      true,
+        hasI94Record:         true,
+        hasCompletedMedical:  false,
+        hasPaidI485Fee:       false,
+        hasPaidBiometricsFee: false,
+    })
+
+    const setAnswer = <K extends keyof ScreeningAnswers>(key: K, value: ScreeningAnswers[K]) =>
+        setAnswers(prev => ({ ...prev, [key]: value }))
+
+    // ── Documentos visíveis com base nas respostas ──────────
+    // Docs required:true → sempre visíveis.
+    // Docs required:false → visíveis apenas se todas as conditions forem satisfeitas.
+    const visibleDocs = useMemo<DocumentRequirement[]>(() =>
+        DOCS_CONFIG.filter(doc =>
+            doc.required || evaluateConditions(doc.conditions, answers)
+        ),
+        [answers]
+    )
+
+    // Estado por documento — chave = doc.id
+    const [docStates, setDocStates] = useState<Record<string, DocUploadState>>(
+        () => Object.fromEntries(DOCS_CONFIG.map(d => [d.id, { phase: 'idle' }]))
+    )
+
+    // Input de arquivo único compartilhado por todos os cards
+    const fileInputRef   = useRef<HTMLInputElement>(null)
+    const pendingDocRef  = useRef<string | null>(null)
+
+    // Atualiza parcialmente o estado de um documento específico
+    const updateDoc = (docId: string, patch: Partial<DocUploadState>) =>
+        setDocStates(prev => ({ ...prev, [docId]: { ...prev[docId], ...patch } }))
+
+    // Abre o seletor de arquivo apontando para um doc específico
+    const triggerUpload = (docId: string) => {
+        pendingDocRef.current = docId
+        fileInputRef.current?.click()
     }
 
-    // ── Pipeline completo para um único arquivo ────────────────────────────────
-    const processFile = async (file: File) => {
+    // ── Pipeline completo para um arquivo + docId ──────────
+    const processFileForDoc = useCallback(async (file: File, docId: string) => {
         const filePath = `uploads/${Date.now()}_${file.name}`
 
-        // ─── ETAPA 1: Upload para o Supabase Storage ────────────────────────────
+        updateDoc(docId, { phase: 'uploading', fileName: file.name, fileSize: file.size })
+
+        // Etapa 1 — Upload para o Supabase Storage
         const { data: storageData, error: storageError } = await supabase.storage
             .from('bomjur-documents')
             .upload(filePath, file, { cacheControl: '3600', upsert: false })
 
         if (storageError) {
-            updateFile(file.name, {
-                phase: 'error',
-                errorMessage: `Upload falhou: ${storageError.message}`,
-            })
+            updateDoc(docId, { phase: 'error', errorMessage: `Upload falhou: ${storageError.message}` })
             return
         }
 
-        // ─── ETAPA 2: Obtém a URL pública ────────────────────────────────────────
+        // Etapa 2 — URL pública
         const { data: { publicUrl } } = supabase.storage
             .from('bomjur-documents')
             .getPublicUrl(filePath)
 
-        // ─── ETAPA 3: Registra na tabela client_documents ─────────────────────────
+        // Etapa 3 — Registro na tabela client_documents
         const { data: docRecord, error: dbError } = await supabase
             .from('client_documents')
             .insert({
-                file_name: file.name,
-                file_path: storageData.path,
-                file_url: publicUrl,
-                file_size: file.size,
-                file_type: file.type,
-                bucket_name: 'bomjur-documents',
-                processing_status: 'pending',
-                uploaded_at: new Date().toISOString(),
+                file_name:          file.name,
+                file_path:          storageData.path,
+                file_url:           publicUrl,
+                file_size:          file.size,
+                file_type:          file.type,
+                bucket_name:        'bomjur-documents',
+                processing_status:  'pending',
+                document_category:  docId,    // ID canônico do tipo de documento
+                uploaded_at:        new Date().toISOString(),
             })
             .select('id')
             .single()
 
         if (dbError || !docRecord) {
-            updateFile(file.name, {
-                phase: 'error',
-                errorMessage: `Registro no banco falhou: ${dbError?.message}`,
-            })
+            updateDoc(docId, { phase: 'error', errorMessage: `Registro no banco falhou: ${dbError?.message}` })
             return
         }
 
-        // ─── ETAPA 4: Muda fase para "Analisando com IA" ─────────────────────────
-        updateFile(file.name, { phase: 'analyzing' })
+        // Etapa 4 — Fase "Analisando com IA"
+        updateDoc(docId, { phase: 'analyzing' })
 
-        // ─── ETAPA 5: Chama a Edge Function process-document ─────────────────────
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        // Etapa 5 — Edge Function + polling de resultado
+        const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-        const edgeFnUrl = `${supabaseUrl}/functions/v1/process-document`
+        const edgeFnUrl      = `${supabaseUrl}/functions/v1/process-document`
 
         let edgeError: string | null = null
         let fieldsExtracted = 0
-        let documentType = 'Documento'
+        let documentType    = 'Documento'
 
         try {
             const response = await fetch(edgeFnUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type':  'application/json',
                     'Authorization': `Bearer ${supabaseAnonKey}`,
-                    'apikey': supabaseAnonKey,
+                    'apikey':        supabaseAnonKey,
                 },
                 body: JSON.stringify({ documentId: docRecord.id, filePath: storageData.path }),
             })
@@ -129,14 +379,13 @@ export default function UploadPage() {
                 const errBody = await response.text()
                 edgeError = `Análise falhou (${response.status}): ${errBody}`
             } else {
-                // Edge Function returns 202 — processing happens in background.
-                // Poll the DB until extraction_status becomes 'extracted' or 'error'.
+                // Edge Function retorna 202 — polling até a extração completar
                 const POLL_INTERVAL_MS = 3000
-                const POLL_TIMEOUT_MS = 90000
-                const deadline = Date.now() + POLL_TIMEOUT_MS
+                const POLL_TIMEOUT_MS  = 90000
+                const deadline         = Date.now() + POLL_TIMEOUT_MS
 
                 while (Date.now() < deadline) {
-                    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+                    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
 
                     const { data: doc } = await supabase
                         .from('client_documents')
@@ -152,7 +401,7 @@ export default function UploadPage() {
                             .select('id', { count: 'exact', head: true })
                             .eq('document_id', docRecord.id)
                         fieldsExtracted = count ?? 0
-                        documentType = doc.document_type ?? 'Documento'
+                        documentType    = doc.document_type ?? 'Documento'
                         break
                     }
 
@@ -162,7 +411,7 @@ export default function UploadPage() {
                     }
                 }
 
-                if (!edgeError && fieldsExtracted === 0 && documentType === 'Documento') {
+                if (!edgeError && fieldsExtracted === 0) {
                     edgeError = 'Tempo limite atingido. O documento foi salvo, mas a análise não concluiu a tempo.'
                 }
             }
@@ -170,97 +419,233 @@ export default function UploadPage() {
             edgeError = `Erro de rede ao chamar a análise: ${String(fetchErr)}`
         }
 
-        // ─── ETAPA 6: Atualiza o status final ────────────────────────────────────
+        // Etapa 6 — Status final
         if (edgeError) {
-            updateFile(file.name, {
-                phase: 'error',
-                errorMessage: edgeError,
-            })
+            updateDoc(docId, { phase: 'error', errorMessage: edgeError })
         } else {
-            updateFile(file.name, {
-                phase: 'success',
-                fieldsExtracted,
-                documentType,
-            })
+            updateDoc(docId, { phase: 'success', fieldsExtracted, documentType })
         }
-    }
-
-    // ── Dispara o pipeline para múltiplos arquivos ─────────────────────────────
-    const handleFiles = useCallback(
-        async (files: FileList | File[]) => {
-            const fileArray = Array.from(files)
-            if (fileArray.length === 0) return
-
-            const newFiles: UploadedFile[] = fileArray.map((f) => ({
-                name: f.name,
-                size: f.size,
-                phase: 'uploading',
-            }))
-
-            setUploadedFiles((prev) => [...prev, ...newFiles])
-            setIsUploading(true)
-
-            await Promise.all(fileArray.map(processFile))
-            setIsUploading(false)
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
-    )
-
-    const onDrop = useCallback(
-        (e: React.DragEvent<HTMLDivElement>) => {
-            e.preventDefault()
-            setIsDragging(false)
-            handleFiles(e.dataTransfer.files)
-        },
-        [handleFiles]
-    )
-
-    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }
-
-    const onDragLeave = () => setIsDragging(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) handleFiles(e.target.files)
+        const file  = e.target.files?.[0]
+        const docId = pendingDocRef.current
+        if (file && docId) processFileForDoc(file, docId)
+        e.target.value  = ''
+        pendingDocRef.current = null
     }
 
-    // ── Contadores de status ───────────────────────────────────────────────────
-    const analyzingCount = uploadedFiles.filter((f) => f.phase === 'analyzing').length
-    const successCount = uploadedFiles.filter((f) => f.phase === 'success').length
-    const errorCount = uploadedFiles.filter((f) => f.phase === 'error').length
+    // ── Contadores globais (baseados nos docs visíveis) ─────
+    const visibleStates   = visibleDocs.map(d => docStates[d.id]).filter(Boolean)
+    const analyzingCount  = visibleStates.filter(s => s.phase === 'analyzing').length
+    const successCount    = visibleStates.filter(s => s.phase === 'success').length
+    const errorCount      = visibleStates.filter(s => s.phase === 'error').length
+    const totalRequired   = visibleDocs.filter(d => d.required).length
+    const doneRequired    = visibleDocs.filter(d => d.required && docStates[d.id]?.phase === 'success').length
+    const progressPercent = totalRequired === 0 ? 0 : Math.round((doneRequired / totalRequired) * 100)
 
-    // ── Badge por fase ──────────────────────────────────────────────────────────
-    const renderBadge = (file: UploadedFile) => {
-        switch (file.phase) {
-            case 'uploading':
-                return (
-                    <span className="badge uploading">
-                        <span className="spinner sm" /> Enviando
-                    </span>
-                )
-            case 'analyzing':
-                return (
-                    <span className="badge analyzing">
-                        <span className="spinner sm purple" /> Analisando IA
-                    </span>
-                )
-            case 'success':
-                return (
-                    <span className="badge success">
-                        ✓ {file.fieldsExtracted ?? 0} campos extraídos
-                    </span>
-                )
-            case 'error':
-                return <span className="badge error">✕ Erro</span>
-        }
+    // ── Renderização de cada card de documento ─────────────
+    const renderCard = (doc: DocumentRequirement) => {
+        const state  = docStates[doc.id] ?? { phase: 'idle' }
+        const { phase } = state
+        const isActive  = phase === 'uploading' || phase === 'analyzing'
+
+        const cardBg = phase === 'success'   ? 'rgba(16,185,129,0.07)'
+                     : phase === 'error'     ? 'rgba(239,68,68,0.06)'
+                     : phase === 'analyzing' ? 'rgba(139,92,246,0.08)'
+                     : 'rgba(255,255,255,0.04)'
+
+        const cardBorder = phase === 'success'   ? 'rgba(16,185,129,0.3)'
+                         : phase === 'error'     ? 'rgba(239,68,68,0.3)'
+                         : phase === 'analyzing' ? 'rgba(139,92,246,0.4)'
+                         : 'rgba(255,255,255,0.08)'
+
+        return (
+            <div
+                key={doc.id}
+                style={{
+                    background:    cardBg,
+                    border:        `1px solid ${cardBorder}`,
+                    borderRadius:  16,
+                    padding:       '18px 20px',
+                    display:       'flex',
+                    flexDirection: 'column',
+                    gap:           12,
+                    transition:    'all 0.25s ease',
+                }}
+            >
+                {/* ── Cabeçalho do card ── */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    {/* Ícone de estado */}
+                    <div style={{
+                        width: 44, height: 44, flexShrink: 0, borderRadius: 12, fontSize: 22,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: phase === 'success'   ? 'rgba(16,185,129,0.2)'
+                                  : phase === 'error'     ? 'rgba(239,68,68,0.15)'
+                                  : 'rgba(139,92,246,0.15)',
+                    }}>
+                        {phase === 'success' ? '✅' : phase === 'error' ? '❌' : doc.emoji}
+                    </div>
+
+                    {/* Título + badge + labelEn */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', lineHeight: 1.3 }}>
+                                {doc.label}
+                            </span>
+                            <span style={{
+                                fontSize: 9, fontWeight: 800, flexShrink: 0,
+                                padding: '2px 8px', borderRadius: 99,
+                                textTransform: 'uppercase', letterSpacing: '0.05em',
+                                background: doc.required ? 'rgba(99,102,241,0.2)' : 'rgba(100,116,139,0.15)',
+                                color:      doc.required ? '#818cf8' : '#64748b',
+                            }}>
+                                {doc.required ? 'Obrigatório' : 'Opcional'}
+                            </span>
+                        </div>
+                        <span style={{ fontSize: 11, color: '#475569', display: 'block', marginTop: 3 }}>
+                            {doc.labelEn}
+                        </span>
+                    </div>
+                </div>
+
+                {/* ── Descrição ── */}
+                <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>
+                    {doc.description}
+                </p>
+
+                {/* ── Hint / aviso especial ── */}
+                {doc.hint && (
+                    <div style={{
+                        background: 'rgba(245,158,11,0.08)',
+                        border: '1px solid rgba(245,158,11,0.2)',
+                        borderRadius: 8, padding: '8px 12px',
+                        fontSize: 11, color: '#fbbf24', lineHeight: 1.55,
+                    }}>
+                        ⚠️ {doc.hint}
+                    </div>
+                )}
+
+                {/* ── Área de ação / status ── */}
+                <div style={{ marginTop: 'auto' }}>
+
+                    {/* IDLE — botão de upload */}
+                    {phase === 'idle' && (
+                        <button
+                            onClick={() => triggerUpload(doc.id)}
+                            style={{
+                                width: '100%', padding: '10px 16px',
+                                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                color: '#fff', border: 'none', borderRadius: 10,
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                boxShadow: '0 2px 12px rgba(124,58,237,0.3)',
+                                transition: 'opacity 0.2s, transform 0.15s',
+                            }}
+                            onMouseEnter={e => {
+                                ;(e.currentTarget as HTMLElement).style.opacity = '0.88'
+                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'
+                            }}
+                            onMouseLeave={e => {
+                                ;(e.currentTarget as HTMLElement).style.opacity = '1'
+                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+                            }}
+                        >
+                            ⬆️ Enviar Arquivo
+                        </button>
+                    )}
+
+                    {/* UPLOADING / ANALYZING — barra animada */}
+                    {isActive && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="spinner sm purple" />
+                                <span style={{ fontSize: 12, color: '#a78bfa', fontWeight: 600 }}>
+                                    {phase === 'uploading' ? 'Enviando arquivo...' : '🤖 Analisando com IA...'}
+                                </span>
+                            </div>
+                            {state.fileName && (
+                                <span style={{ fontSize: 11, color: '#475569' }}>
+                                    {state.fileName}
+                                    {state.fileSize ? ` · ${formatBytes(state.fileSize)}` : ''}
+                                </span>
+                            )}
+                            <div className="progress-bar">
+                                <div className={`progress-fill ${phase === 'analyzing' ? 'fill-purple' : 'fill-indigo'}`} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SUCCESS */}
+                    {phase === 'success' && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                            <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>
+                                    ✓ {state.fieldsExtracted ?? 0} campos extraídos
+                                </div>
+                                {state.fileName && (
+                                    <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                                        {state.fileName}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Substituir: atualiza estado e abre input diretamente */}
+                            <button
+                                onClick={() => {
+                                    updateDoc(doc.id, { phase: 'idle' })
+                                    pendingDocRef.current = doc.id
+                                    fileInputRef.current?.click()
+                                }}
+                                style={{
+                                    padding: '6px 12px', borderRadius: 8, flexShrink: 0,
+                                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                                    color: '#94a3b8', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                }}
+                            >
+                                Substituir
+                            </button>
+                        </div>
+                    )}
+
+                    {/* ERROR */}
+                    {phase === 'error' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ fontSize: 12, color: '#f87171', lineHeight: 1.4 }}>
+                                ✕ {state.errorMessage ?? 'Erro no processamento'}
+                            </div>
+                            <button
+                                onClick={() => updateDoc(doc.id, { phase: 'idle', errorMessage: undefined })}
+                                style={{
+                                    padding: '7px 14px', borderRadius: 8, alignSelf: 'flex-start',
+                                    background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
+                                    color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                }}
+                            >
+                                Tentar Novamente
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )
     }
 
-    // ─── Render ────────────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════
+    // RENDER
+    // ══════════════════════════════════════════════════════════
     return (
         <div className="upload-page">
+
+            {/* Input de arquivo único — disparado por qualquer card */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={onInputChange}
+            />
+
             {/* ── HEADER ── */}
             <header className="header">
                 <div className="header-inner">
@@ -281,17 +666,28 @@ export default function UploadPage() {
 
             {/* ── MAIN ── */}
             <main className="main">
-                {/* Cabeçalho da seção */}
+
+                {/* ── Cabeçalho + Stats ── */}
                 <div className="section-header">
                     <div>
-                        <h2 className="section-title">Enviar &amp; Analisar Documentos</h2>
+                        <h2 className="section-title">Documentos do I-485</h2>
                         <p className="section-desc">
-                            Faça o upload dos seus documentos de imigração. Nossa IA (Claude Vision)
-                            irá analisar e extrair automaticamente todos os campos relevantes.
+                            Clique em "Enviar Arquivo" em cada card. Nossa IA (Claude Vision)
+                            extrai automaticamente todos os campos necessários para o formulário.
                         </p>
                     </div>
 
-                    {uploadedFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+                        <div style={{
+                            fontSize: 26, fontWeight: 900, lineHeight: 1,
+                            color: doneRequired === totalRequired ? '#34d399' : '#f1f5f9',
+                        }}>
+                            {doneRequired}/{totalRequired}
+                            <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b', marginLeft: 8 }}>
+                                obrigatórios
+                            </span>
+                        </div>
+
                         <div className="stats-row">
                             {analyzingCount > 0 && (
                                 <div className="stat-chip purple">
@@ -304,19 +700,29 @@ export default function UploadPage() {
                                 </div>
                             )}
                             {errorCount > 0 && (
-                                <div className="stat-chip red">
-                                    ✕ {errorCount} com erro
-                                </div>
+                                <div className="stat-chip red">✕ {errorCount} com erro</div>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* ── PIPELINE VISUAL ── */}
+                {/* ── Barra de progresso global ── */}
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                    <div style={{
+                        height: '100%',
+                        width: `${progressPercent}%`,
+                        background: 'linear-gradient(90deg, #4f46e5, #7c3aed, #a78bfa)',
+                        borderRadius: 99,
+                        transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: progressPercent > 0 ? '0 0 10px rgba(167,139,250,0.5)' : 'none',
+                    }} />
+                </div>
+
+                {/* ── Pipeline visual ── */}
                 <div className="pipeline-row">
                     {[
-                        { icon: '⬆️', label: 'Upload Seguro', desc: 'Arquivo enviado com criptografia AES-256' },
-                        { icon: '🧠', label: 'Claude Vision', desc: 'IA analisa e extrai campos automaticamente' },
+                        { icon: '⬆️', label: 'Upload Seguro',  desc: 'Arquivo enviado com criptografia AES-256' },
+                        { icon: '🧠', label: 'Claude Vision',  desc: 'IA analisa e extrai campos automaticamente' },
                         { icon: '🗄️', label: 'Banco de Dados', desc: 'Campos salvos com confidence scores' },
                     ].map((step, i) => (
                         <div key={step.label} className="pipeline-step">
@@ -330,290 +736,282 @@ export default function UploadPage() {
                     ))}
                 </div>
 
-                {/* ── DROP ZONE ── */}
-                <div
-                    className={`drop-zone ${isDragging ? 'dragging' : ''}`}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                >
-                    <div className="drop-icon-ring">
-                        <svg className="drop-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={1.5}
-                                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                            />
-                        </svg>
-                    </div>
-
-                    <h3 className="drop-title">
-                        {isDragging ? 'Solte os arquivos aqui' : 'Arraste e solte seus documentos'}
-                    </h3>
-                    <p className="drop-sub">ou clique para selecionar do seu computador</p>
-
-                    <label className="upload-btn">
-                        {isUploading ? (
-                            <><span className="spinner" /> Processando...</>
-                        ) : (
-                            <>
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 18, height: 18 }}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Selecionar Arquivos
-                            </>
-                        )}
-                        <input
-                            type="file"
-                            multiple
-                            className="hidden-input"
-                            onChange={onInputChange}
-                            disabled={isUploading}
-                        />
-                    </label>
-
-                    <p className="drop-hint">PDF, JPEG, PNG · Máximo 50 MB por arquivo · Análise automática por IA</p>
-                </div>
-
-                {/* ── LISTA DE ARQUIVOS ── */}
-                {uploadedFiles.length > 0 && (
-                    <div className="file-list">
-                        <h3 className="file-list-title">Documentos em Processamento</h3>
-                        <div className="file-cards">
-                            {uploadedFiles.map((file, i) => (
-                                <div key={i} className={`file-card phase-${file.phase}`}>
-                                    <div className="file-icon">{getFileIcon(file.name)}</div>
-                                    <div className="file-info">
-                                        <p className="file-name">{file.name}</p>
-                                        <p className="file-size">{formatBytes(file.size)}</p>
-                                        {file.phase === 'success' && file.documentType && (
-                                            <p className="file-doctype">📋 {file.documentType}</p>
-                                        )}
-                                        {file.errorMessage && (
-                                            <p className="file-error">{file.errorMessage}</p>
-                                        )}
-                                    </div>
-
-                                    {/* Barra de progresso por fase */}
-                                    <div className="file-right">
-                                        {renderBadge(file)}
-                                        {(file.phase === 'uploading' || file.phase === 'analyzing') && (
-                                            <div className="progress-bar">
-                                                <div
-                                                    className={`progress-fill ${file.phase === 'analyzing' ? 'fill-purple' : 'fill-indigo'}`}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                {/* ══════════════════════════════════════════════════
+                    QUESTIONÁRIO DE TRIAGEM
+                    Filtra visibleDocs dinamicamente via answers + conditions
+                ══════════════════════════════════════════════════ */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                }}>
+                    {/* Cabeçalho */}
+                    <div style={{
+                        padding: '20px 28px',
+                        borderBottom: '1px solid rgba(255,255,255,0.07)',
+                        display: 'flex', alignItems: 'center', gap: 14,
+                    }}>
+                        <div style={{
+                            width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                            background: 'rgba(139,92,246,0.18)',
+                            border: '1px solid rgba(139,92,246,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 20,
+                        }}>🎯</div>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>
+                                Questionário de Triagem
+                            </h3>
+                            <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>
+                                Responda para que sua lista de documentos seja personalizada automaticamente.
+                            </p>
+                        </div>
+                        {/* Badge: total de docs visíveis */}
+                        <div style={{
+                            marginLeft: 'auto', flexShrink: 0,
+                            background: 'rgba(139,92,246,0.15)',
+                            border: '1px solid rgba(139,92,246,0.3)',
+                            borderRadius: 99, padding: '6px 14px',
+                            fontSize: 13, fontWeight: 700, color: '#a78bfa',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            📋 {visibleDocs.length} documentos
                         </div>
                     </div>
-                )}
+
+                    {/* Perguntas */}
+                    <div style={{ padding: '8px 0' }}>
+
+                        {/* ── Pergunta: casado(a)? ── */}
+                        <TriagemRow label="Você é casado(a) atualmente?">
+                            <TogglePair
+                                value={answers.isMarried}
+                                onChange={v => setAnswer('isMarried', v)}
+                            />
+                        </TriagemRow>
+
+                        {/* ── Pergunta: filhos no processo? ── */}
+                        <TriagemRow label="Tem filhos incluídos no processo?">
+                            <TogglePair
+                                value={answers.hasChildren}
+                                onChange={v => {
+                                    setAnswer('hasChildren', v)
+                                    if (!v) setAnswer('childrenCount', 0)
+                                    else if (answers.childrenCount === 0) setAnswer('childrenCount', 1)
+                                }}
+                            />
+                        </TriagemRow>
+
+                        {/* Sub-pergunta: quantos filhos? (aparece só se hasChildren) */}
+                        {answers.hasChildren && (
+                            <TriagemRow label="Quantos filhos?" sub>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <button
+                                        onClick={() => setAnswer('childrenCount', Math.max(1, answers.childrenCount - 1))}
+                                        style={stepBtnStyle}
+                                    >−</button>
+                                    <span style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0', minWidth: 24, textAlign: 'center' }}>
+                                        {answers.childrenCount}
+                                    </span>
+                                    <button
+                                        onClick={() => setAnswer('childrenCount', Math.min(6, answers.childrenCount + 1))}
+                                        style={stepBtnStyle}
+                                    >+</button>
+                                </div>
+                            </TriagemRow>
+                        )}
+
+                        {/* ── Pergunta: casamentos anteriores? ── */}
+                        <TriagemRow label="Tem casamentos anteriores (divórcio ou viuvez)?" last>
+                            <TogglePair
+                                value={answers.hasPreviousMarriages}
+                                onChange={v => setAnswer('hasPreviousMarriages', v)}
+                            />
+                        </TriagemRow>
+                    </div>
+
+                    {/* Rodapé informativo */}
+                    <div style={{
+                        padding: '14px 28px',
+                        borderTop: '1px solid rgba(255,255,255,0.07)',
+                        background: 'rgba(0,0,0,0.15)',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        flexWrap: 'wrap',
+                    }}>
+                        <span style={{ fontSize: 12, color: '#475569' }}>
+                            Documentos ativos:
+                        </span>
+                        {visibleDocs.map(doc => (
+                            <span key={doc.id} style={{
+                                fontSize: 11, padding: '3px 10px', borderRadius: 99,
+                                background: doc.required ? 'rgba(99,102,241,0.15)' : 'rgba(139,92,246,0.1)',
+                                color:      doc.required ? '#818cf8' : '#a78bfa',
+                                border: `1px solid ${doc.required ? 'rgba(99,102,241,0.25)' : 'rgba(139,92,246,0.2)'}`,
+                                fontWeight: 600,
+                            }}>
+                                {doc.emoji} {doc.label}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ══════════════════════════════════════════════════
+                    CATEGORIAS DE DOCUMENTOS — renderizadas via .map()
+                    sobre visibleDocs e CATEGORIES
+                ══════════════════════════════════════════════════ */}
+                {CATEGORIES.map(cat => {
+                    const meta     = CATEGORY_META[cat]
+                    const catDocs  = visibleDocs.filter(d => d.category === cat)
+                    const catDone  = catDocs.filter(d => docStates[d.id]?.phase === 'success').length
+                    const allDone  = catDone === catDocs.length
+
+                    return (
+                        <section key={cat}>
+                            {/* Cabeçalho da categoria */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
+                            }}>
+                                <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                                <h3 style={{
+                                    margin: 0, fontSize: 15, fontWeight: 700,
+                                    color: allDone ? '#34d399' : '#cbd5e1',
+                                    transition: 'color 0.4s',
+                                }}>
+                                    {meta.label}
+                                </h3>
+                                <span style={{
+                                    marginLeft: 'auto', fontSize: 11, fontWeight: 800,
+                                    padding: '3px 10px', borderRadius: 99,
+                                    background: allDone ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)',
+                                    color:      allDone ? '#34d399' : '#64748b',
+                                    transition: 'all 0.4s',
+                                }}>
+                                    {catDone}/{catDocs.length}
+                                </span>
+                            </div>
+
+                            {/* Grid de cards — renderizado via .map() sobre DOCS_CONFIG filtrado */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                gap: 14,
+                            }}>
+                                {catDocs.map(renderCard)}
+                            </div>
+                        </section>
+                    )
+                })}
             </main>
 
-            {/* ── ESTILOS INLINE ── */}
+            {/* ── ESTILOS ── */}
             <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .upload-page {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-          font-family: 'Inter', system-ui, sans-serif;
-          color: #e2e8f0;
-        }
+                .upload-page {
+                    min-height: 100vh;
+                    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+                    font-family: 'Inter', system-ui, sans-serif;
+                    color: #e2e8f0;
+                }
 
-        /* ── HEADER ── */
-        .header {
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-          position: sticky; top: 0; z-index: 100;
-        }
-        .header-inner {
-          max-width: 1100px; margin: 0 auto;
-          padding: 0 24px; height: 64px;
-          display: flex; align-items: center; justify-content: space-between;
-        }
-        .logo-area { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { font-size: 28px; }
-        .logo-title {
-          font-size: 20px; font-weight: 700;
-          background: linear-gradient(90deg, #a78bfa, #818cf8);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
-        .nav-pills { display: flex; gap: 8px; }
-        .nav-pill {
-          padding: 6px 16px; border-radius: 999px;
-          font-size: 13px; color: #94a3b8; cursor: pointer; transition: all 0.2s;
-        }
-        .nav-pill:hover { color: #e2e8f0; background: rgba(255,255,255,0.06); }
-        .nav-pill.active {
-          background: rgba(139,92,246,0.2); color: #a78bfa;
-          border: 1px solid rgba(139,92,246,0.4);
-        }
+                /* HEADER */
+                .header {
+                    background: rgba(255,255,255,0.04);
+                    backdrop-filter: blur(20px);
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    position: sticky; top: 0; z-index: 100;
+                }
+                .header-inner {
+                    max-width: 1100px; margin: 0 auto;
+                    padding: 0 24px; height: 64px;
+                    display: flex; align-items: center; justify-content: space-between;
+                }
+                .logo-area { display: flex; align-items: center; gap: 12px; }
+                .logo-icon { font-size: 28px; }
+                .logo-title {
+                    font-size: 20px; font-weight: 700;
+                    background: linear-gradient(90deg, #a78bfa, #818cf8);
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                }
+                .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+                .nav-pills { display: flex; gap: 8px; }
+                .nav-pill {
+                    padding: 6px 16px; border-radius: 999px;
+                    font-size: 13px; color: #94a3b8; cursor: pointer; transition: all 0.2s;
+                }
+                .nav-pill:hover  { color: #e2e8f0; background: rgba(255,255,255,0.06); }
+                .nav-pill.active { background: rgba(139,92,246,0.2); color: #a78bfa; border: 1px solid rgba(139,92,246,0.4); }
 
-        /* ── MAIN ── */
-        .main {
-          max-width: 1100px; margin: 0 auto;
-          padding: 48px 24px 80px;
-          display: flex; flex-direction: column; gap: 28px;
-        }
+                /* MAIN */
+                .main {
+                    max-width: 1100px; margin: 0 auto;
+                    padding: 48px 24px 100px;
+                    display: flex; flex-direction: column; gap: 32px;
+                }
 
-        /* ── SECTION HEADER ── */
-        .section-header {
-          display: flex; align-items: flex-start;
-          justify-content: space-between; flex-wrap: wrap; gap: 16px;
-        }
-        .section-title { font-size: 28px; font-weight: 700; color: #f1f5f9; }
-        .section-desc { margin-top: 8px; font-size: 15px; color: #94a3b8; max-width: 580px; }
-        .stats-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .stat-chip {
-          display: flex; align-items: center; gap: 6px;
-          padding: 6px 14px; border-radius: 999px;
-          font-size: 13px; font-weight: 600;
-        }
-        .stat-chip.green { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .stat-chip.red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-        .stat-chip.purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); display: flex; align-items: center; gap: 6px; }
+                /* SECTION HEADER */
+                .section-header {
+                    display: flex; align-items: flex-start;
+                    justify-content: space-between; flex-wrap: wrap; gap: 20px;
+                }
+                .section-title { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+                .section-desc  { margin-top: 8px; font-size: 15px; color: #94a3b8; max-width: 560px; line-height: 1.6; }
+                .stats-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+                .stat-chip {
+                    display: flex; align-items: center; gap: 6px;
+                    padding: 6px 14px; border-radius: 999px;
+                    font-size: 13px; font-weight: 600;
+                }
+                .stat-chip.green  { background: rgba(16,185,129,0.15);  color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+                .stat-chip.red    { background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+                .stat-chip.purple { background: rgba(139,92,246,0.15);  color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); display: flex; align-items: center; gap: 6px; }
 
-        /* ── PIPELINE ── */
-        .pipeline-row {
-          display: flex; align-items: center; gap: 0;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px; padding: 18px 24px;
-          flex-wrap: wrap;
-        }
-        .pipeline-step {
-          display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px;
-        }
-        .pipeline-icon { font-size: 26px; flex-shrink: 0; }
-        .pipeline-info { flex: 1; }
-        .pipeline-label { font-size: 13px; font-weight: 700; color: #e2e8f0; }
-        .pipeline-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
-        .pipeline-arrow { font-size: 20px; color: #4b5563; padding: 0 16px; }
+                /* PIPELINE */
+                .pipeline-row {
+                    display: flex; align-items: center;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.07);
+                    border-radius: 16px; padding: 18px 24px;
+                    flex-wrap: wrap; gap: 8px;
+                }
+                .pipeline-step  { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px; }
+                .pipeline-icon  { font-size: 26px; flex-shrink: 0; }
+                .pipeline-info  { flex: 1; }
+                .pipeline-label { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+                .pipeline-desc  { font-size: 11px; color: #64748b; margin-top: 2px; }
+                .pipeline-arrow { font-size: 20px; color: #4b5563; padding: 0 16px; }
 
-        /* ── DROP ZONE ── */
-        .drop-zone {
-          background: rgba(255,255,255,0.03);
-          border: 2px dashed rgba(139,92,246,0.35);
-          border-radius: 24px; padding: 60px 32px;
-          display: flex; flex-direction: column; align-items: center;
-          text-align: center; gap: 16px;
-          transition: all 0.25s ease;
-        }
-        .drop-zone.dragging {
-          border-color: #a78bfa;
-          background: rgba(139,92,246,0.08);
-          transform: scale(1.01);
-          box-shadow: 0 0 60px rgba(139,92,246,0.2);
-        }
-        .drop-icon-ring {
-          width: 80px; height: 80px; border-radius: 50%;
-          background: rgba(139,92,246,0.15);
-          display: flex; align-items: center; justify-content: center;
-          border: 1px solid rgba(139,92,246,0.3);
-        }
-        .drop-icon { width: 36px; height: 36px; color: #a78bfa; }
-        .drop-title { font-size: 20px; font-weight: 600; color: #f1f5f9; }
-        .drop-sub { font-size: 14px; color: #64748b; }
-        .upload-btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 12px 28px;
-          background: linear-gradient(135deg, #7c3aed, #4f46e5);
-          color: #fff; font-size: 14px; font-weight: 600;
-          border-radius: 12px; cursor: pointer; transition: all 0.2s;
-          box-shadow: 0 4px 24px rgba(124,58,237,0.4); margin-top: 8px;
-        }
-        .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,58,237,0.5); }
-        .hidden-input { display: none; }
-        .drop-hint { font-size: 12px; color: #475569; }
+                /* PROGRESS BAR */
+                .progress-bar {
+                    width: 100%; height: 3px;
+                    background: rgba(255,255,255,0.08);
+                    border-radius: 999px; overflow: hidden;
+                }
+                .progress-fill {
+                    height: 100%; border-radius: 999px;
+                    animation: progress-anim 1.6s ease-in-out infinite;
+                }
+                .fill-indigo { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+                .fill-purple { background: linear-gradient(90deg, #7c3aed, #c084fc); }
+                @keyframes progress-anim {
+                    0%   { width: 5%;  margin-left: 0;   }
+                    50%  { width: 60%; margin-left: 30%;  }
+                    100% { width: 5%;  margin-left: 95%; }
+                }
 
-        /* ── FILE LIST ── */
-        .file-list-title { font-size: 16px; font-weight: 600; color: #cbd5e1; margin-bottom: 12px; }
-        .file-cards { display: flex; flex-direction: column; gap: 10px; }
-        .file-card {
-          display: flex; align-items: center; gap: 14px;
-          padding: 16px 20px;
-          background: rgba(255,255,255,0.04);
-          border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.07);
-          transition: all 0.2s;
-        }
-        .file-card.phase-analyzing {
-          border-color: rgba(139,92,246,0.3);
-          background: rgba(139,92,246,0.06);
-        }
-        .file-card.phase-success {
-          border-color: rgba(16,185,129,0.25);
-          background: rgba(16,185,129,0.05);
-        }
-        .file-card.phase-error {
-          border-color: rgba(239,68,68,0.25);
-          background: rgba(239,68,68,0.05);
-        }
-        .file-icon { font-size: 28px; flex-shrink: 0; }
-        .file-info { flex: 1; overflow: hidden; }
-        .file-name {
-          font-size: 14px; font-weight: 600; color: #e2e8f0;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .file-size { font-size: 12px; color: #64748b; margin-top: 2px; }
-        .file-doctype { font-size: 12px; color: #a78bfa; margin-top: 4px; font-weight: 500; }
-        .file-error { font-size: 12px; color: #f87171; margin-top: 4px; }
-        .file-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 150px; }
-
-        /* ── BADGES ── */
-        .badge {
-          display: inline-flex; align-items: center; gap: 5px;
-          padding: 5px 12px; border-radius: 999px;
-          font-size: 12px; font-weight: 600;
-        }
-        .badge.uploading { background: rgba(99,102,241,0.15); color: #818cf8; }
-        .badge.analyzing { background: rgba(139,92,246,0.15); color: #a78bfa; }
-        .badge.success { background: rgba(16,185,129,0.15); color: #34d399; }
-        .badge.error { background: rgba(239,68,68,0.15); color: #f87171; }
-
-        /* ── PROGRESS BAR ── */
-        .progress-bar {
-          width: 100%; height: 3px;
-          background: rgba(255,255,255,0.08);
-          border-radius: 999px; overflow: hidden;
-        }
-        .progress-fill {
-          height: 100%; border-radius: 999px;
-          animation: progress-anim 1.6s ease-in-out infinite;
-        }
-        .fill-indigo { background: linear-gradient(90deg, #4f46e5, #818cf8); }
-        .fill-purple { background: linear-gradient(90deg, #7c3aed, #c084fc); }
-        @keyframes progress-anim {
-          0% { width: 5%; margin-left: 0; }
-          50% { width: 60%; margin-left: 30%; }
-          100% { width: 5%; margin-left: 95%; }
-        }
-
-        /* ── SPINNER ── */
-        .spinner {
-          display: inline-block; width: 16px; height: 16px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-        }
-        .spinner.sm {
-          width: 11px; height: 11px; border-width: 1.5px;
-          border-color: rgba(129,140,248,0.3);
-          border-top-color: #818cf8;
-        }
-        .spinner.sm.purple {
-          border-color: rgba(167,139,250,0.3);
-          border-top-color: #a78bfa;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+                /* SPINNER */
+                .spinner {
+                    display: inline-block; width: 16px; height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top-color: #fff;
+                    border-radius: 50%;
+                    animation: spin 0.7s linear infinite;
+                }
+                .spinner.sm { width: 11px; height: 11px; border-width: 1.5px; border-color: rgba(129,140,248,0.3); border-top-color: #818cf8; }
+                .spinner.sm.purple { border-color: rgba(167,139,250,0.3); border-top-color: #a78bfa; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     )
 }

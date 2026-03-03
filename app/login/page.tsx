@@ -37,7 +37,7 @@ export default function LoginPage() {
             if (role === 'admin' || role === 'tenant_admin' || role === 'super_admin') {
                 router.push('/admin')
             } else {
-                router.push('/i485')
+                router.push('/dashboard')
             }
         } catch {
             router.push('/admin')
@@ -155,14 +155,6 @@ export default function LoginPage() {
                     </p>
                 </div>
             </motion.div>
-
-            {/* Bomjur Signature */}
-            <div className="fixed bottom-6 right-8 flex items-center gap-2.5 opacity-40 hover:opacity-100 transition-all duration-300 group cursor-default z-0">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                    Powered by<br /><span className="text-slate-600">Bomjur Technology</span>
-                </span>
-                <img src="/bomjur-logo.png" alt="Bomjur" className="h-6 w-auto grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
-            </div>
         </div>
     )
 }
