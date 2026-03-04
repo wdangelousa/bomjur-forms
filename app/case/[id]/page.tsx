@@ -18,6 +18,7 @@ import { COLORS } from '@/lib/design-system'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import NotificationBell from '@/components/notifications/NotificationBell'
 
 interface TimelineEvent {
     id: string
@@ -32,6 +33,7 @@ export default function ClientDashboard() {
     const supabase = createClient()
 
     const [loading, setLoading] = useState(true)
+    const [user, setUser] = useState<any>(null)
     const [caseData, setCaseData] = useState<any>(null)
     const [stats, setStats] = useState({ total: 0, approved: 0, pending: 0 })
     const [nextStep, setNextStep] = useState<any>(null)
@@ -39,6 +41,10 @@ export default function ClientDashboard() {
 
     const fetchDashboardData = async () => {
         try {
+            // 0. Fetch User
+            const { data: { user: u } } = await supabase.auth.getUser()
+            setUser(u)
+
             // 1. Fetch Case & Client Info
             const { data: cData } = await supabase
                 .from('cases')
@@ -131,9 +137,12 @@ export default function ClientDashboard() {
     return (
         <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto" style={{ background: COLORS.bg }}>
             {/* Header / Welcome */}
-            <header className="py-6 space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-500">Olá, {caseData?.client_name?.split(' ')[0]}!</span>
-                <h1 className="text-2xl font-black text-white">Bem-vindo ao seu <span className="text-lime-500">Dashboard</span></h1>
+            <header className="py-6 flex justify-between items-start">
+                <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-500">Olá, {caseData?.client_name?.split(' ')[0]}!</span>
+                    <h1 className="text-2xl font-black text-white leading-tight">Bem-vindo ao seu <span className="text-lime-500">Dashboard</span></h1>
+                </div>
+                {user && <NotificationBell userId={user.id} />}
             </header>
 
             {/* Case Summary Card */}
