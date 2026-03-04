@@ -12,6 +12,7 @@ import {
 import { COLORS } from '@/lib/design-system'
 import { createClient } from '@/lib/supabase/client'
 import DocumentCard, { DocumentStatus } from '@/components/documents/DocumentCard'
+import DocumentGuide from '@/components/documents/DocumentGuide'
 import { useParams, useRouter } from 'next/navigation'
 
 interface DocRequirement {
@@ -32,6 +33,10 @@ export default function ClientDocumentsChecklist() {
     const [docs, setDocs] = useState<DocRequirement[]>([])
     const [loading, setLoading] = useState(true)
     const [caseData, setCaseData] = useState<any>(null)
+
+    // Guide State
+    const [guideOpen, setGuideOpen] = useState(false)
+    const [selectedCategory, setSelectedCategory] = useState('passport')
 
     const fetchDocuments = async () => {
         try {
@@ -92,6 +97,11 @@ export default function ClientDocumentsChecklist() {
         }
     }, [caseId])
 
+    const openGuide = (category: string) => {
+        setSelectedCategory(category)
+        setGuideOpen(true)
+    }
+
     const totalDocs = docs.length
     const completedDocs = docs.filter(d => d.status === 'uploaded' || d.status === 'under_review' || d.status === 'approved').length
     const progress = (completedDocs / totalDocs) * 100
@@ -108,7 +118,7 @@ export default function ClientDocumentsChecklist() {
     )
 
     return (
-        <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto relative" style={{ background: COLORS.bg }}>
+        <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto relative pb-20" style={{ background: COLORS.bg }}>
             {/* Header Area */}
             <header className="flex items-center justify-between mb-8">
                 <button
@@ -171,26 +181,41 @@ export default function ClientDocumentsChecklist() {
                     <LayoutGrid className="w-4 h-4 text-dim" />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-6">
                     {docs.map((doc, idx) => (
                         <motion.div
                             key={doc.category}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.05 }}
+                            className="space-y-2"
                         >
                             <DocumentCard
                                 {...doc}
                                 caseId={caseId as string}
                                 onUpdate={fetchDocuments}
                             />
+                            <button
+                                onClick={() => openGuide(doc.category)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-dim hover:text-lime-500 transition-all ml-1"
+                            >
+                                <AlertCircle className="w-3 h-3" />
+                                Como preparar este documento?
+                            </button>
                         </motion.div>
                     ))}
                 </div>
             </div>
 
+            {/* Guide Component */}
+            <DocumentGuide
+                isOpen={guideOpen}
+                onClose={() => setGuideOpen(false)}
+                category={selectedCategory}
+            />
+
             {/* Footer Advice */}
-            <footer className="mt-8 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3 items-center">
+            <footer className="mt-12 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex gap-3 items-center">
                 <AlertCircle className="w-5 h-5 text-blue-400 shrink-0" />
                 <p className="text-[10px] text-blue-300 font-medium leading-tight">
                     Precisa de ajuda? Use o chat de suporte para falar com seu gestor de caso.
