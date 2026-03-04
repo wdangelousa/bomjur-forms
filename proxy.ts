@@ -31,24 +31,11 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Rotas que não devem ser bloqueadas logo de cara (assets, publicas)
-  const isStaticAsset = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/.test(pathname)
-  const isPublicPrefix = ['/login', '/auth/callback', '/api/', '/_next/'].some(prefix => pathname.startsWith(prefix))
-
-  if (isStaticAsset || isPublicPrefix) {
-    // Apenas a regra do login estando autenticado
-    if (user && pathname === '/login') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin' // O front-end encarrega-se depois de distribuir
-      return NextResponse.redirect(url)
-    }
-    return supabaseResponse
-  }
-
-  // Rotas Privadas (tudo que for /admin, /team, /case, /dashboard ...)
+  // Rotas Privadas (tudo que for /admin, /team, /case)
   const privatePrefixes = ['/admin', '/team', '/case', '/dashboard', '/upload']
   const isPrivate = privatePrefixes.some(prefix => pathname.startsWith(prefix))
 
+  // Se não houver utilizador e a rota for privada -> redirecione para /login
   if (!user && isPrivate) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'

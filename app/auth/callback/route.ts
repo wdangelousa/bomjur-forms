@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// Rota crítica para receber o "code" do Magic Link / Auth
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/'
 
     if (code) {
         const cookieStore = await cookies()
@@ -33,9 +33,11 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            return NextResponse.redirect(`${origin}${next}`)
+            // Após sucesso, redirecione para /admin
+            return NextResponse.redirect(`${origin}/admin`)
         }
     }
 
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+    // Em caso de erro, redirecione para /login?error=true
+    return NextResponse.redirect(`${origin}/login?error=true`)
 }

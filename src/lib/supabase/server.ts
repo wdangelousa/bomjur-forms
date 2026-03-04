@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export async function createClient() {
+    // await cookies() de forma assíncrona, compatível com o Next.js 16+
     const cookieStore = await cookies()
 
     return createServerClient(
