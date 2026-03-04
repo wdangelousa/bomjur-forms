@@ -31,14 +31,14 @@ export async function GET() {
         return NextResponse.json({ role: null }, { status: 401 })
     }
 
-    // 2. Cliente ADMIN para ler o perfil sem restrição de RLS
+    // 2. Cliente ADMIN para ler o perfil sem restrição de RLS na tabela unified PROFILES
     const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
     const { data: profile } = await supabaseAdmin
-        .from('user_profiles')
+        .from('profiles')
         .select('role, tenant_id')
         .eq('id', user.id)
         .single()
