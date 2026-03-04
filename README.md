@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bomjur Forms 🚀
 
-## Getting Started
+Plataforma inteligente de documentação e imigração desenvolvida para a **Proexpand**.
 
-First, run the development server:
+## 🏗️ Arquitetura Técnica
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+O Bomjur Forms utiliza uma stack moderna focada em performance, segurança e experiência do usuário (UX):
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Framework**: Next.js 14 (App Router)
+- **Backend/DB**: Supabase (PostgreSQL, Auth, Realtime, Storage)
+- **IA**: Anthropic (Extração de dados e validação de documentos)
+- **E-mail**: Resend (Notificações automáticas bilingues)
+- **UI/UX**: Tailwind CSS, Framer Motion (Animações Premium)
+- **PWA**: Instalável em dispositivos móveis com suporte offline básico.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Instalação e Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Clonar o repositório:**
+   ```bash
+   git clone [url-do-repo]
+   cd bomjur-forms
+   ```
 
-## Learn More
+2. **Instalar dependências:**
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. **Configurar Variáveis de Ambiente:**
+   Copie o arquivo `.env.example` para `.env.local` e preencha com as suas chaves.
+   ```bash
+   cp .env.example .env.local
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Rodar em desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🧠 Fluxos Inteligentes
 
-## Deploy on Vercel
+### 1. Processamento de Documentos (IA)
+Logo após o upload de um ficheiro (Passaporte, Certidão, etc.), o sistema dispara a API `/api/process-document`. Esta utiliza modelos da **Anthropic** para ler o documento e extrair dados críticos (Nomes, Datas), fornecendo feedback visual imediato ao cliente.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Geração de PDFs (USCIS)
+Para converter o progresso do cliente em formulários oficiais:
+- O motor `src/lib/pdf/filler.ts` mapeia o JSON de dados do caso para os campos dos formulários `I-485` e `I-140`.
+- Os PDFs são gerados no servidor e guardados de forma segura no Supabase Storage.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔐 Segurança
+
+O projeto segue as melhores práticas de segurança:
+- **RLS (Row Level Security)**: Total isolamento de dados entre clientes.
+- **Service Role**: Operações administrativas protegidas no lado do servidor.
+- **Headers de Segurança**: CSP, HSTS e X-Frame-Options configurados via `vercel.json`.
+
+---
+Desenvolvido com ❤️ para Walter D'Angelo e Proexpand.
