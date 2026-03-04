@@ -29,7 +29,7 @@ export async function awardXP(profileId: string, eventType: string): Promise<XPR
 
     // 2. Get current profile XP
     const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('total_xp')
         .eq('id', profileId)
         .single();
@@ -47,7 +47,7 @@ export async function awardXP(profileId: string, eventType: string): Promise<XPR
 
     // 3. Update total_xp in profiles
     const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ total_xp: newXP })
         .eq('id', profileId);
 

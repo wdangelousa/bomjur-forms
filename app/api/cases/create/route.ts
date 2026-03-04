@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: callerProfile } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       .from('cases')
       .select(`
         *,
-        user_profiles!client_id (id, full_name, email, preferred_language)
+        profiles!client_id (id, full_name, email, preferred_language)
       `)
       .eq('id', caseId)
       .single()
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Caso não encontrado' }, { status: 404 })
     }
 
-    const clientProfile = (caseData as any).user_profiles
+    const clientProfile = (caseData as any).profiles
     const clientEmail = clientProfile?.email
     const clientName = clientProfile?.full_name || 'Cliente'
     const language = clientProfile?.preferred_language || 'pt'

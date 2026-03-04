@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic' // Ensure no caching for role endpoint
+
+
 // ============================================================
 // API: /api/auth/role
 // Retorna o role do usuário autenticado.

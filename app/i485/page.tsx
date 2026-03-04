@@ -144,7 +144,7 @@ export default function I485StartPage() {
             }
 
             const { data: profile } = await supabase
-                .from('user_profiles')
+                .from('profiles')
                 .select('full_name, tenant_id')
                 .eq('id', user.id)
                 .single()

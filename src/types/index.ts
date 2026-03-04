@@ -93,7 +93,7 @@ export interface Notification {
 export interface Database {
   public: {
     Tables: {
-      user_profiles: { Row: Profile }
+      profiles: { Row: Profile }
       cases: { Row: Case }
       case_documents: { Row: CaseDocument }
       client_progress: { Row: ClientProgress }

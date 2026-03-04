@@ -13,7 +13,7 @@ export default function EmptyDashboardPage() {
         async function fetchUser() {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
+                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
                 setProfile(data)
             }
         }

@@ -84,7 +84,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       if (!user) { setLoading(false); return }
 
       const { data } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
@@ -130,7 +130,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setLang(newLang)
     if (profile) {
       await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ preferred_language: newLang })
         .eq('id', profile.id)
     }
