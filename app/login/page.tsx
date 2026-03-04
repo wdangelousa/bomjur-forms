@@ -34,13 +34,15 @@ export default function LoginPage() {
             const data = await res.json()
             const role = data?.role
 
-            if (role === 'admin' || role === 'tenant_admin' || role === 'super_admin') {
+            if (role === 'super_admin') {
                 router.push('/admin')
+            } else if (role === 'team' || role === 'tenant_admin') {
+                router.push('/team')
             } else {
                 router.push('/dashboard')
             }
         } catch {
-            router.push('/admin')
+            router.push('/login') // Safety fallback
         }
     }
 

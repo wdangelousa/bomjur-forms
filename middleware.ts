@@ -60,7 +60,7 @@ export async function updateSession(request: NextRequest) {
   if (pathname === '/login' && role) {
     const url = request.nextUrl.clone()
     if (role === 'super_admin') url.pathname = '/admin'
-    else if (role === 'team') url.pathname = '/team'
+    else if (role === 'team' || role === 'tenant_admin') url.pathname = '/team'
     else url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
@@ -69,10 +69,10 @@ export async function updateSession(request: NextRequest) {
   if (role) {
     if (pathname.startsWith('/admin') && role !== 'super_admin') {
       const url = request.nextUrl.clone()
-      url.pathname = role === 'team' ? '/team' : '/dashboard'
+      url.pathname = (role === 'team' || role === 'tenant_admin') ? '/team' : '/dashboard'
       return NextResponse.redirect(url)
     }
-    if (pathname.startsWith('/team') && role === 'client') {
+    if (pathname.startsWith('/team') && (role === 'client' || !['team', 'tenant_admin', 'super_admin'].includes(role))) {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
       return NextResponse.redirect(url)
