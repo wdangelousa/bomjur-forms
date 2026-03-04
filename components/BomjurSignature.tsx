@@ -6,7 +6,6 @@ export default function BomjurSignature() {
             <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase relative z-10">
                 Powered by
             </span>
-            {/* Mantido o contêiner proporcional ao aumento de h-36 da imagem */}
             <div className="relative h-6 flex items-center justify-center">
                 <img
                     src={bomjurLogo.src}
