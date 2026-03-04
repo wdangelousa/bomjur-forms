@@ -1,4 +1,4 @@
-import proexpandLogo from '../public/proexpand-logo.png'
+import proexpandLogo from '@/public/proexpand-logo.png'
 
 export default function ProexpandSignature() {
     return (

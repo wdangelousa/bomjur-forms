@@ -35,6 +35,9 @@
       "@/types": [
         "./src/types/index.ts"
       ],
+      "@/public/*": [
+        "./public/*"
+      ],
       "@/*": [
         "./src/*"
       ]
