@@ -13,14 +13,15 @@ export type DocumentStatus = 'pending' | 'uploaded' | 'in_review' | 'approved' |
 
 export interface Profile {
   id: string
-  tenant_id: string
-  full_name: string
+  tenant_id: string | null
+  full_name: string | null
   email: string
   phone: string | null
   role: UserRole
   preferred_language: PreferredLanguage
   avatar_url: string | null
   onboarding_complete: boolean
+  last_login: string | null
   created_at: string
   updated_at: string
 }
@@ -45,6 +46,7 @@ export interface Case {
 export interface CaseDocument {
   id: string
   case_id: string
+  category: string
   document_type: string
   status: DocumentStatus
   file_path: string | null
@@ -65,7 +67,7 @@ export interface CaseDocument {
 
 export interface ClientProgress {
   id: string
-  case_id: string
+  user_id: string
   total_xp: number
   current_level: number
   badges: string[]
@@ -91,7 +93,7 @@ export interface Notification {
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile }
+      user_profiles: { Row: Profile }
       cases: { Row: Case }
       case_documents: { Row: CaseDocument }
       client_progress: { Row: ClientProgress }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CasePipeline from '@/components/admin/CasePipeline'
+import CreateCaseModal from '@/components/team/CreateCaseModal'
 import { COLORS } from '@/lib/design-system'
 
 export default function AdminDashboard() {
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     })
     const [recentActivity, setRecentActivity] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [modalOpen, setModalOpen] = useState(false)
 
     const fetchKPIs = async () => {
         try {
@@ -98,7 +100,10 @@ export default function AdminDashboard() {
                     <button className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
                         <Filter className="w-4 h-4" /> Filtros
                     </button>
-                    <button className="px-5 py-2.5 rounded-xl bg-lime-500 text-black text-xs font-black uppercase tracking-widest hover:bg-lime-400 transition-all shadow-lg shadow-lime-500/20">
+                    <button
+                        onClick={() => setModalOpen(true)}
+                        className="px-5 py-2.5 rounded-xl bg-lime-500 text-black text-xs font-black uppercase tracking-widest hover:bg-lime-400 transition-all shadow-lg shadow-lime-500/20 active:scale-95 transition-transform"
+                    >
                         Novo Caso +
                     </button>
                 </div>
@@ -180,6 +185,15 @@ export default function AdminDashboard() {
                     Espaço para Gráfico de Produtividade (Sprint Futura)
                 </div>
             </section>
+
+            <CreateCaseModal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSuccess={() => {
+                    setModalOpen(false)
+                    fetchKPIs()
+                }}
+            />
         </div>
     )
 }

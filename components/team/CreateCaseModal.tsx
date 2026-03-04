@@ -104,31 +104,31 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={handleClose} />
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9998]" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="w-full sm:max-w-lg bg-bomjur-card border border-bomjur-border rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
+      <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+        <div className="w-full sm:max-w-lg bg-bomjur-card border border-bomjur-border rounded-t-3xl sm:rounded-3xl max-h-[95vh] overflow-y-auto animate-slide-up pointer-events-auto shadow-2xl shadow-black/50">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-bomjur-border sticky top-0 bg-bomjur-card rounded-t-2xl z-10">
-            <h2 className="text-lg font-bold text-bomjur-text">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-bomjur-border sticky top-0 bg-bomjur-card rounded-t-3xl z-10">
+            <h2 className="text-xl font-black text-white">
               {result ? '✅ Caso Criado!' : '➕ Novo Caso'}
             </h2>
             <button
               onClick={handleClose}
-              className="p-2 rounded-lg hover:bg-bomjur-bg transition-colors text-bomjur-dim"
+              className="p-2.5 rounded-xl hover:bg-white/5 transition-all text-white/50 hover:text-white"
             >
-              <X size={20} />
+              <X size={22} />
             </button>
           </div>
 
-          <div className="px-5 py-5">
+          <div className="px-6 py-6 pb-8">
             {!result ? (
               /* ── Form ── */
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Client Name */}
-                <div>
-                  <label className="block text-sm font-semibold text-bomjur-text mb-1.5">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
                     Nome completo do cliente *
                   </label>
                   <input
@@ -136,13 +136,13 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_name}
                     onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
                     placeholder="Maria da Silva"
-                    className="w-full px-4 py-3 bg-bomjur-bg border border-bomjur-border rounded-xl text-bomjur-text placeholder:text-bomjur-dim text-sm focus:outline-none focus:border-bomjur-lime focus:ring-1 focus:ring-bomjur-lime"
+                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
                   />
                 </div>
 
                 {/* Email */}
-                <div>
-                  <label className="block text-sm font-semibold text-bomjur-text mb-1.5">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
                     Email do cliente *
                   </label>
                   <input
@@ -150,14 +150,14 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_email}
                     onChange={e => setForm(f => ({ ...f, client_email: e.target.value }))}
                     placeholder="maria@email.com"
-                    className="w-full px-4 py-3 bg-bomjur-bg border border-bomjur-border rounded-xl text-bomjur-text placeholder:text-bomjur-dim text-sm focus:outline-none focus:border-bomjur-lime focus:ring-1 focus:ring-bomjur-lime"
+                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
                   />
                 </div>
 
                 {/* Phone */}
-                <div>
-                  <label className="block text-sm font-semibold text-bomjur-text mb-1.5">
-                    Telefone <span className="text-bomjur-dim font-normal">(opcional)</span>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
+                    Telefone <span className="text-white/20 font-medium">(opcional)</span>
                   </label>
                   <input
                     type="tel"
@@ -165,16 +165,16 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_phone}
                     onChange={e => setForm(f => ({ ...f, client_phone: phoneFormat(e.target.value) }))}
                     placeholder="(321) 555-0123"
-                    className="w-full px-4 py-3 bg-bomjur-bg border border-bomjur-border rounded-xl text-bomjur-text placeholder:text-bomjur-dim text-sm focus:outline-none focus:border-bomjur-lime focus:ring-1 focus:ring-bomjur-lime"
+                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
                   />
                 </div>
 
                 {/* Case Type */}
-                <div>
-                  <label className="block text-sm font-semibold text-bomjur-text mb-2">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
                     Tipo de caso *
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     {(['I-485', 'I-140'] as CaseType[]).map(type => {
                       const info = caseTypeInfo[type]
                       const selected = form.case_type === type
@@ -183,16 +183,18 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                           key={type}
                           type="button"
                           onClick={() => setForm(f => ({ ...f, case_type: type }))}
-                          className={`p-3.5 rounded-xl border text-left transition-all ${selected
-                              ? 'border-bomjur-lime bg-bomjur-lime/10'
-                              : 'border-bomjur-border bg-bomjur-bg hover:border-bomjur-dim'
+                          className={`p-4 rounded-2xl border text-left transition-all ${selected
+                            ? 'border-lime-500 bg-lime-500/10'
+                            : 'border-white/10 bg-white/5 hover:border-white/20'
                             }`}
                         >
-                          <div className={`text-base font-bold ${selected ? 'text-bomjur-lime' : 'text-bomjur-text'}`}>
+                          <div className={`text-lg font-black ${selected ? 'text-lime-500' : 'text-white'}`}>
                             {info.label}
                           </div>
-                          <div className="text-xs text-bomjur-muted mt-0.5">{info.desc}</div>
-                          <div className="text-[10px] text-bomjur-dim mt-1">{info.docs} documentos</div>
+                          <div className={`text-[10px] font-bold mt-0.5 ${selected ? 'text-lime-500/60' : 'text-dim'}`}>{info.desc}</div>
+                          <div className={`text-[8px] font-black uppercase tracking-widest mt-2 px-1.5 py-0.5 rounded-md w-fit ${selected ? 'bg-lime-500/20 text-lime-500' : 'bg-white/5 text-dim'}`}>
+                            {info.docs} Docs
+                          </div>
                         </button>
                       )
                     })}
@@ -200,11 +202,11 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                 </div>
 
                 {/* Language */}
-                <div>
-                  <label className="block text-sm font-semibold text-bomjur-text mb-2">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
                     Idioma preferido
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     {([
                       { value: 'pt' as Language, label: '🇧🇷 Português' },
                       { value: 'en' as Language, label: '🇺🇸 English' },
@@ -215,9 +217,9 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                           key={opt.value}
                           type="button"
                           onClick={() => setForm(f => ({ ...f, preferred_language: opt.value }))}
-                          className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all ${selected
-                              ? 'border-bomjur-lime bg-bomjur-lime/10 text-bomjur-lime'
-                              : 'border-bomjur-border text-bomjur-muted hover:border-bomjur-dim'
+                          className={`flex-1 py-3.5 rounded-2xl border text-xs font-black tracking-widest uppercase transition-all ${selected
+                            ? 'border-lime-500 bg-lime-500/10 text-lime-500'
+                            : 'border-white/10 text-dim hover:text-white hover:border-white/20'
                             }`}
                         >
                           {opt.label}
@@ -228,19 +230,20 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                 </div>
 
                 {/* Preview */}
-                <div className="bg-bomjur-bg rounded-xl p-4 border border-bomjur-border">
-                  <p className="text-xs font-semibold text-bomjur-dim mb-2">AO CRIAR, O SISTEMA VAI:</p>
-                  <div className="space-y-1.5 text-xs text-bomjur-muted">
-                    <div className="flex gap-2"><span className="text-bomjur-lime">✓</span> Criar o caso {form.case_type}</div>
-                    <div className="flex gap-2"><span className="text-bomjur-lime">✓</span> Registrar {caseTypeInfo[form.case_type].docs} documentos necessários</div>
-                    <div className="flex gap-2"><span className="text-bomjur-lime">✓</span> Inicializar gamificação (XP e badges)</div>
-                    <div className="flex gap-2"><span className="text-bomjur-lime">✓</span> Gerar link de acesso para o cliente</div>
+                <div className="bg-white/5 rounded-2xl p-5 border border-white/10 space-y-3">
+                  <p className="text-[9px] font-black text-dim uppercase tracking-[0.2em]">Fluxo Automatizado:</p>
+                  <div className="space-y-2 text-[11px] font-bold text-white/60">
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Criar o caso {form.case_type}</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Registrar {caseTypeInfo[form.case_type].docs} documentos vinculados</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Ativar Gamificação e XP do Cliente</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Blindar acesso via Magic Link</div>
                   </div>
                 </div>
 
                 {/* Error */}
                 {error && (
-                  <div className="bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 text-red-400 text-xs">
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-4 text-red-400 text-xs font-bold flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
                     {error}
                   </div>
                 )}
@@ -249,70 +252,76 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                 <button
                   onClick={handleSubmit}
                   disabled={loading || !form.client_name.trim() || !form.client_email.trim()}
-                  className="w-full py-3.5 bg-bomjur-lime text-bomjur-bg font-bold rounded-xl text-sm hover:bg-bomjur-lime-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-lime-500 text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl hover:bg-lime-400 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-lime-500/20"
                 >
                   {loading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={18} className="animate-spin" />
                       Criando caso...
                     </>
                   ) : (
                     <>
-                      <Send size={16} />
-                      Criar Caso e Gerar Convite
+                      <Send size={18} />
+                      Ativar e Gerar Convite
                     </>
                   )}
                 </button>
               </div>
             ) : (
               /* ── Success ── */
-              <div className="space-y-4 animate-fade-in">
-                <div className="text-center py-2">
-                  <div className="text-4xl mb-3">🎉</div>
-                  <p className="text-bomjur-text font-semibold">Caso criado com sucesso!</p>
-                  <p className="text-bomjur-muted text-sm mt-1">
-                    {result.docsCount} documentos inicializados
-                  </p>
-                  {result.emailSent ? (
-                    <p className="text-green-400 text-xs mt-2">✅ Email de convite enviado ao cliente</p>
-                  ) : (
-                    <p className="text-yellow-400 text-xs mt-2">⚠️ Email não enviado — copie o link abaixo para enviar manualmente</p>
-                  )}
+              <div className="space-y-6 animate-fade-in text-center py-4">
+                <div className="relative inline-block">
+                  <div className="text-6xl mb-4">✨</div>
+                  <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full" />
                 </div>
 
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white">Missão Inicial Concluída!</h3>
+                  <p className="text-dim text-sm font-medium">
+                    {result.docsCount} requisitos de inteligência inicializados.
+                  </p>
+                </div>
+
+                {result.emailSent ? (
+                  <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                    ✅ Convite enviado com sucesso
+                  </div>
+                ) : (
+                  <div className="py-3 px-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                    ⚠️ Link gerado (enviar manual)
+                  </div>
+                )}
+
                 {result.magicLink && (
-                  <div>
-                    <label className="block text-xs font-semibold text-bomjur-dim mb-2">
-                      LINK DE ACESSO DO CLIENTE
+                  <div className="space-y-3 pt-4">
+                    <label className="block text-[8px] font-black text-dim uppercase tracking-[0.3em]">
+                      Link Blindado de Acesso
                     </label>
                     <div className="flex gap-2">
                       <input
                         readOnly
                         value={result.magicLink}
-                        className="flex-1 px-3 py-2.5 bg-bomjur-bg border border-bomjur-border rounded-lg text-bomjur-muted text-xs font-mono truncate"
+                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
                       />
                       <button
                         onClick={handleCopy}
-                        className={`px-3 py-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all ${copied
-                            ? 'border-green-400/20 bg-green-400/10 text-green-400'
-                            : 'border-bomjur-border bg-bomjur-bg text-bomjur-muted hover:text-bomjur-text'
+                        className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${copied
+                          ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                          : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
                           }`}
                       >
                         {copied ? <Check size={14} /> : <Copy size={14} />}
-                        {copied ? 'Copiado!' : 'Copiar'}
+                        {copied ? 'Pronto!' : 'Copiar'}
                       </button>
                     </div>
-                    <p className="text-[10px] text-bomjur-dim mt-2">
-                      Este link será enviado por email no próximo passo. Você também pode copiar e enviar manualmente.
-                    </p>
                   </div>
                 )}
 
                 <button
                   onClick={handleClose}
-                  className="w-full py-3 bg-bomjur-lime text-bomjur-bg font-bold rounded-xl text-sm hover:bg-bomjur-lime-dark transition-colors"
+                  className="w-full py-4 mt-6 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-white/10 transition-all shadow-xl"
                 >
-                  Fechar
+                  Finalizar e Sair
                 </button>
               </div>
             )}
