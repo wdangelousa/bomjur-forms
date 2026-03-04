@@ -35,15 +35,16 @@ export default function DashboardRedirect() {
         if (activeCase) {
           router.push(`/case/${activeCase.id}`)
         } else {
-          // If no active case yet, stay on dashboard (it will show the empty state we built)
           router.push('/dashboard/empty')
         }
       } else if (profile?.role === 'super_admin' || profile?.role === 'admin') {
         router.push('/admin')
-      } else if (profile?.role === 'team') {
+      } else if (profile?.role === 'team' || profile?.role === 'tenant_admin') {
         router.push('/team')
       } else {
-        router.push('/login')
+        // No profile found or unknown role — go to empty dashboard, NOT login
+        // (going to /login causes infinite loop when user IS authenticated)
+        router.push('/dashboard/empty')
       }
     }
 
