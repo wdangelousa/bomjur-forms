@@ -1,0 +1,17 @@
+{
+    "name": "Bomjur Forms",
+    "short_name": "Bomjur",
+    "description": "Plataforma inteligente para formulários de imigração",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0A0E17",
+    "theme_color": "#84CC16",
+    "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
