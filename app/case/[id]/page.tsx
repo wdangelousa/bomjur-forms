@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import NotificationBell from '@/components/notifications/NotificationBell'
+import XPBar from '@/components/gamification/XPBar'
 
 interface TimelineEvent {
     id: string
@@ -38,6 +39,7 @@ export default function ClientDashboard() {
     const [stats, setStats] = useState({ total: 0, approved: 0, pending: 0 })
     const [nextStep, setNextStep] = useState<any>(null)
     const [timeline, setTimeline] = useState<TimelineEvent[]>([])
+    const [gamification, setGamification] = useState({ currentXP: 0, level: 1 })
 
     const fetchDashboardData = async () => {
         try {
@@ -52,6 +54,18 @@ export default function ClientDashboard() {
                 .eq('id', caseId)
                 .single()
             setCaseData(cData)
+
+            // 1b. Fetch Gamification
+            if (cData?.client_id) {
+                const { data: gData } = await supabase
+                    .from('gamification')
+                    .select('current_xp, current_level')
+                    .eq('user_id', cData.client_id)
+                    .single()
+                if (gData) {
+                    setGamification({ currentXP: gData.current_xp, level: gData.current_level })
+                }
+            }
 
             // 2. Fetch Docs for Progress Calculation
             const { data: dData } = await supabase
@@ -136,13 +150,17 @@ export default function ClientDashboard() {
 
     return (
         <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto" style={{ background: COLORS.bg }}>
-            {/* Header / Welcome */}
-            <header className="py-6 flex justify-between items-start">
-                <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-500">Olá, {caseData?.client_name?.split(' ')[0]}!</span>
-                    <h1 className="text-2xl font-black text-white leading-tight">Bem-vindo ao seu <span className="text-lime-500">Dashboard</span></h1>
+            <header className="py-6 flex flex-col gap-4">
+                <div className="flex justify-between items-start w-full">
+                    <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-500">Olá, {caseData?.client_name?.split(' ')[0]}!</span>
+                        <h1 className="text-2xl font-black text-white leading-tight">Bem-vindo ao seu <span className="text-lime-500">Dashboard</span></h1>
+                    </div>
+                    {user && <NotificationBell userId={user.id} />}
                 </div>
-                {user && <NotificationBell userId={user.id} />}
+                <div className="w-full">
+                    <XPBar currentXP={gamification.currentXP} level={gamification.level} />
+                </div>
             </header>
 
             {/* Case Summary Card */}

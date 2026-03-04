@@ -26,9 +26,8 @@ interface NavItem {
 
 const navConfig: Record<UserRole, NavItem[]> = {
   client: [
-    { label: 'Dashboard', labelPt: 'Início', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { label: 'Dashboard', labelPt: 'Meu Caso', href: '/case', icon: <LayoutDashboard size={20} /> },
     { label: 'Documents', labelPt: 'Documentos', href: '/documents', icon: <FileText size={20} /> },
-    { label: 'My Case', labelPt: 'Meu Caso', href: '/case', icon: <FolderOpen size={20} /> },
     { label: 'Notifications', labelPt: 'Avisos', href: '/notifications', icon: <Bell size={20} /> },
   ],
   team: [
