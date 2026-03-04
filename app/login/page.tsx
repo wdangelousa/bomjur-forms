@@ -38,11 +38,13 @@ export default function LoginPage() {
                 router.push('/admin')
             } else if (role === 'team' || role === 'tenant_admin') {
                 router.push('/team')
+            } else if (role === 'client') {
+                router.push('/dashboard')
             } else {
                 router.push('/dashboard')
             }
         } catch {
-            router.push('/login') // Safety fallback
+            router.push('/dashboard') // Safety fallback - don't loop back to login
         }
     }
 
