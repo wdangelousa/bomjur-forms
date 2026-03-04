@@ -23,11 +23,20 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
       "@/components/*": [
         "./components/*"
+      ],
+      "@/lib/*": [
+        "./src/lib/*"
+      ],
+      "@/types/*": [
+        "./src/types/*"
+      ],
+      "@/types": [
+        "./src/types/index.ts"
+      ],
+      "@/*": [
+        "./src/*"
       ]
     }
   },
@@ -41,6 +50,7 @@
   ],
   "exclude": [
     "node_modules",
-    "supabase/functions"
+    "supabase/functions",
+    "scripts"
   ]
 }

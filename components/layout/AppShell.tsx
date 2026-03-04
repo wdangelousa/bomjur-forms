@@ -130,7 +130,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setLang(newLang)
     if (profile) {
       await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ preferred_language: newLang })
         .eq('id', profile.id)
     }

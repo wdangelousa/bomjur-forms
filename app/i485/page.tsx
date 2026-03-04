@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useForm } from 'react-hook-form'
-import I485WaiverModal from '../components/I485WaiverModal'
+import I485WaiverModal from '@/components/I485WaiverModal'
 
 const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

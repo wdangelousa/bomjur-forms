@@ -1,4 +1,4 @@
-import bomjurLogo from '../../public/bomjur-logo.png'
+import bomjurLogo from '../public/bomjur-logo.png'
 
 export default function BomjurSignature() {
     return (
