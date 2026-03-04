@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         // 2. Fetch Client Profile for Email info
         const clientId = updatedDoc.cases.client_id
         const { data: profile, error: profileError } = await supabase
-            .from('profiles')
+            .from('user_profiles')
             .select('email, full_name, preferred_language')
             .eq('id', clientId)
             .single()

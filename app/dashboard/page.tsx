@@ -17,7 +17,7 @@ export default function DashboardRedirect() {
       }
 
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single()

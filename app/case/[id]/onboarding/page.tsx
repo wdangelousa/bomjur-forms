@@ -23,7 +23,7 @@ export default async function OnboardingPage({ params }: PageProps) {
         .from('cases')
         .select(`
       *,
-      profiles!client_id (full_name)
+      user_profiles!client_id (full_name)
     `)
         .eq('id', caseId)
         .single()
@@ -41,7 +41,7 @@ export default async function OnboardingPage({ params }: PageProps) {
         // redirect('/dashboard')
     }
 
-    const clientName = (caseData as any).profiles?.full_name || 'Cliente'
+    const clientName = (caseData as any).user_profiles?.full_name || 'Cliente'
 
     return (
         <OnboardingWizard

@@ -84,7 +84,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       if (!user) { setLoading(false); return }
 
       const { data } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single()
