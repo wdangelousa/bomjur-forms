@@ -14,17 +14,13 @@ export default async function OnboardingPage({ params }: PageProps) {
     // 1. Verificar se o usuário está autenticado (via magic link)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-        // Se não estiver logado, redireciona para login (Supabase cuidará do magic link)
         redirect('/login')
     }
 
-    // 2. Buscar dados do caso e do perfil
+    // 2. Buscar dados do caso (sem join em profiles — a FK client_id aponta para user_profiles)
     const { data: caseData, error } = await supabase
         .from('cases')
-        .select(`
-      *,
-      profiles!client_id (full_name)
-    `)
+        .select('*')
         .eq('id', caseId)
         .single()
 
@@ -36,12 +32,41 @@ export default async function OnboardingPage({ params }: PageProps) {
         )
     }
 
-    // Se o caso já saiu do onboarding, manda pro dashboard
-    if (caseData.status !== 'pending_onboarding' && caseData.status !== 'active') {
-        // redirect('/dashboard')
+    // 3. Segurança: garantir que o caso pertence ao usuário logado
+    if (caseData.client_id !== user.id) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-6 text-center" style={{ background: '#0A0E17' }}>
+                <p className="text-red-400 font-medium">Acesso negado. Este caso não pertence à sua conta.</p>
+            </div>
+        )
     }
 
-    const clientName = (caseData as any).profiles?.full_name || 'Cliente'
+    // 4. Buscar nome do cliente via user_profiles (tabela correta ligada por FK)
+    let clientName = 'Cliente'
+    const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+    if (profileData?.full_name) {
+        clientName = profileData.full_name
+    } else {
+        // Fallback: tentar na tabela profiles (criada no auth callback)
+        const { data: legacyProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+        if (legacyProfile?.full_name) {
+            clientName = legacyProfile.full_name
+        }
+    }
+
+    // 5. Se o caso já saiu do onboarding, manda pro dashboard do caso
+    if (caseData.status !== 'pending_onboarding' && caseData.status !== 'in_progress' && caseData.status !== 'documents_pending') {
+        redirect(`/case/${caseId}`)
+    }
 
     return (
         <OnboardingWizard

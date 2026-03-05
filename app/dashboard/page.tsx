@@ -7,7 +7,6 @@ import {
   ArrowRight,
   FileText,
   TrendingUp,
-  ShieldCheck,
   LogOut
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -127,17 +126,23 @@ export default function ClientHeadquarters() {
       {/* ── Top Navigation ── */}
       <nav className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-lime-500 rounded-lg flex items-center justify-center shadow-lg shadow-lime-500/20">
-              <ShieldCheck className="text-slate-900 w-5 h-5" strokeWidth={2.5} />
+          <div className="flex items-center gap-4">
+            <img
+              src="/proexpand-logo.png"
+              alt="Proexpand Brasil"
+              className="h-10 w-auto object-contain"
+            />
+            <div className="w-px h-8 bg-slate-200 hidden sm:block" />
+            <div className="hidden sm:flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Immigration Technology</span>
+              <span className="text-sm font-semibold text-slate-800 tracking-tight">Employment-Based Platform</span>
             </div>
-            <span className="font-black text-slate-900 tracking-tight text-lg">Bomjur</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Status do Acesso</span>
-              <span className="text-xs font-bold text-emerald-500">Criptografia Ativa</span>
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-2xl">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wide whitespace-nowrap">Sistema Ativo</span>
             </div>
             <div className="w-px h-6 bg-slate-200 hidden sm:block" />
             <button
