@@ -1,192 +1,111 @@
-'use client'
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import confetti from 'canvas-confetti';
 
-import React, { useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-    Camera,
-    Upload,
-    FileText,
-    CheckCircle2,
-    Loader2,
-    AlertCircle,
-    Image as ImageIcon,
-    Sparkles
-} from 'lucide-react'
-import { COLORS } from '@/lib/design-system'
-import { compressImage, uploadDocument } from '@/lib/storage/upload'
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-interface DocumentUploadProps {
-    caseId: string
-    category: string // ex: 'passport', 'birth_certificate'
-    label: string
-    onComplete?: (data: any) => void
-}
+const DocumentUpload: React.FC = () => {
+    const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
+    const [docId, setDocId] = useState<string | null>(null);
+    const [progress, setProgress] = useState(0);
 
-type UploadStep = 'idle' | 'compressing' | 'uploading' | 'processing' | 'done' | 'error'
+    useEffect(() => {
+        if (!docId) return;
 
-export default function DocumentUpload({ caseId, category, label, onComplete }: DocumentUploadProps) {
-    const [step, setStep] = useState<UploadStep>('idle')
-    const [error, setError] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-    const cameraInputRef = useRef<HTMLInputElement>(null)
+        const channel = supabase
+            .channel(`doc-${docId}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'client_documents',
+                filter: `id=eq.${docId}`
+            }, (payload) => {
+                const current = payload.new.extraction_status;
+                if (current === 'extracted') {
+                    setStatus('success');
+                    setProgress(100);
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#2563eb', '#10b981', '#f59e0b'] });
+                } else if (current === 'error') {
+                    setStatus('error');
+                }
+            }).subscribe();
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
+        return () => { supabase.removeChannel(channel); };
+    }, [docId]);
 
-        console.log(`[DocumentUpload] Arquivo selecionado: ${file.name} (${file.type})`);
-        setError(null)
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setStatus('uploading');
+        setProgress(30);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
         try {
-            // 1. Compressão
-            setStep('compressing')
-            console.log('[DocumentUpload] Iniciando compressão...');
-            const fileToUpload = file.type.startsWith('image/')
-                ? await compressImage(file)
-                : file
-            console.log('[DocumentUpload] Compressão concluída ou ignorada.');
+            const res = await fetch('/api/process-document', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
 
-            // 2. Upload para Supabase
-            setStep('uploading')
-            console.log('[DocumentUpload] Iniciando upload para Supabase...');
-            const path = await uploadDocument(fileToUpload, caseId, category)
-            console.log(`[DocumentUpload] Upload concluído! Path: ${path}`);
-
-            // 3. IA Lendo Documento
-            setStep('processing')
-            console.log('[DocumentUpload] Solicitando processamento de IA...');
-            const response = await fetch('/api/process-document', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path, caseId, category })
-            })
-
-            if (!response.ok) throw new Error('IA falhou ao processar documento')
-
-            const result = await response.json()
-            console.log('[DocumentUpload] IA processou o documento com sucesso:', result);
-
-            // 4. Concluído
-            setStep('done')
-            if (onComplete) onComplete(result)
-
-        } catch (err: any) {
-            console.error('[DocumentUpload] Erro crítico:', err)
-            setError(err.message || 'Erro no processo de upload')
-            setStep('error')
+            setDocId(data.documentId);
+            setStatus('processing');
+            setProgress(55);
+        } catch (e) {
+            setStatus('error');
         }
-    }
-
-    const triggerFileSelect = () => {
-        console.log('[DocumentUpload] Acionando seleção de galeria');
-        fileInputRef.current?.click();
-    }
-    const triggerCamera = () => {
-        console.log('[DocumentUpload] Acionando câmera');
-        cameraInputRef.current?.click();
-    }
+    };
 
     return (
-        <div
-            className={`p-5 rounded-2xl border bg-white shadow-sm transition-all ${step === 'error' ? 'border-red-200' : 'border-slate-200'}`}
-        >
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-slate-50">
-                        <FileText className="w-5 h-5 text-dim" />
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold" style={{ color: COLORS.text }}>{label}</h4>
-                        <p className="text-[10px] text-dim font-medium uppercase tracking-wider">
-                            {category.replace('_', ' ')}
-                        </p>
-                    </div>
+        <div className="max-w-md mx-auto p-12 border-2 border-dashed border-blue-500 rounded-[2.5rem] bg-white shadow-2xl text-center transition-all duration-500">
+            {status === 'idle' && (
+                <div className="animate-in zoom-in duration-300">
+                    <div className="text-7xl mb-6">🛸</div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2">Pronto para o Ben analisar?</h2>
+                    <p className="text-gray-500 mb-8 text-sm">O Ben fará a leitura instantânea e organizará seus dados com precisão.</p>
+                    <input type="file" onChange={handleFileChange} className="hidden" id="ben-upload-input" accept=".pdf,.png,.jpg,.jpeg" />
+                    <label htmlFor="ben-upload-input" className="cursor-pointer bg-blue-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-700 active:scale-95 transition-all inline-block">
+                        ENVIAR PARA O BEN
+                    </label>
                 </div>
+            )}
 
-                <AnimatePresence mode="wait">
-                    {step === 'done' && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                            <CheckCircle2 className="w-6 h-6" style={{ color: COLORS.success }} />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            <div className="space-y-3">
-                {step === 'idle' || step === 'error' ? (
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            onClick={triggerCamera}
-                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-slate-50"
-                            style={{ borderColor: COLORS.border }}
-                        >
-                            <Camera className="w-6 h-6" style={{ color: COLORS.primary }} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textDim }}>Câmera</span>
-                        </button>
-
-                        <button
-                            onClick={triggerFileSelect}
-                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-slate-50"
-                            style={{ borderColor: COLORS.border }}
-                        >
-                            <ImageIcon className="w-6 h-6" style={{ color: COLORS.blue }} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textDim }}>Galeria</span>
-                        </button>
+            {(status === 'uploading' || status === 'processing') && (
+                <div className="py-6">
+                    <div className="relative w-32 h-32 mx-auto mb-8">
+                        <div className="absolute inset-0 border-[6px] border-blue-50 rounded-full"></div>
+                        <div className="absolute inset-0 border-[6px] border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center font-black text-blue-600 text-2xl">{progress}%</div>
                     </div>
-                ) : (
-                    <div className="py-4 flex flex-col items-center justify-center gap-4">
-                        <div className="relative">
-                            {step === 'processing' ? (
-                                <div className="relative">
-                                    <Sparkles className="w-8 h-8 text-sky-500 animate-pulse" />
-                                    <motion.div
-                                        className="absolute inset-0 rounded-full border-2 border-sky-300"
-                                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                                        transition={{ duration: 2, repeat: Infinity }}
-                                    />
-                                </div>
-                            ) : (
-                                <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
-                            )}
-                        </div>
+                    <h3 className="text-xl font-black text-blue-900 uppercase tracking-tighter animate-pulse">
+                        {status === 'uploading' ? 'Recebendo arquivo...' : 'O Ben está lendo tudo...'}
+                    </h3>
+                    <p className="text-sm text-blue-400 mt-4 font-bold">Analisando seu documento para o processo de imigração.</p>
+                </div>
+            )}
 
-                        <div className="text-center">
-                            <p className="text-xs font-bold" style={{ color: COLORS.text }}>
-                                {step === 'compressing' && 'Comprimindo...'}
-                                {step === 'uploading' && 'Enviando...'}
-                                {step === 'processing' && 'IA Analisando Documento...'}
-                                {step === 'done' && 'Concluído'}
-                            </p>
-                            <p className="text-[10px] mt-1" style={{ color: COLORS.textDim }}>
-                                {step === 'processing' ? 'Extraindo dados automaticamente' : 'Por favor aguarde'}
-                            </p>
-                        </div>
-                    </div>
-                )}
+            {status === 'success' && (
+                <div className="animate-in bounce-in duration-500 text-green-600">
+                    <div className="text-7xl mb-6">🎊</div>
+                    <h2 className="text-3xl font-black mb-2">MISSÃO CUMPRIDA!</h2>
+                    <p className="text-gray-600 font-medium mb-8">O Ben terminou a leitura. Todos os dados foram extraídos com sucesso.</p>
+                    <button onClick={() => setStatus('idle')} className="text-blue-600 font-bold underline hover:text-blue-800">Enviar outro?</button>
+                </div>
+            )}
 
-                {error && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 mt-2">
-                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                        <p className="text-[10px] font-medium text-red-500">{error}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Hidden Inputs */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-            />
-            <input
-                type="file"
-                ref={cameraInputRef}
-                className="hidden"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileChange}
-            />
+            {status === 'error' && (
+                <div className="text-red-600 animate-in shake duration-300">
+                    <div className="text-7xl mb-6">⚠️</div>
+                    <h3 className="text-xl font-black uppercase tracking-tight">O Ben encontrou um obstáculo</h3>
+                    <p className="text-gray-500 mt-2 text-sm">Houve um erro no processamento. Vamos tentar novamente?</p>
+                    <button onClick={() => setStatus('idle')} className="mt-6 bg-red-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg">REPETIR MISSÃO</button>
+                </div>
+            )}
         </div>
-    )
-}
+    );
+};
+
+export default DocumentUpload;

@@ -1,113 +1,60 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import {
-    arrayBufferToBase64,
-    resolveMediaType,
-    buildFileBlock,
-    callClaude,
-    extractJson,
-} from '@/lib/ai-utils'
 
-// Allows up to 60 seconds on Vercel Pro; on Hobby this is capped at 10s.
 export const maxDuration = 60
 
-const EXTRACTION_PROMPT = `Extraia os dados deste documento de imigração e retorne APENAS JSON no formato abaixo. Não escreva nada mais.
-{
-  "document_type": "tipo do documento",
-  "fields": {
-    "nome_completo": "valor ou null",
-    "data_nascimento": "valor ou null",
-    "numero_documento": "valor ou null",
-    "data_emissao": "valor ou null",
-    "data_validade": "valor ou null",
-    "nacionalidade": "valor ou null",
-    "orgao_emissor": "valor ou null",
-    "sexo": "valor ou null",
-    "naturalidade": "valor ou null",
-    "estado_civil": "valor ou null"
-  },
-  "confidence": 0.92
-}`
-
 export async function POST(req: NextRequest) {
-    const { documentId, filePath } = await req.json()
-
-    if (!documentId || !filePath) {
-        return NextResponse.json({ error: 'documentId e filePath são obrigatórios.' }, { status: 400 })
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-    if (!serviceRoleKey) {
-        return NextResponse.json({ error: 'Variáveis de ambiente não configuradas.' }, { status: 500 })
-    }
-
-    // Usa service role key para bypassar RLS (seguro — rota protegida pelo middleware)
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
-
-    // Marca como em processamento
-    await supabase.from('client_documents').update({
-        extraction_status: 'processing',
-        extraction_started_at: new Date().toISOString(),
-        extraction_error: null,
-    }).eq('id', documentId)
-
     try {
-        // Baixa o arquivo do Storage
-        const { data: fileBlob, error: dlErr } = await supabase.storage
-            .from('documents')
-            .download(filePath)
+        // Agora aceitamos FormData (o ficheiro real vindo do browser)
+        const formData = await req.formData()
+        const file = formData.get('file') as File
 
-        if (dlErr || !fileBlob) {
-            throw new Error(`Download falhou: ${dlErr?.message}`)
+        if (!file) {
+            return NextResponse.json({ error: 'Nenhum ficheiro enviado.' }, { status: 400 })
         }
 
-        const buffer = await fileBlob.arrayBuffer()
-        const base64 = arrayBufferToBase64(buffer)
-        const { isPdf, mediaType } = resolveMediaType(filePath, fileBlob.type)
-        const fileBlock = buildFileBlock(isPdf, mediaType, base64)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+        const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-        const aiText = await callClaude(EXTRACTION_PROMPT, fileBlock, isPdf, 1024)
-        const parsed = extractJson<{ document_type?: string; fields?: Record<string, unknown>; confidence?: number }>(aiText)
+        // 1. Upload para o bucket 'bomjur-documents' (o mesmo que a Edge Function usa)
+        const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`
+        const filePath = `uploads/${fileName}`
 
-        // Salva os campos extraídos
-        const rows = Object.entries(parsed.fields || {})
-            .filter(([, v]) => v && v !== 'null')
-            .map(([key, value]) => ({
-                document_id: documentId,
-                field_key: key,
-                field_value: String(value),
-                confidence: parsed.confidence || 0.9,
-            }))
+        const { error: uploadErr } = await supabase.storage
+            .from('bomjur-documents')
+            .upload(filePath, file)
 
-        if (rows.length > 0) {
-            const { error: insErr } = await supabase.from('extracted_fields').insert(rows)
-            if (insErr) throw new Error(`Erro ao salvar campos: ${insErr.message}`)
-        }
+        if (uploadErr) throw new Error(`Erro no upload: ${uploadErr.message}`)
 
-        // Marca como concluído
-        await supabase.from('client_documents').update({
-            extraction_status: 'extracted',
-            document_type: parsed.document_type || 'Desconhecido',
-            document_type_confidence: parsed.confidence || 0.9,
-            extraction_error: null,
-            extraction_completed_at: new Date().toISOString(),
-            raw_extraction_json: JSON.stringify(parsed),
-        }).eq('id', documentId)
+        // 2. Criar o registo na base de dados para a IA saber o que processar
+        const { data: doc, error: dbErr } = await supabase
+            .from('client_documents')
+            .insert({
+                file_path: filePath,
+                file_name: file.name,
+                extraction_status: 'processing'
+            })
+            .select()
+            .single()
 
-        return NextResponse.json({
-            fields_extracted: rows.length,
-            document_type: parsed.document_type || 'Desconhecido',
+        if (dbErr) throw new Error(`Erro na DB: ${dbErr.message}`)
+
+        // 3. Disparar a Edge Function (robusta para PDFs e evita timeouts no Vercel)
+        const { error: funcError } = await supabase.functions.invoke('process-document', {
+            body: { documentId: doc.id, filePath: filePath }
         })
 
-    } catch (e) {
-        const msg = (e as Error).message
-        await supabase.from('client_documents').update({
-            extraction_status: 'error',
-            extraction_error: msg.substring(0, 500),
-        }).eq('id', documentId)
+        if (funcError) throw new Error(`Falha ao disparar Edge Function: ${funcError.message}`)
 
-        return NextResponse.json({ error: msg }, { status: 500 })
+        return NextResponse.json({
+            success: true,
+            documentId: doc.id,
+            message: 'Processamento iniciado com sucesso.'
+        })
+
+    } catch (e: any) {
+        console.error('[API Error]:', e.message)
+        return NextResponse.json({ error: e.message }, { status: 500 })
     }
 }
