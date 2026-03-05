@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
     // 4. CREATE OR FIND AUTH USER FOR CLIENT
     // ──────────────────────────────────────────────
     let clientUserId: string
+    const generatedPassword = Math.random().toString(36).slice(-8)
 
     // Try to find existing user by email
     const { data: listData } = await adminClient.auth.admin.listUsers()
@@ -101,10 +102,19 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       clientUserId = existingUser.id
+      // Update existing user with new boarding password (since we are moving from magic links)
+      await adminClient.auth.admin.updateUserById(clientUserId, {
+        password: generatedPassword,
+        user_metadata: {
+          full_name: client_name,
+          phone: client_phone,
+        },
+      })
     } else {
-      // Create new auth user — no password, client uses magic links only
+      // Create new auth user with boarding password
       const { data: newUser, error: createUserError } = await adminClient.auth.admin.createUser({
         email: client_email,
+        password: generatedPassword,
         email_confirm: true,
         user_metadata: {
           full_name: client_name,
@@ -225,53 +235,38 @@ export async function POST(request: NextRequest) {
     }
 
     // ──────────────────────────────────────────────
-    // 9. GENERATE MAGIC LINK
+    // 9. SEND INVITE EMAIL VIA RESEND
     // ──────────────────────────────────────────────
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    // Pass 'next' as query param so callback redirects to onboarding
-    const redirectTo = `${appUrl}/auth/callback?next=/case/${caseId}/onboarding`
-
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: 'magiclink',
-      email: client_email,
-      options: { redirectTo },
-    })
-
-    let magicLink: string | null = null
+    const loginLink = `${appUrl}/login`
     let emailSent = false
 
-    if (!linkError && linkData?.properties?.action_link) {
-      magicLink = linkData.properties.action_link
+    try {
+      const subject = preferred_language === 'pt'
+        ? `${client_name}, seu passaporte para o caso ${case_type} chegou!`
+        : `${client_name}, your access passport for ${case_type} case is here!`
 
-      // ──────────────────────────────────────────────
-      // 10. SEND INVITE EMAIL VIA RESEND
-      // ──────────────────────────────────────────────
-      try {
-        const subject = preferred_language === 'pt'
-          ? `${client_name}, seu caso ${case_type} está pronto!`
-          : `${client_name}, your ${case_type} case is ready!`
-
-        await sendEmail({
-          to: client_email,
-          subject,
-          react: InviteEmail({
-            clientName: client_name,
-            caseType: case_type,
-            magicLink,
-            language: preferred_language as 'pt' | 'en',
-            documentsCount: docTypes.length,
-            documentsList: docTypes,
-          }),
-        })
-        emailSent = true
-      } catch (emailErr) {
-        // Email failure is non-fatal — case was created successfully
-        console.error('Email send failed (non-fatal):', emailErr)
-      }
+      await sendEmail({
+        to: client_email,
+        subject,
+        react: InviteEmail({
+          clientName: client_name,
+          caseType: case_type,
+          loginLink,
+          password: generatedPassword,
+          language: preferred_language as 'pt' | 'en',
+          documentsCount: docTypes.length,
+          documentsList: docTypes,
+        }),
+      })
+      emailSent = true
+    } catch (emailErr) {
+      // Email failure is non-fatal — case was created successfully
+      console.error('Email send failed (non-fatal):', emailErr)
     }
 
     // ──────────────────────────────────────────────
-    // 11. AUDIT LOG
+    // 10. AUDIT LOG
     // ──────────────────────────────────────────────
     await adminClient.from('audit_log').insert({
       tenant_id: tenantId,
@@ -284,16 +279,18 @@ export async function POST(request: NextRequest) {
         email_sent: emailSent,
         docs_created: docTypes.length,
         i140_uploaded: !!uploadedFilePath,
+        auth_method: 'boarding_password',
       },
     })
 
     // ──────────────────────────────────────────────
-    // 12. RESPONSE
+    // 11. RESPONSE
     // ──────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       caseId,
-      magicLink,
+      tempPassword: generatedPassword,
+      loginLink,
       emailSent,
       documentsCreated: docTypes.length,
       i140Uploaded: !!uploadedFilePath,

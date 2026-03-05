@@ -39,8 +39,13 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ magicLink: string | null; docsCount: number; emailSent: boolean } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [result, setResult] = useState<{
+    tempPassword?: string;
+    loginLink?: string;
+    docsCount: number;
+    emailSent: boolean;
+  } | null>(null)
+  const [copied, setCopied] = useState<'link' | 'pass' | 'wa' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
@@ -70,7 +75,6 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
       const res = await fetch('/api/cases/create', {
         method: 'POST',
         body: formData,
-        // Do NOT set Content-Type — browser sets multipart boundary automatically
       })
 
       const data = await res.json()
@@ -82,7 +86,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
       }
 
       setResult({
-        magicLink: data.magicLink,
+        tempPassword: data.tempPassword,
+        loginLink: data.loginLink,
         docsCount: data.documentsCreated,
         emailSent: data.emailSent || false,
       })
@@ -93,12 +98,16 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
     setLoading(false)
   }
 
-  const handleCopy = async () => {
-    if (result?.magicLink) {
-      await navigator.clipboard.writeText(result.magicLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+  const copyToClipboard = async (text: string, type: 'link' | 'pass' | 'wa') => {
+    await navigator.clipboard.writeText(text)
+    setCopied(type)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const handleCopyWAMessage = () => {
+    if (!result) return
+    const msg = `Olá! Seu acesso à plataforma Bomjur está pronto. 🛫\n\nAcesse: ${result.loginLink}\nSua Senha de Embarque: ${result.tempPassword}\n\nPor favor, utilize seu e-mail e esta senha para entrar.`
+    copyToClipboard(msg, 'wa')
   }
 
   const handleClose = () => {
@@ -106,7 +115,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
     setForm({ client_name: '', client_email: '', client_phone: '', case_type: 'I-485', preferred_language: 'pt', import_i140: false, i140_file: null })
     setResult(null)
     setError('')
-    setCopied(false)
+    setCopied(null)
     onClose()
   }
 
@@ -239,8 +248,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                   <div className="space-y-3">
                     <div
                       className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${form.import_i140
-                          ? 'border-purple-500/50 bg-purple-500/10'
-                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                        ? 'border-purple-500/50 bg-purple-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/20'
                         }`}
                       onClick={() => setForm(f => ({ ...f, import_i140: !f.import_i140, i140_file: f.import_i140 ? null : f.i140_file }))}
                     >
@@ -263,8 +272,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                       <div
                         onClick={() => fileInputRef.current?.click()}
                         className={`relative p-6 rounded-2xl border-2 border-dashed cursor-pointer text-center transition-all ${form.i140_file
-                            ? 'border-purple-500/40 bg-purple-500/5'
-                            : 'border-white/10 bg-white/[0.02] hover:border-purple-500/30'
+                          ? 'border-purple-500/40 bg-purple-500/5'
+                          : 'border-white/10 bg-white/[0.02] hover:border-purple-500/30'
                           }`}
                       >
                         <input
@@ -367,57 +376,91 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
               </div>
             ) : (
               /* ── Success ── */
-              <div className="space-y-6 animate-fade-in text-center py-4">
-                <div className="relative inline-block">
+              <div className="space-y-6 animate-fade-in py-4">
+                <div className="text-center relative">
                   <div className="text-6xl mb-4">✨</div>
-                  <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full" />
-                </div>
-
-                <div className="space-y-2">
+                  <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full -z-10" />
                   <h3 className="text-xl font-black text-white">Missão Inicial Concluída!</h3>
-                  <p className="text-dim text-sm font-medium">
+                  <p className="text-dim text-sm font-medium mt-1">
                     {result.docsCount} requisitos de inteligência inicializados.
                   </p>
                 </div>
 
-                {result.emailSent ? (
-                  <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
-                    ✅ Convite enviado com sucesso
-                  </div>
-                ) : (
-                  <div className="py-3 px-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
-                    ⚠️ Link gerado (enviar manual)
-                  </div>
-                )}
+                <div className="space-y-4">
+                  {result.emailSent ? (
+                    <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                      ✅ Convite enviado por e-mail
+                    </div>
+                  ) : (
+                    <div className="py-3 px-4 bg-amber-500/10 border border-amber-200 rounded-xl text-amber-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                      ⚠️ Enviar credenciais manualmente
+                    </div>
+                  )}
 
-                {result.magicLink && (
-                  <div className="space-y-3 pt-4">
-                    <label className="block text-[8px] font-black text-dim uppercase tracking-[0.3em]">
-                      Link Blindado de Acesso
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        readOnly
-                        value={result.magicLink}
-                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
-                      />
-                      <button
-                        onClick={handleCopy}
-                        className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${copied
-                          ? 'border-green-500/20 bg-green-500/10 text-green-400'
-                          : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
-                          }`}
-                      >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                        {copied ? 'Pronto!' : 'Copiar'}
-                      </button>
+                  {/* WhatsApp Primary Action */}
+                  <button
+                    onClick={handleCopyWAMessage}
+                    className={`w-full py-4 rounded-2xl border-2 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all ${copied === 'wa'
+                      ? 'border-green-500 bg-green-500/10 text-green-400'
+                      : 'border-lime-500/30 bg-lime-500/5 text-lime-500 hover:bg-lime-500/10'
+                      }`}
+                  >
+                    {copied === 'wa' ? <Check size={18} /> : <Send size={18} />}
+                    {copied === 'wa' ? 'Copiado para o WhatsApp' : 'Copiar Convite p/ WhatsApp'}
+                  </button>
+
+                  <div className="grid grid-cols-1 gap-4 mt-6">
+                    {/* Login Link */}
+                    <div className="space-y-2">
+                      <label className="block text-[8px] font-black text-dim uppercase tracking-[0.3em] ml-1">
+                        Link de Acesso
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={result.loginLink}
+                          className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
+                        />
+                        <button
+                          onClick={() => copyToClipboard(result.loginLink || '', 'link')}
+                          className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'link'
+                            ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                            : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
+                            }`}
+                        >
+                          {copied === 'link' ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <label className="block text-[8px] font-black text-dim uppercase tracking-[0.3em] ml-1">
+                        Senha de Embarque
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={result.tempPassword}
+                          className="flex-1 px-4 py-3 bg-lime-500/10 border border-lime-500/20 rounded-xl text-lime-400 text-sm font-mono font-bold tracking-widest"
+                        />
+                        <button
+                          onClick={() => copyToClipboard(result.tempPassword || '', 'pass')}
+                          className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'pass'
+                            ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                            : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
+                            }`}
+                        >
+                          {copied === 'pass' ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
 
                 <button
                   onClick={handleClose}
-                  className="w-full py-4 mt-6 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-white/10 transition-all shadow-xl"
+                  className="w-full py-4 mt-4 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-white/10 transition-all"
                 >
                   Finalizar e Sair
                 </button>

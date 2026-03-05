@@ -15,7 +15,8 @@ import {
 interface InviteEmailProps {
   clientName: string
   caseType: string
-  magicLink: string
+  loginLink: string
+  password?: string
   language: 'pt' | 'en'
   documentsCount: number
   documentsList?: string[]
@@ -23,47 +24,52 @@ interface InviteEmailProps {
 
 const t = {
   pt: {
-    preview: (name: string) => `${name}, seu caso de imigração está pronto!`,
+    preview: (name: string) => `${name}, seu passaporte de acesso está pronto!`,
     greeting: (name: string) => `Olá, ${name}! 👋`,
-    caseCreated: (type: string) => `Seu caso ${type} foi criado`,
-    intro: 'A equipe da Onebridge preparou tudo para você. Agora é sua vez de completar as informações e enviar os documentos necessários.',
-    steps: 'Veja como funciona:',
-    step1: '1. Clique no botão abaixo para acessar seu caso',
-    step2: '2. Preencha seus dados pessoais (leva ~5 minutos)',
-    step3: '3. Envie os documentos solicitados (pode usar a câmera do celular!)',
-    step4: '4. Acompanhe o progresso em tempo real',
-    cta: 'Acessar Meu Caso',
-    docsTitle: (count: number) => `📋 Você vai precisar preparar ${count} documentos:`,
-    tip: '💡 Dica: Você pode acessar pelo celular e tirar fotos dos documentos direto pela câmera!',
-    security: 'Este link é pessoal e seguro. Não compartilhe com outras pessoas.',
-    questions: 'Dúvidas? Responda este email ou entre em contato:',
-    footer: 'Onebridge Consulting — Seu parceiro de imigração',
-    gamification: '🎮 Ganhe pontos e badges conforme completa cada etapa!',
+    caseCreated: (type: string) => `Seu processo ${type} foi inicializado`,
+    intro: 'A equipe da Onebridge preparou seu acesso exclusivo à nossa plataforma legal. Utilize as credenciais abaixo para começar.',
+    credentialsTitle: 'Seu Acesso Antecipado:',
+    passwordLabel: 'Sua Senha de Embarque:',
+    steps: 'Como acessar:',
+    step1: '1. Clique no botão "Acessar Plataforma" abaixo',
+    step2: '2. Use seu e-mail e a senha temporária abaixo',
+    step3: '3. Complete seu perfil e anexe os documentos',
+    step4: '4. Acompanhe a aprovação em tempo real',
+    cta: 'Acessar Plataforma',
+    docsTitle: (count: number) => `📋 Lista de conferência (${count} itens):`,
+    tip: '💡 Dica: Você pode tirar fotos dos seus documentos direto pelo celular!',
+    security: 'Esta senha é temporária. Você poderá trocá-la após o primeiro acesso.',
+    questions: 'Dúvidas sobre o processo? Responda este email:',
+    footer: 'Onebridge Consulting — Inteligência em Imigração',
+    gamification: '🎮 Ganhe pontos de progresso ao completar sua checklist!',
   },
   en: {
-    preview: (name: string) => `${name}, your immigration case is ready!`,
+    preview: (name: string) => `${name}, your access passport is ready!`,
     greeting: (name: string) => `Hello, ${name}! 👋`,
-    caseCreated: (type: string) => `Your ${type} case has been created`,
-    intro: 'The Onebridge team has set everything up for you. Now it\'s your turn to complete your information and submit the required documents.',
-    steps: 'Here\'s how it works:',
-    step1: '1. Click the button below to access your case',
-    step2: '2. Fill in your personal details (~5 minutes)',
-    step3: '3. Upload the requested documents (you can use your phone camera!)',
-    step4: '4. Track your progress in real time',
-    cta: 'Access My Case',
-    docsTitle: (count: number) => `📋 You'll need to prepare ${count} documents:`,
-    tip: '💡 Tip: You can access from your phone and take photos of documents directly with your camera!',
-    security: 'This link is personal and secure. Do not share it with others.',
-    questions: 'Questions? Reply to this email or contact us:',
-    footer: 'Onebridge Consulting — Your immigration partner',
-    gamification: '🎮 Earn points and badges as you complete each step!',
+    caseCreated: (type: string) => `Your ${type} process has been initialized`,
+    intro: 'The Onebridge team has set up your exclusive access to our legal platform. Use the credentials below to get started.',
+    credentialsTitle: 'Your Boarding Access:',
+    passwordLabel: 'Your Temporary Password:',
+    steps: 'How to access:',
+    step1: '1. Click the "Access Platform" button below',
+    step2: '2. Use your email and the temporary password below',
+    step3: '3. Complete your profile and attach documents',
+    step4: '4. Track your approval in real-time',
+    cta: 'Access Platform',
+    docsTitle: (count: number) => `📋 Checklist (${count} items):`,
+    tip: '💡 Tip: You can take photos of your documents directly with your phone!',
+    security: 'This is a temporary password. you can change it after your first login.',
+    questions: 'Questions? Just reply to this email:',
+    footer: 'Onebridge Consulting — Immigration Intelligence',
+    gamification: '🎮 Earn progress points as you complete your checklist!',
   },
 }
 
 export default function InviteEmail({
   clientName,
   caseType,
-  magicLink,
+  loginLink,
+  password,
   language = 'pt',
   documentsCount,
   documentsList = [],
@@ -94,16 +100,26 @@ export default function InviteEmail({
             {/* Intro */}
             <Text style={paragraph}>{l.intro}</Text>
 
+            {/* Credentials Block */}
+            {password && (
+              <Section style={credentialsBox}>
+                <Text style={credentialsLabel}>{l.passwordLabel}</Text>
+                <Text style={passwordText}>{password}</Text>
+              </Section>
+            )}
+
             {/* Steps */}
-            <Text style={stepsTitle}>{l.steps}</Text>
-            <Text style={stepItem}>{l.step1}</Text>
-            <Text style={stepItem}>{l.step2}</Text>
-            <Text style={stepItem}>{l.step3}</Text>
-            <Text style={stepItem}>{l.step4}</Text>
+            <Section style={stepsBox}>
+              <Text style={stepsTitle}>{l.steps}</Text>
+              <Text style={stepItem}>{l.step1}</Text>
+              <Text style={stepItem}>{l.step2}</Text>
+              <Text style={stepItem}>{l.step3}</Text>
+              <Text style={stepItem}>{l.step4}</Text>
+            </Section>
 
             {/* CTA Button */}
             <Section style={ctaSection}>
-              <Button style={ctaButton} href={magicLink}>
+              <Button style={ctaButton} href={loginLink}>
                 {l.cta}
               </Button>
             </Section>
@@ -139,8 +155,8 @@ export default function InviteEmail({
           {/* Footer */}
           <Section style={footer}>
             <Text style={footerQuestions}>{l.questions}</Text>
-            <Link href="mailto:contact@onebridge.us" style={footerLink}>
-              contact@onebridge.us
+            <Link href="mailto:support@bomjur.us" style={footerLink}>
+              support@bomjur.us
             </Link>
             <Text style={footerBrand}>{l.footer}</Text>
           </Section>
@@ -151,6 +167,37 @@ export default function InviteEmail({
 }
 
 // ── Styles ──
+
+const credentialsBox = {
+  backgroundColor: '#1E293B',
+  borderRadius: '12px',
+  padding: '24px',
+  textAlign: 'center' as const,
+  margin: '24px 0',
+  border: '1px solid #334155',
+}
+
+const credentialsLabel = {
+  fontSize: '11px',
+  fontWeight: '800',
+  color: '#94A3B8',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 8px',
+}
+
+const passwordText = {
+  fontSize: '28px',
+  fontWeight: '800',
+  color: '#FFFFFF',
+  fontFamily: "'Courier New', Courier, monospace",
+  margin: '0',
+  letterSpacing: '4px',
+}
+
+const stepsBox = {
+  margin: '24px 0',
+}
 
 const body = {
   backgroundColor: '#0A0E17',
@@ -328,3 +375,4 @@ const footerBrand = {
   margin: '16px 0 0',
   fontWeight: '500',
 }
+
