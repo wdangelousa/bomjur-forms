@@ -6,65 +6,124 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Converte ArrayBuffer para base64 byte a byte.
+ * Essencial para evitar "Maximum call stack size exceeded" em PDFs grandes.
+ */
 function toBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
     return btoa(binary);
 }
 
-async function extractDocument(supabase: any, documentId: string, filePath: string) {
+/**
+ * Determina o tipo de mídia e se é PDF.
+ */
+function resolveMediaType(blob: Blob, filePath: string): { isPdf: boolean; mediaType: string } {
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+    const mime = blob.type ?? '';
+
+    const isPdf = ext === 'pdf' || mime === 'application/pdf';
+    if (isPdf) return { isPdf: true, mediaType: 'application/pdf' };
+
+    if (mime.includes('png') || ext === 'png') return { isPdf: false, mediaType: 'image/png' };
+    if (mime.includes('webp') || ext === 'webp') return { isPdf: false, mediaType: 'image/webp' };
+
+    return { isPdf: false, mediaType: 'image/jpeg' };
+}
+
+/**
+ * Lógica principal de extração do Ben
+ */
+async function extractDocument(
+    supabase: any,
+    documentId: string,
+    filePath: string,
+) {
+    const logError = async (msg: string) => {
+        console.error(`[Ben-Error] [${documentId}]: ${msg}`);
+        await supabase.from('client_documents').update({
+            extraction_status: 'error',
+            extraction_error: msg.substring(0, 500)
+        }).eq('id', documentId);
+    };
+
     try {
+        // 1. Início do processamento
         await supabase.from('client_documents').update({
             extraction_status: 'processing',
             extraction_started_at: new Date().toISOString(),
             extraction_error: null,
         }).eq('id', documentId);
 
-        const { data: fileBlob, error: dlErr } = await supabase.storage.from('bomjur-documents').download(filePath);
+        // 2. Download do Storage (Bucket: documents)
+        const { data: fileBlob, error: dlErr } = await supabase.storage
+            .from('documents')
+            .download(filePath);
+
         if (dlErr || !fileBlob) throw new Error(`Download falhou: ${dlErr?.message}`);
 
+        // 3. Preparação do arquivo
+        const { isPdf, mediaType } = resolveMediaType(fileBlob, filePath);
         const base64Data = toBase64(await fileBlob.arrayBuffer());
-        const isPdf = filePath.toLowerCase().endsWith('.pdf');
 
+        // 4. Chamada para a Anthropic
         const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-        const headers: Record<string, string> = {
-            'x-api-key': anthropicKey!,
+        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada nos Secrets do Supabase.');
+
+        const requestHeaders: Record<string, string> = {
+            'x-api-key': anthropicKey,
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json',
         };
-        if (isPdf) headers['anthropic-beta'] = 'pdfs-2024-09-25';
 
-        // O Ben usa o modelo estável claude-3-5-sonnet-20240620 para evitar erros 404
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // Header necessário para suporte a PDF
+        if (isPdf) requestHeaders['anthropic-beta'] = 'pdfs-2024-09-25';
+
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers,
+            headers: requestHeaders,
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-3-5-sonnet-20240620', // ID estável para evitar Erro 404
                 max_tokens: 2048,
-                system: "Você é o Ben, um analista sênior de documentos de imigração. Sua missão é extrair dados com precisão cirúrgica. Responda APENAS em JSON.",
+                system: "Você é o Ben, um analista sênior de documentos de imigração para processos I-485. Sua missão é extrair dados com precisão total. Responda APENAS em JSON.",
                 messages: [{
                     role: 'user',
                     content: [
-                        isPdf ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } }
-                            : { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Data } },
-                        { type: 'text', text: "Extraia o document_type e todos os campos visíveis. Retorne um JSON com 'document_type', 'fields' e 'confidence'." }
+                        {
+                            type: isPdf ? 'document' : 'image',
+                            source: {
+                                type: 'base64',
+                                media_type: isPdf ? 'application/pdf' : mediaType,
+                                data: base64Data
+                            },
+                        },
+                        {
+                            type: 'text',
+                            text: "Extraia os dados deste documento e retorne um JSON com 'document_type', 'fields' (objeto com chaves e valores) e 'confidence' (0 a 1).",
+                        },
                     ],
                 }],
             }),
         });
 
-        if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`Erro Claude ${response.status}: ${errBody}`);
+        if (!claudeRes.ok) {
+            const errorText = await claudeRes.text();
+            throw new Error(`Claude API Erro ${claudeRes.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-        const aiText = data.content[0].text;
+        const claudeData = await claudeRes.json();
+        const aiText = claudeData.content[0].text;
+
+        // 5. Parse do JSON
         const match = aiText.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error("JSON não encontrado na resposta.");
+        if (!match) throw new Error("JSON não encontrado na resposta da IA.");
         const parsed = JSON.parse(match[0]);
 
+        // 6. Salvar campos extraídos
         const rows = Object.entries(parsed.fields || {})
             .filter(([, v]) => v && v !== 'null')
             .map(([key, value]) => ({
@@ -75,32 +134,58 @@ async function extractDocument(supabase: any, documentId: string, filePath: stri
             }));
 
         if (rows.length > 0) {
-            await supabase.from('extracted_fields').insert(rows);
+            const { error: insErr } = await supabase.from('extracted_fields').insert(rows);
+            if (insErr) throw new Error(`Erro ao salvar campos: ${insErr.message}`);
         }
 
+        // 7. Finalização com sucesso
         await supabase.from('client_documents').update({
             extraction_status: 'extracted',
-            document_type: parsed.document_type || 'Documento Processado',
+            document_type: parsed.document_type || 'Desconhecido',
+            document_type_confidence: parsed.confidence || 0.9,
             extraction_completed_at: new Date().toISOString(),
             raw_extraction_json: JSON.stringify(parsed),
         }).eq('id', documentId);
 
+        console.log(`[Ben] ✅ Documento ${documentId} processado com sucesso.`);
+
     } catch (e: any) {
-        console.error('[Ben Error]:', e.message);
-        await supabase.from('client_documents').update({
-            extraction_status: 'error',
-            extraction_error: e.message.substring(0, 500),
-        }).eq('id', documentId);
+        await logError(e.message);
     }
 }
 
+// Handler Principal
 serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-    const { documentId, filePath } = await req.json();
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
 
-    // Aguarda a extração terminar para o worker não pausar (EarlyDrop)
-    await extractDocument(supabase, documentId, filePath);
+    try {
+        const { documentId, filePath } = await req.json();
+        if (!documentId || !filePath) throw new Error('Parâmetros ausentes.');
 
-    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+        const supabase = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+
+        // Executa em background para não travar a resposta HTTP
+        const edgeRuntime = (globalThis as any).EdgeRuntime;
+        if (edgeRuntime?.waitUntil) {
+            edgeRuntime.waitUntil(extractDocument(supabase, documentId, filePath));
+        } else {
+            extractDocument(supabase, documentId, filePath);
+        }
+
+        return new Response(
+            JSON.stringify({ status: 'processing', message: 'O Ben iniciou a leitura.' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 },
+        );
+
+    } catch (e: any) {
+        return new Response(
+            JSON.stringify({ error: e.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
+        );
+    }
 });

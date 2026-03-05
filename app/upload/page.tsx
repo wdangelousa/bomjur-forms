@@ -77,13 +77,13 @@ export default function UploadPage() {
 
             // 1. Upload to Storage
             const { data: storageData, error: storageError } = await supabase.storage
-                .from('bomjur-documents')
+                .from('documents')
                 .upload(filePath, file);
 
             if (storageError) throw storageError;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('bomjur-documents')
+                .from('documents')
                 .getPublicUrl(filePath)
 
             // 2. Registro na tabela client_documents
@@ -95,7 +95,7 @@ export default function UploadPage() {
                     file_url: publicUrl,
                     file_size: file.size,
                     file_type: file.type,
-                    bucket_name: 'bomjur-documents',
+                    bucket_name: 'documents',
                     processing_status: 'pending',
                     document_category: docId,
                     uploaded_at: new Date().toISOString(),

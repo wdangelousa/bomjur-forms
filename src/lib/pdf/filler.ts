@@ -85,7 +85,7 @@ export async function fillUscisForm(caseId: string, formType: 'I-485' | 'I-140')
     // 6. Upload para Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase
         .storage
-        .from('case-documents')
+        .from('documents')
         .upload(storagePath, filledPdfBytes, {
             contentType: 'application/pdf',
             upsert: true
@@ -99,7 +99,7 @@ export async function fillUscisForm(caseId: string, formType: 'I-485' | 'I-140')
     // 7. Retornar URL assinada para download
     const { data: urlData, error: urlError } = await supabase
         .storage
-        .from('case-documents')
+        .from('documents')
         .createSignedUrl(storagePath, 3600) // 1 hora de validade
 
     if (urlError) throw urlError

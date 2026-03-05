@@ -17,6 +17,27 @@ export function resolveMediaType(fileName: string, mimeType: string): { isPdf: b
   return { isPdf: false, mediaType: mimeType || 'image/jpeg' }
 }
 
+export function buildFileBlock(isPdf: boolean, mediaType: string, base64Data: string) {
+  if (isPdf) {
+    return {
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: base64Data,
+      },
+    }
+  }
+  return {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mediaType as any,
+      data: base64Data,
+    },
+  }
+}
+
 export async function callClaude(prompt: string, fileBlock: Record<string, unknown>, isPdf: boolean, maxTokens = 2048): Promise<string> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada.')

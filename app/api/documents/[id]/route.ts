@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const { data: signedData } = await supabase.storage
-        .from('bomjur-documents')
+        .from('documents')
         .createSignedUrl(doc.file_path, 3600);
 
     const { data: fields } = await supabase

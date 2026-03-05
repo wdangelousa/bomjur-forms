@@ -17,12 +17,12 @@ export async function POST(req: NextRequest) {
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
         const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-        // 1. Upload para o bucket 'bomjur-documents' (o mesmo que a Edge Function usa)
+        // 1. Upload para o bucket 'documents' (o mesmo que a Edge Function usa)
         const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`
         const filePath = `uploads/${fileName}`
 
         const { error: uploadErr } = await supabase.storage
-            .from('bomjur-documents')
+            .from('documents')
             .upload(filePath, file)
 
         if (uploadErr) throw new Error(`Erro no upload: ${uploadErr.message}`)

@@ -290,7 +290,7 @@ export default function I485StartPage() {
             const ext = file.name.split('.').pop() || 'pdf'
             const path = `${session.userId}/i485-docs/${docKey}/${Date.now()}.${ext}`
             const { error: upErr } = await supabase.storage
-                .from('bomjur-documents')
+                .from('documents')
                 .upload(path, file, { upsert: true })
             if (upErr) throw upErr
             setDocUploads(prev => ({

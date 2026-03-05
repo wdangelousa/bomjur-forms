@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     const filePath = `${clientId}/i485-i140/${Date.now()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
-        .from('bomjur-documents')
+        .from('documents')
         .upload(filePath, buffer, { contentType: file.type, upsert: true })
 
     if (uploadErr) {
