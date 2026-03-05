@@ -237,8 +237,12 @@ export async function POST(request: NextRequest) {
     // ──────────────────────────────────────────────
     // 9. SEND INVITE EMAIL VIA RESEND
     // ──────────────────────────────────────────────
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = request.headers.get('x-forwarded-proto') || 'http'
+    const defaultAppUrl = `${protocol}://${host}`
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || defaultAppUrl
     const loginLink = `${appUrl}/login`
+
     let emailSent = false
 
     try {
