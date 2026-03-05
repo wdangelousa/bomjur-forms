@@ -3,9 +3,31 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/resend'
 import InviteEmail from '@/lib/email/templates/invite'
 
+// Document types required per case type
+const CASE_DOCUMENTS: Record<string, string[]> = {
+  'I-485': [
+    'passport',
+    'birth_certificate',
+    'photo_2x2',
+    'i94',
+    'marriage_certificate',
+    'employer_letter',
+    'medical_exam',
+    'proof_of_residence',
+  ],
+  'I-140': [
+    'passport',
+    'birth_certificate',
+    'employer_letter',
+    'diploma',
+    'employment_verification',
+    'pay_stubs',
+  ],
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // 1. Verify caller is team or admin
+    // 1. Verify caller is authenticated
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,139 +35,208 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
 
-    const { data: callerProfile } = await supabase
+    // 2. Use admin client to check caller role (bypasses RLS on profiles)
+    const adminClient = createAdminClient()
+
+    const { data: callerProfile } = await adminClient
       .from('profiles')
-      .select('role')
+      .select('role, full_name')
       .eq('id', user.id)
       .single()
 
-    if (!callerProfile || !['team', 'super_admin'].includes(callerProfile.role)) {
+    if (!callerProfile || !['team', 'tenant_admin', 'super_admin'].includes(callerProfile.role)) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
-    // 2. Parse request
+    // 3. Parse request body (new case creation form data)
     const body = await request.json()
-    const { caseId, magicLink: providedLink } = body
+    const {
+      client_name,
+      client_email,
+      client_phone,
+      case_type,
+      preferred_language = 'pt',
+    } = body
 
-    if (!caseId) {
-      return NextResponse.json({ error: 'caseId é obrigatório' }, { status: 400 })
+    if (!client_name?.trim() || !client_email?.trim() || !case_type) {
+      return NextResponse.json(
+        { error: 'Nome, email e tipo de caso são obrigatórios' },
+        { status: 400 }
+      )
     }
 
-    const adminClient = createAdminClient()
+    if (!['I-485', 'I-140'].includes(case_type)) {
+      return NextResponse.json({ error: 'Tipo de caso inválido' }, { status: 400 })
+    }
 
-    // 3. Fetch case + client profile + required docs
-    const { data: caseData, error: caseError } = await adminClient
-      .from('cases')
-      .select(`
-        *,
-        profiles!client_id (id, full_name, email, preferred_language)
-      `)
-      .eq('id', caseId)
+    // 4. Get caller's tenant_id from user_profiles
+    const { data: callerUserProfile } = await adminClient
+      .from('user_profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
       .single()
 
-    if (caseError || !caseData) {
-      return NextResponse.json({ error: 'Caso não encontrado' }, { status: 404 })
+    const tenantId = callerUserProfile?.tenant_id
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 400 })
     }
 
-    const clientProfile = (caseData as any).profiles
-    const clientEmail = clientProfile?.email
-    const clientName = clientProfile?.full_name || 'Cliente'
-    const language = clientProfile?.preferred_language || 'pt'
+    // 5. Create or find auth user for the client
+    let clientUserId: string
 
-    if (!clientEmail) {
-      return NextResponse.json({ error: 'Email do cliente não encontrado' }, { status: 400 })
-    }
-
-    // 4. Fetch required docs for this case type
-    const { data: requiredDocs } = await adminClient
-      .from('required_documents')
-      .select('name_pt, name_en, is_required')
-      .eq('case_type', caseData.case_type)
-      .eq('tenant_id', caseData.tenant_id)
-      .eq('is_required', true)
-      .order('display_order')
-
-    const docNames = (requiredDocs || []).map(d =>
-      language === 'pt' ? d.name_pt : d.name_en
+    // Check if user already exists
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers()
+    const existingUser = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === client_email.toLowerCase()
     )
 
-    // 5. Generate magic link if not provided
-    let magicLink = providedLink
-
-    if (!magicLink) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      const redirectTo = `${appUrl}/case/${caseId}/onboarding`
-
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: 'magiclink',
-        email: clientEmail,
-        options: { redirectTo },
+    if (existingUser) {
+      clientUserId = existingUser.id
+    } else {
+      // Create new auth user (no password — client only uses magic links)
+      const { data: newUser, error: createUserError } = await adminClient.auth.admin.createUser({
+        email: client_email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: client_name,
+          phone: client_phone || null,
+        },
       })
 
-      if (linkError || !linkData?.properties?.action_link) {
+      if (createUserError || !newUser.user) {
         return NextResponse.json(
-          { error: `Erro ao gerar link: ${linkError?.message || 'unknown'}` },
+          { error: `Erro ao criar usuário: ${createUserError?.message}` },
           { status: 500 }
         )
       }
-
-      magicLink = linkData.properties.action_link
+      clientUserId = newUser.user.id
     }
 
-    // 6. Send email
-    const subject = language === 'pt'
-      ? `${clientName}, seu caso ${caseData.case_type} está pronto!`
-      : `${clientName}, your ${caseData.case_type} case is ready!`
+    // 6. Upsert client profile in `profiles` (for RLS functions)
+    await adminClient.from('profiles').upsert({
+      id: clientUserId,
+      full_name: client_name,
+      email: client_email,
+      phone: client_phone || null,
+      role: 'client',
+      preferred_language,
+    }, { onConflict: 'id' })
 
-    const emailResult = await sendEmail({
-      to: clientEmail,
-      subject,
-      react: InviteEmail({
-        clientName,
-        caseType: caseData.case_type,
-        magicLink,
-        language,
-        documentsCount: docNames.length,
-        documentsList: docNames,
-      }),
+    // 7. Upsert client profile in `user_profiles` (for tenant-scoped RLS)
+    await adminClient.from('user_profiles').upsert({
+      id: clientUserId,
+      tenant_id: tenantId,
+      full_name: client_name,
+      email: client_email,
+      phone: client_phone || null,
+      role: 'client',
+      preferred_language,
+    }, { onConflict: 'id' })
+
+    // 8. Create the case
+    const { data: newCase, error: caseError } = await adminClient
+      .from('cases')
+      .insert({
+        tenant_id: tenantId,
+        client_id: clientUserId,
+        assigned_to: user.id,
+        case_type,
+        status: 'pending_onboarding',
+        personal_data: { full_name: client_name, email: client_email, phone: client_phone || null },
+      })
+      .select('id')
+      .single()
+
+    if (caseError || !newCase) {
+      return NextResponse.json(
+        { error: `Erro ao criar caso: ${caseError?.message}` },
+        { status: 500 }
+      )
+    }
+
+    const caseId = newCase.id
+
+    // 9. Create required case_documents
+    const docTypes = CASE_DOCUMENTS[case_type] || []
+    if (docTypes.length > 0) {
+      const docsToInsert = docTypes.map((docType, idx) => ({
+        case_id: caseId,
+        document_type: docType,
+        status: 'pending',
+        is_required: true,
+        display_order: idx,
+      }))
+
+      await adminClient.from('case_documents').insert(docsToInsert)
+    }
+
+    // 10. Generate magic link for client
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const redirectTo = `${appUrl}/auth/callback?next=/case/${caseId}/onboarding`
+
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: client_email,
+      options: { redirectTo },
     })
 
-    // 7. Log to audit
+    let magicLink: string | null = null
+    let emailSent = false
+
+    if (!linkError && linkData?.properties?.action_link) {
+      magicLink = linkData.properties.action_link
+
+      // 11. Send invite email
+      try {
+        const subject = preferred_language === 'pt'
+          ? `${client_name}, seu caso ${case_type} está pronto!`
+          : `${client_name}, your ${case_type} case is ready!`
+
+        await sendEmail({
+          to: client_email,
+          subject,
+          react: InviteEmail({
+            clientName: client_name,
+            caseType: case_type,
+            magicLink,
+            language: preferred_language,
+            documentsCount: docTypes.length,
+            documentsList: docTypes,
+          }),
+        })
+        emailSent = true
+      } catch (emailErr) {
+        // Email failure is non-fatal — case was created successfully
+        console.error('Email send failed (non-fatal):', emailErr)
+      }
+    }
+
+    // 12. Log to audit
     await adminClient.from('audit_log').insert({
-      tenant_id: caseData.tenant_id,
+      tenant_id: tenantId,
       user_id: user.id,
       case_id: caseId,
-      action: 'invite_email_sent',
+      action: 'case_created',
       details: {
-        to: clientEmail,
-        language,
-        messageId: emailResult?.id,
+        case_type,
+        client_email,
+        email_sent: emailSent,
+        docs_created: docTypes.length,
       },
-    })
-
-    // 8. Create welcome notification for client
-    await adminClient.from('notifications').insert({
-      user_id: clientProfile.id,
-      case_id: caseId,
-      type: 'welcome',
-      channel: 'in_app',
-      title: language === 'pt' ? 'Bem-vindo ao Bomjur! 🛫' : 'Welcome to Bomjur! 🛫',
-      body: language === 'pt'
-        ? `Seu caso ${caseData.case_type} foi criado. Comece o onboarding para enviar seus documentos.`
-        : `Your ${caseData.case_type} case has been created. Start onboarding to submit your documents.`,
-      data: { caseId, action: 'start_onboarding' },
     })
 
     return NextResponse.json({
       success: true,
-      messageId: emailResult?.id,
-      sentTo: clientEmail,
+      caseId,
+      magicLink,
+      emailSent,
+      documentsCreated: docTypes.length,
     })
 
   } catch (error: any) {
-    console.error('Send invite error:', error)
+    console.error('Create case error:', error)
     return NextResponse.json(
-      { error: `Erro ao enviar email: ${error.message}` },
+      { error: `Erro interno: ${error.message}` },
       { status: 500 }
     )
   }
