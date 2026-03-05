@@ -63,7 +63,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl">
+    <div suppressHydrationWarning className="p-4 lg:p-8 max-w-5xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

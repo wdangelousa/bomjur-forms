@@ -89,7 +89,7 @@ export default function AdminDashboard() {
     }, [])
 
     return (
-        <div className="min-h-screen p-8 space-y-10" style={{ background: COLORS.bg }}>
+        <div suppressHydrationWarning className="min-h-screen p-8 space-y-10" style={{ background: COLORS.bg }}>
             {/* Top Navigation / Title */}
             <header className="flex justify-between items-center">
                 <div>
