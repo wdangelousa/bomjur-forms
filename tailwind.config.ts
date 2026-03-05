@@ -8,23 +8,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        bomjur: {
-          bg: '#f8fafc',
-          card: '#ffffff',
-          'card-hover': '#f1f5f9',
-          border: '#e2e8f0',
-          primary: '#0ea5e9',
-          'primary-dark': '#0284c7',
-          text: '#0f172a',
-          muted: '#475569',
-          dim: '#64748b',
-          accent: '#f97316',
-          success: '#10b981',
-          danger: '#ef4444',
+        brand: {
+          primary: '#6366F1',
+          accent: '#F97316',
+        },
+        fikri: {
+          course: '#38BDF8',
+          page: '#F97316',
+          quiz: '#FBBF24',
+          assignment: '#818CF8',
+          learningPath: '#DB2777',
+          wiki: '#10B981',
+          bg: '#F9FAFB',
+          card: '#FFFFFF',
+          border: '#F3F4F6'
         },
       },
       fontFamily: {
         sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: {
+        'xl': '12px',
+        '2xl': '16px',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

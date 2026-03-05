@@ -6,11 +6,11 @@ export default function BomjurSignature() {
             <span className="text-[11px] font-bold text-slate-500 tracking-widest uppercase relative z-10">
                 Powered by
             </span>
-            <div className="relative h-10 flex items-center justify-center">
+            <div className="relative h-12 flex items-center justify-center">
                 <img
                     src={bomjurLogo.src}
                     alt="Bomjur Technology"
-                    className="w-auto h-10 object-contain"
+                    className="w-auto h-8 object-contain"
                 />
             </div>
         </div>

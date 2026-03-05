@@ -111,24 +111,23 @@ export default function OnboardingWizard({
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="w-24 h-24 rounded-full flex items-center justify-center"
-                            style={{ background: COLORS.limeGlow, border: `2px solid ${COLORS.lime}` }}
+                            className="w-24 h-24 rounded-full flex items-center justify-center bg-slate-50 border-2 border-slate-200"
                         >
-                            <Rocket className="w-12 h-12" style={{ color: COLORS.lime }} />
+                            <Rocket className="w-12 h-12 text-slate-400" />
                         </motion.div>
                     </div>
                     <div className="space-y-2">
                         <h2 className="text-3xl font-bold tracking-tight" style={{ color: COLORS.text }}>
                             Vamos começar!
                         </h2>
-                        <p className="text-sm leading-relaxed px-4" style={{ color: COLORS.textMuted }}>
-                            Olá, <span className="text-white font-bold">{clientName}</span>.
-                            Estamos prontos para processar seu caso de <span className="text-white font-bold">{caseType}</span>.
+                        <p className="text-sm leading-relaxed px-4 text-slate-500">
+                            Olá, <span className="text-slate-900 font-bold">{clientName}</span>.
+                            Estamos prontos para processar seu caso de <span className="text-slate-900 font-bold">{caseType}</span>.
                             Siga os passos abaixo para completar seu perfil.
                         </p>
                     </div>
-                    <div className="p-4 rounded-2xl border bg-white/5 text-left flex gap-3" style={{ borderColor: COLORS.border }}>
-                        <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: COLORS.lime }} />
+                    <div className="p-4 rounded-2xl border bg-white text-left flex gap-3" style={{ borderColor: COLORS.border }}>
+                        <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: COLORS.primary }} />
                         <p className="text-xs" style={{ color: COLORS.textDim }}>
                             Seus dados são protegidos por criptografia de ponta a ponta e usados apenas para fins legais.
                         </p>
@@ -142,8 +141,8 @@ export default function OnboardingWizard({
             content: (
                 <div className="space-y-6 py-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-white/5">
-                            <User className="w-5 h-5" style={{ color: COLORS.lime }} />
+                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <User className="w-5 h-5" style={{ color: COLORS.primary }} />
                         </div>
                         <h3 className="text-lg font-bold" style={{ color: COLORS.text }}>Informações Básicas</h3>
                     </div>
@@ -156,8 +155,8 @@ export default function OnboardingWizard({
                                 type="text"
                                 value={personalData.full_name}
                                 onChange={(e) => setPersonalData({ ...personalData, full_name: e.target.value })}
-                                className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#84CC16]/20"
-                                style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                style={{ color: COLORS.text }}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -169,8 +168,8 @@ export default function OnboardingWizard({
                                     type="date"
                                     value={personalData.birth_date}
                                     onChange={(e) => setPersonalData({ ...personalData, birth_date: e.target.value })}
-                                    className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                                    style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                    style={{ color: COLORS.text }}
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -180,8 +179,8 @@ export default function OnboardingWizard({
                                 <select
                                     value={personalData.country_origin}
                                     onChange={(e) => setPersonalData({ ...personalData, country_origin: e.target.value })}
-                                    className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none appearance-none"
-                                    style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 appearance-none"
+                                    style={{ color: COLORS.text }}
                                 >
                                     <option value="BR">Brasil</option>
                                     <option value="US">Estados Unidos</option>
@@ -199,8 +198,8 @@ export default function OnboardingWizard({
             content: (
                 <div className="space-y-6 py-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-white/5">
-                            <MapPin className="w-5 h-5" style={{ color: COLORS.lime }} />
+                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <MapPin className="w-5 h-5" style={{ color: COLORS.primary }} />
                         </div>
                         <h3 className="text-lg font-bold" style={{ color: COLORS.text }}>Onde você mora?</h3>
                     </div>
@@ -213,8 +212,8 @@ export default function OnboardingWizard({
                                 type="text"
                                 value={addressData.street}
                                 onChange={(e) => setAddressData({ ...addressData, street: e.target.value })}
-                                className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                                style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                style={{ color: COLORS.text }}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -226,8 +225,8 @@ export default function OnboardingWizard({
                                     type="text"
                                     value={addressData.city}
                                     onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
-                                    className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                                    style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                    style={{ color: COLORS.text }}
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -238,8 +237,8 @@ export default function OnboardingWizard({
                                     type="text"
                                     value={addressData.state}
                                     onChange={(e) => setAddressData({ ...addressData, state: e.target.value })}
-                                    className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                                    style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                    style={{ color: COLORS.text }}
                                 />
                             </div>
                         </div>
@@ -251,8 +250,8 @@ export default function OnboardingWizard({
                                 type="text"
                                 value={addressData.zip_code}
                                 onChange={(e) => setAddressData({ ...addressData, zip_code: e.target.value })}
-                                className="w-full bg-[#0D1117] border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                                style={{ borderColor: COLORS.border, color: COLORS.text }}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                style={{ color: COLORS.text }}
                             />
                         </div>
                     </div>
@@ -289,13 +288,13 @@ export default function OnboardingWizard({
                         </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4">
-                        <div className="p-4 rounded-2xl bg-white/5 border text-left" style={{ borderColor: COLORS.border }}>
-                            <p className="text-[10px] uppercase font-bold text-dim mb-1">Perfil</p>
-                            <p className="text-xs font-medium truncate">{personalData.full_name}</p>
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Perfil</p>
+                            <p className="text-xs font-medium truncate text-slate-700">{personalData.full_name}</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/5 border text-left" style={{ borderColor: COLORS.border }}>
-                            <p className="text-[10px] uppercase font-bold text-dim mb-1">Localização</p>
-                            <p className="text-xs font-medium truncate">{addressData.city}, {addressData.state}</p>
+                        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-left">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Localização</p>
+                            <p className="text-xs font-medium truncate text-slate-700">{addressData.city}, {addressData.state}</p>
                         </div>
                     </div>
                 </div>
@@ -304,26 +303,20 @@ export default function OnboardingWizard({
     ]
 
     return (
-        <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto relative overflow-hidden" style={{ background: COLORS.bg }}>
+        <div className="min-h-screen flex flex-col p-6 max-w-4xl mx-auto relative overflow-hidden" style={{ background: COLORS.bg }}>
             {/* Background Decorative Elements */}
-            <div className="absolute top-[-10%] right-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-20 pointer-events-none" style={{ background: COLORS.lime }} />
+            <div className="absolute top-[-10%] right-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-10 pointer-events-none" style={{ background: COLORS.primary }} />
             <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-10 pointer-events-none" style={{ background: COLORS.blue }} />
 
             {/* Header */}
-            <header className="flex justify-between items-center mb-10 relative z-10">
+            <header className="flex justify-between items-center mb-10 relative z-10 px-4">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-[#84CC16]/20" style={{ background: COLORS.lime }}>
-                        <span className="font-black text-black text-xl">B</span>
-                    </div>
-                    <div>
-                        <span className="text-lg font-bold tracking-tight block leading-none" style={{ color: COLORS.text }}>Bomjur</span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: COLORS.textDim }}>Forms System</span>
-                    </div>
+                    <img src="/proexpand-logo.png" alt="Proexpand" className="h-10 w-auto" />
                 </div>
 
                 <div className="flex items-center gap-3">
                     <AutoSaveIndicator status={saveStatus} />
-                    <button className="p-2 rounded-full border bg-white/5" style={{ borderColor: COLORS.border, color: COLORS.textMuted }}>
+                    <button className="p-2 rounded-full border bg-white border-slate-200 shadow-sm text-slate-500">
                         <Languages className="w-4 h-4" />
                     </button>
                 </div>
@@ -356,8 +349,7 @@ export default function OnboardingWizard({
                 {step > 1 && (
                     <button
                         onClick={prevStep}
-                        className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl border font-bold transition-all active:scale-[0.98] bg-white/5"
-                        style={{ borderColor: COLORS.border, color: COLORS.textMuted }}
+                        className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl border border-slate-200 bg-white font-bold transition-all active:scale-[0.98] text-slate-600 shadow-sm hover:bg-slate-50"
                     >
                         <ChevronLeft className="w-5 h-5" />
                         Retroceder
@@ -366,11 +358,10 @@ export default function OnboardingWizard({
 
                 <button
                     onClick={step === 4 ? () => window.location.href = `/case/${caseId}/documents` : nextStep}
-                    className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all active:scale-[0.98] shadow-xl"
+                    className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all active:scale-[0.98] shadow-xl text-white"
                     style={{
-                        background: COLORS.lime,
-                        color: COLORS.bg,
-                        boxShadow: `0 8px 24px ${COLORS.lime}33`
+                        background: COLORS.primary,
+                        boxShadow: `0 8px 24px ${COLORS.primary}33`
                     }}
                 >
                     {step === 4 ? 'Aceder Documentos' : 'Próxima Etapa'}

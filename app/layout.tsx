@@ -9,7 +9,7 @@ export const viewport: Viewport = {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
-    themeColor: '#84CC16',
+    themeColor: '#6366F1',
 }
 
 export const metadata: Metadata = {
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="pt-BR" suppressHydrationWarning>
-            <body className={inter.className} suppressHydrationWarning style={{ background: '#0A0E17' }}>
+            <body className={inter.className} suppressHydrationWarning>
                 {/* Conteúdo de cada página (Tela de Login, etc) */}
                 {children}
 
