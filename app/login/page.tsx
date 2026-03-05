@@ -10,6 +10,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
+    const [ready, setReady] = useState(false)
     const router = useRouter()
 
     const supabase = createBrowserClient(
@@ -17,13 +18,21 @@ export default function LoginPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
-    // Ao montar a página de login, limpar qualquer sessão anterior
-    // Isso garante que sessões stale não redirecionem o user automaticamente
+    // ── LIMPEZA DE SESSÃO ──
+    // Ao entrar na página de login, descartar qualquer sessão anterior.
+    // Isso garante que o utilizador pode trocar de conta sem ser
+    // redirecionado automaticamente pela sessão antiga.
     useEffect(() => {
-        supabase.auth.signOut()
+        async function clearSession() {
+            await supabase.auth.signOut()
+            setReady(true)
+        }
+        clearSession()
     }, [])
 
-
+    // ── LOGIN COM PASSWORD ──
+    // Para Magic Links, o redirecionamento é 100% controlado por
+    // app/auth/callback/route.ts — o frontend NÃO interfere.
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setLoading(true)
@@ -36,10 +45,9 @@ export default function LoginPage() {
             return
         }
 
+        // Buscar role diretamente do browser client (já autenticado)
+        // Sem race condition — a sessão é instantânea no client-side
         try {
-            // Query profile directly from the browser client (already authenticated)
-            // This avoids the race condition where the server-side API route
-            // may not see the session cookie immediately after login.
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('role')
@@ -48,18 +56,32 @@ export default function LoginPage() {
 
             const role = profile?.role
 
-            if (role === 'super_admin') {
-                router.replace('/admin')
-            } else if (role === 'team' || role === 'tenant_admin') {
-                router.replace('/team')
-            } else if (role === 'client') {
-                router.replace('/dashboard')
-            } else {
-                router.replace('/dashboard')
+            switch (role) {
+                case 'super_admin':
+                    router.replace('/admin')
+                    break
+                case 'team':
+                case 'tenant_admin':
+                    router.replace('/team')
+                    break
+                case 'client':
+                    router.replace('/dashboard')
+                    break
+                default:
+                    router.replace('/dashboard')
             }
         } catch {
-            router.replace('/dashboard') // Safety fallback
+            router.replace('/dashboard')
         }
+    }
+
+    // Não renderizar o formulário enquanto a sessão antiga não for limpa
+    if (!ready) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        )
     }
 
     return (
