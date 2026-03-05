@@ -163,18 +163,18 @@ export default function DocumentCard({
             {/* Upload Modal Overlay */}
             <AnimatePresence>
                 {isUploadOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="w-full max-w-sm relative"
                         >
                             <button
                                 onClick={() => setIsUploadOpen(false)}
-                                className="absolute -top-12 right-0 p-2 text-white/60 hover:text-white"
+                                className="absolute -top-12 right-0 p-2 text-white/40 hover:text-white transition-colors"
                             >
-                                <XCircle className="w-6 h-6" />
+                                <XCircle className="w-8 h-8" />
                             </button>
 
                             <DocumentUpload
@@ -182,6 +182,7 @@ export default function DocumentCard({
                                 category={category}
                                 label={label}
                                 onComplete={() => {
+                                    console.log(`[DocumentCard] Upload complete for ${label}`);
                                     setIsUploadOpen(false)
                                     if (onUpdate) onUpdate()
                                 }}

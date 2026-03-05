@@ -34,20 +34,26 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
         const file = e.target.files?.[0]
         if (!file) return
 
+        console.log(`[DocumentUpload] Arquivo selecionado: ${file.name} (${file.type})`);
         setError(null)
         try {
             // 1. Compressão
             setStep('compressing')
+            console.log('[DocumentUpload] Iniciando compressão...');
             const fileToUpload = file.type.startsWith('image/')
                 ? await compressImage(file)
                 : file
+            console.log('[DocumentUpload] Compressão concluída ou ignorada.');
 
             // 2. Upload para Supabase
             setStep('uploading')
+            console.log('[DocumentUpload] Iniciando upload para Supabase...');
             const path = await uploadDocument(fileToUpload, caseId, category)
+            console.log(`[DocumentUpload] Upload concluído! Path: ${path}`);
 
             // 3. IA Lendo Documento
             setStep('processing')
+            console.log('[DocumentUpload] Solicitando processamento de IA...');
             const response = await fetch('/api/process-document', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -57,20 +63,27 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
             if (!response.ok) throw new Error('IA falhou ao processar documento')
 
             const result = await response.json()
+            console.log('[DocumentUpload] IA processou o documento com sucesso:', result);
 
             // 4. Concluído
             setStep('done')
             if (onComplete) onComplete(result)
 
         } catch (err: any) {
-            console.error('Upload error:', err)
+            console.error('[DocumentUpload] Erro crítico:', err)
             setError(err.message || 'Erro no processo de upload')
             setStep('error')
         }
     }
 
-    const triggerFileSelect = () => fileInputRef.current?.click()
-    const triggerCamera = () => cameraInputRef.current?.click()
+    const triggerFileSelect = () => {
+        console.log('[DocumentUpload] Acionando seleção de galeria');
+        fileInputRef.current?.click();
+    }
+    const triggerCamera = () => {
+        console.log('[DocumentUpload] Acionando câmera');
+        cameraInputRef.current?.click();
+    }
 
     return (
         <div
