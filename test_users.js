@@ -6,6 +6,6 @@ const SUPABASE_KEY = env.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/)[1];
 const { createClient } = require('@supabase/supabase-js');
 const admin = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-admin.from('user_profiles').select('*').then(res => {
+admin.from('profiles').select('*').then(res => {
   console.log('Profiles:', res.data, res.error);
 });

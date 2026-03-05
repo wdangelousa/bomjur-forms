@@ -24,6 +24,21 @@ $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 
 -- ============================================================
+-- FIX: Evitar Infinite Recursion nas tabelas Base (profiles e user_profiles)
+-- ============================================================
+DROP POLICY IF EXISTS "Admin read all profiles" ON public.profiles;
+CREATE POLICY "Admin read all profiles" ON public.profiles 
+FOR SELECT USING (
+  auth.uid() = id OR public.is_super_admin()
+);
+
+DROP POLICY IF EXISTS "Users can view own profile" ON public.user_profiles;
+CREATE POLICY "Users can view own profile" ON public.user_profiles
+FOR SELECT USING (
+  auth.uid() = id OR public.get_user_role() = 'team' OR public.get_user_role() = 'super_admin'
+);
+
+-- ============================================================
 -- TABELA: i140_petitions
 -- ============================================================
 ALTER TABLE public.i140_petitions ENABLE ROW LEVEL SECURITY;

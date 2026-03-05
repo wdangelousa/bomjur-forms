@@ -40,10 +40,10 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (passwordState?.url) {
-            router.refresh()
-            router.push(passwordState.url)
+            // Usa hard redirect para garantir que os cookies novos sejam enviados no próximo request
+            window.location.href = passwordState.url
         }
-    }, [passwordState?.url, router])
+    }, [passwordState?.url])
 
     return (
         <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-80px)] w-full relative overflow-hidden bg-slate-50 py-16 px-4 font-sans">
