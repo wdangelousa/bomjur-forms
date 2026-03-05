@@ -8,12 +8,13 @@ import { cookies } from 'next/headers'
 // e redireciona de forma DETERMINÍSTICA.
 //
 // Prioridade de redirect:
-//   1. Se existe ?next=/some/path → usa esse path (Magic Link)
+//   1. Se existe ?next=/some/path → usa esse path (Magic Link convite)
 //   2. Caso contrário → switch baseado na role do profiles
 //
 // Blindagem WhatsApp:
-//   - Trata code inválido/já consumido com mensagem clara
-//   - next é sanitizado para evitar open redirect
+//   - Código expirado/já consumido → redirect para /login?error=expired_link
+//   - next é sanitizado contra open redirect
+//   - Se sessão já existe após código falhar, redireciona normalmente
 // ============================================================
 
 export async function GET(request: Request) {
@@ -34,16 +35,14 @@ export async function GET(request: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
-                getAll() {
-                    return cookieStore.getAll()
-                },
+                getAll() { return cookieStore.getAll() },
                 setAll(cookiesToSet) {
                     try {
                         cookiesToSet.forEach(({ name, value, options }) =>
                             cookieStore.set(name, value, options)
                         )
                     } catch {
-                        // Pode falhar em Server Component — seguro ignorar
+                        // Seguro ignorar em Server Components read-only
                     }
                 },
             },
@@ -54,51 +53,42 @@ export async function GET(request: Request) {
     const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error || !sessionData?.user) {
-        // WhatsApp in-app browser often re-opens links — code already consumed
-        const errorMsg = error?.message?.toLowerCase() || ''
-        const isConsumed =
-            errorMsg.includes('code') ||
-            errorMsg.includes('expired') ||
-            errorMsg.includes('invalid') ||
-            errorMsg.includes('already')
+        console.error('[auth/callback] Code exchange failed:', error?.message)
 
-        console.error('[auth/callback] Exchange failed:', error?.message)
+        // O WhatsApp re-abre o link com o mesmo URL — o token já foi consumido
+        // Verificar se já existe uma sessão activa (user pode estar logado)
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
 
-        if (isConsumed) {
-            // Code already used or expired — try to see if user has an active session
-            const { data: { user: existingUser } } = await supabase.auth.getUser()
-            if (existingUser) {
-                // Session exists — redirect normally
-                console.log('[auth/callback] Code expired but session exists, redirecting')
-                if (next && isValidNextPath(next)) {
-                    return NextResponse.redirect(`${origin}${next}`)
-                }
-                // Fall through to role-based redirect below using existingUser
-                return await redirectByRole(existingUser.id, origin, supabase)
+        if (existingUser) {
+            // Sessão activa — redirecionar normalmente sem erro
+            console.log('[auth/callback] Stale code but active session found, redirecting')
+            if (next && isValidNextPath(next)) {
+                return NextResponse.redirect(`${origin}${next}`)
             }
+            return await redirectByRole(existingUser.id, origin)
         }
 
-        return NextResponse.redirect(
-            `${origin}/login?error=auth_failed&reason=${encodeURIComponent(error?.message || 'unknown')}`
-        )
+        // Código expirado e sem sessão → mandar para login com aviso claro
+        // O frontend detect&a 'expired_link' e abre o modo Magic Link automaticamente
+        return NextResponse.redirect(`${origin}/login?error=expired_link`)
     }
 
     const userId = sessionData.user.id
 
     // ── 3. Se existe ?next, redirecionar diretamente ──
-    // Sanitização: next deve começar com / e não conter // (evita open redirect)
+    // Sanitização: next deve começar com / (anti open redirect)
     if (next && isValidNextPath(next)) {
         return NextResponse.redirect(`${origin}${next}`)
     }
 
     // ── 4. Sem ?next — redirect baseado na role ──
-    return await redirectByRole(userId, origin, supabase)
+    return await redirectByRole(userId, origin)
 }
 
 // ============================================================
 // Helper: Redirect baseado na role do utilizador
 // ============================================================
-async function redirectByRole(userId: string, origin: string, _supabase: any) {
+async function redirectByRole(userId: string, origin: string) {
     const supabaseAdmin = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -125,7 +115,6 @@ async function redirectByRole(userId: string, origin: string, _supabase: any) {
             return NextResponse.redirect(`${origin}/team`)
 
         case 'client':
-            // Buscar caso ativo mais recente
             const { data: activeCase } = await supabaseAdmin
                 .from('cases')
                 .select('id')
@@ -147,10 +136,9 @@ async function redirectByRole(userId: string, origin: string, _supabase: any) {
 }
 
 // ============================================================
-// Helper: Validar que o path de redirect é seguro
+// Helper: Validar path de redirect (anti open redirect)
 // ============================================================
 function isValidNextPath(path: string): boolean {
-    // Deve começar com / e não conter // ou protocolo (anti open redirect)
     return (
         path.startsWith('/') &&
         !path.startsWith('//') &&
