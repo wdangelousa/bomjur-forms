@@ -106,7 +106,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
 
   const handleCopyWAMessage = () => {
     if (!result) return
-    const msg = `Olá! Seu acesso à plataforma Bomjur está pronto. 🛫\n\nAcesse: ${result.loginLink}\nSua Senha de Embarque: ${result.tempPassword}\n\nPor favor, utilize seu e-mail e esta senha para entrar.`
+    const loginUrl = `${window.location.origin}/login`
+    const msg = `Olá! O seu processo na Bomjur foi iniciado.\nPara acessar o seu painel e dar continuidade, clique no link abaixo:\n\n🔗 ${loginUrl}\n\n🔑 *Seus dados de acesso:*\n*Login:* ${form.client_email}\n*Senha:* ${result.tempPassword}`
     copyToClipboard(msg, 'wa')
   }
 
@@ -343,7 +344,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                       <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Extrair dados do I-140 via IA</div>
                     )}
                     <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Ativar Gamificação e XP do Cliente</div>
-                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Blindar acesso via Magic Link</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Gerar Senha de Embarque</div>
                   </div>
                 </div>
 
@@ -418,11 +419,11 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                       <div className="flex gap-2">
                         <input
                           readOnly
-                          value={result.loginLink}
+                          value={`${typeof window !== 'undefined' ? window.location.origin : ''}/login`}
                           className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
                         />
                         <button
-                          onClick={() => copyToClipboard(result.loginLink || '', 'link')}
+                          onClick={() => copyToClipboard(`${window.location.origin}/login`, 'link')}
                           className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'link'
                             ? 'border-green-500/20 bg-green-500/10 text-green-400'
                             : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'

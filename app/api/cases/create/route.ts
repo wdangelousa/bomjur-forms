@@ -255,6 +255,7 @@ export async function POST(request: NextRequest) {
         subject,
         react: InviteEmail({
           clientName: client_name,
+          clientEmail: client_email,
           caseType: case_type,
           loginLink,
           password: generatedPassword,

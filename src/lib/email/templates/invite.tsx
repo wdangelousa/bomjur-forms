@@ -14,6 +14,7 @@ import {
 
 interface InviteEmailProps {
   clientName: string
+  clientEmail?: string
   caseType: string
   loginLink: string
   password?: string
@@ -29,6 +30,7 @@ const t = {
     caseCreated: (type: string) => `Seu processo ${type} foi inicializado`,
     intro: 'A equipe da Onebridge preparou seu acesso exclusivo à nossa plataforma legal. Utilize as credenciais abaixo para começar.',
     credentialsTitle: 'Seu Acesso Antecipado:',
+    emailLabel: 'Seu Login (E-mail):',
     passwordLabel: 'Sua Senha de Embarque:',
     steps: 'Como acessar:',
     step1: '1. Clique no botão "Acessar Plataforma" abaixo',
@@ -49,6 +51,7 @@ const t = {
     caseCreated: (type: string) => `Your ${type} process has been initialized`,
     intro: 'The Onebridge team has set up your exclusive access to our legal platform. Use the credentials below to get started.',
     credentialsTitle: 'Your Boarding Access:',
+    emailLabel: 'Your Login (Email):',
     passwordLabel: 'Your Temporary Password:',
     steps: 'How to access:',
     step1: '1. Click the "Access Platform" button below',
@@ -67,6 +70,7 @@ const t = {
 
 export default function InviteEmail({
   clientName,
+  clientEmail,
   caseType,
   loginLink,
   password,
@@ -103,7 +107,13 @@ export default function InviteEmail({
             {/* Credentials Block */}
             {password && (
               <Section style={credentialsBox}>
-                <Text style={credentialsLabel}>{l.passwordLabel}</Text>
+                {clientEmail && (
+                  <>
+                    <Text style={credentialsLabel}>{l.emailLabel}</Text>
+                    <Text style={emailText}>{clientEmail}</Text>
+                  </>
+                )}
+                <Text style={{ ...credentialsLabel, marginTop: clientEmail ? '16px' : '0' }}>{l.passwordLabel}</Text>
                 <Text style={passwordText}>{password}</Text>
               </Section>
             )}
@@ -193,6 +203,13 @@ const passwordText = {
   fontFamily: "'Courier New', Courier, monospace",
   margin: '0',
   letterSpacing: '4px',
+}
+
+const emailText = {
+  fontSize: '16px',
+  fontWeight: '600',
+  color: '#FFFFFF',
+  margin: '0',
 }
 
 const stepsBox = {
