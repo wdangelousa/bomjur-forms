@@ -2,8 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
+// ============================================================
+// Supabase Server Client (SSR)
+// Compatível com Next.js 16+ (await cookies() assíncrono)
+// ============================================================
+
 export async function createClient() {
-    // await cookies() de forma assíncrona, compatível com o Next.js 16+
     const cookieStore = await cookies()
 
     return createServerClient(
@@ -20,7 +24,10 @@ export async function createClient() {
                             cookieStore.set(name, value, options)
                         )
                     } catch {
-                        // Chamado em Server Component — pode ser ignorado com segurança
+                        // setAll pode falhar quando chamado de um Server Component
+                        // (que é read-only). Isso é esperado e seguro de ignorar.
+                        // Cookies serão sincronizados pela próxima Route Handler ou
+                        // Server Action que for chamada.
                     }
                 },
             },
@@ -28,6 +35,11 @@ export async function createClient() {
     )
 }
 
+// ============================================================
+// Admin Client (SERVICE_ROLE_KEY — bypassa RLS)
+// NUNCA usar no lado do cliente. Apenas em Route Handlers e
+// Server Actions protegidas.
+// ============================================================
 export function createAdminClient() {
     return createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

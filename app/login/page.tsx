@@ -43,16 +43,16 @@ export default function LoginPage() {
             const role = profile?.role
 
             if (role === 'super_admin') {
-                router.push('/admin')
+                router.replace('/admin')
             } else if (role === 'team' || role === 'tenant_admin') {
-                router.push('/team')
+                router.replace('/team')
             } else if (role === 'client') {
-                router.push('/dashboard')
+                router.replace('/dashboard')
             } else {
-                router.push('/dashboard')
+                router.replace('/dashboard')
             }
         } catch {
-            router.push('/dashboard') // Safety fallback
+            router.replace('/dashboard') // Safety fallback
         }
     }
 
