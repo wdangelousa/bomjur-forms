@@ -1,88 +1,41 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
+import React, { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
+import { loginWithPassword } from './actions'
 import { ShieldCheck, ArrowRight, Mail, Lock, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-export default function LoginPage() {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [loading, setLoading] = useState(false)
-    const [ready, setReady] = useState(false)
-    const router = useRouter()
+// ── Botão de Submit com loading nativo (React 19) ──
+function SubmitButton() {
+    const { pending } = useFormStatus()
 
-    const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    return (
+        <button
+            type="submit"
+            disabled={pending}
+            className="w-full py-4 bg-slate-900 hover:bg-black text-white font-black rounded-2xl transition-all shadow-[0_10px_20px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none overflow-hidden relative group"
+        >
+            <span className="relative z-10">
+                {pending ? 'Verificando Credenciais...' : 'Entrar na Plataforma'}
+            </span>
+            {!pending && (
+                <ArrowRight
+                    size={20}
+                    strokeWidth={3}
+                    className="relative z-10 group-hover:translate-x-1 transition-transform"
+                />
+            )}
+            <div className="absolute inset-0 bg-emerald-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300 -z-10" />
+        </button>
     )
+}
 
-    // ── LIMPEZA DE SESSÃO ──
-    // Ao entrar na página de login, descartar qualquer sessão anterior.
-    // Isso garante que o utilizador pode trocar de conta sem ser
-    // redirecionado automaticamente pela sessão antiga.
-    useEffect(() => {
-        async function clearSession() {
-            await supabase.auth.signOut()
-            setReady(true)
-        }
-        clearSession()
-    }, [])
-
-    // ── LOGIN COM PASSWORD ──
-    // Para Magic Links, o redirecionamento é 100% controlado por
-    // app/auth/callback/route.ts — o frontend NÃO interfere.
-    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        setLoading(true)
-
-        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password })
-
-        if (authErr) {
-            alert('E-mail ou senha incorretos. Tente novamente.')
-            setLoading(false)
-            return
-        }
-
-        // Buscar role diretamente do browser client (já autenticado)
-        // Sem race condition — a sessão é instantânea no client-side
-        try {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', authData.user.id)
-                .single()
-
-            const role = profile?.role
-
-            switch (role) {
-                case 'super_admin':
-                    router.replace('/admin')
-                    break
-                case 'team':
-                case 'tenant_admin':
-                    router.replace('/team')
-                    break
-                case 'client':
-                    router.replace('/dashboard')
-                    break
-                default:
-                    router.replace('/dashboard')
-            }
-        } catch {
-            router.replace('/dashboard')
-        }
-    }
-
-    // Não renderizar o formulário enquanto a sessão antiga não for limpa
-    if (!ready) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50">
-                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        )
-    }
+// ── Página de Login ──
+// ZERO lógica de roteamento no cliente.
+// O Server Action (actions.ts) controla 100% do redirecionamento.
+export default function LoginPage() {
+    const [state, formAction] = useActionState(loginWithPassword, { error: null })
 
     return (
         <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-80px)] w-full relative overflow-hidden bg-slate-50 py-16 px-4 font-sans">
@@ -103,35 +56,51 @@ export default function LoginPage() {
                 <div className="flex justify-center mb-8">
                     <div className="bg-white/80 backdrop-blur-md px-5 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sistema Operacional Ativo</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            Sistema Operacional Ativo
+                        </span>
                     </div>
                 </div>
 
                 {/* Card de Login Central */}
                 <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-100 p-8 md:p-12 relative overflow-hidden">
-
                     <div className="flex flex-col items-center mb-10 pb-2">
                         <div className="mb-6 flex justify-center w-full">
-                            <img src="/proexpand-logo.png" alt="Proexpand" className="h-20 sm:h-24 w-auto mx-auto object-contain" />
+                            <img
+                                src="/proexpand-logo.png"
+                                alt="Proexpand"
+                                className="h-20 sm:h-24 w-auto mx-auto object-contain"
+                            />
                         </div>
-
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2 text-center">Acesse sua conta</h1>
-                        <p className="text-slate-400 text-sm font-medium text-center">Plataforma Legal Tech de Alta Performance</p>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2 text-center">
+                            Acesse sua conta
+                        </h1>
+                        <p className="text-slate-400 text-sm font-medium text-center">
+                            Plataforma Legal Tech de Alta Performance
+                        </p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-6 w-full">
+                    {/* Mensagem de Erro */}
+                    {state?.error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm font-bold text-center">
+                            {state.error}
+                        </div>
+                    )}
 
+                    {/* Formulário — Server Action, ZERO router.push */}
+                    <form action={formAction} className="flex flex-col gap-6 w-full">
                         <div className="flex flex-col gap-2 relative z-20">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                E-mail Corporativo
+                            </label>
                             <div className="relative group">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-300 group-focus-within:text-emerald-500 transition-colors pointer-events-none h-full">
                                     <Mail size={18} strokeWidth={2.5} />
                                 </div>
                                 <input
                                     type="email"
+                                    name="email"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
                                     placeholder="seu.nome@empresa.com"
                                     className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
                                 />
@@ -140,8 +109,15 @@ export default function LoginPage() {
 
                         <div className="flex flex-col gap-2 relative z-20">
                             <div className="flex justify-between items-center px-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso</label>
-                                <button type="button" className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest transition-colors">Esqueceu a senha?</button>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Senha de Acesso
+                                </label>
+                                <button
+                                    type="button"
+                                    className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest transition-colors"
+                                >
+                                    Esqueceu a senha?
+                                </button>
                             </div>
                             <div className="relative group">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-300 group-focus-within:text-emerald-500 transition-colors pointer-events-none h-full">
@@ -149,9 +125,8 @@ export default function LoginPage() {
                                 </div>
                                 <input
                                     type="password"
+                                    name="password"
                                     required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••••••"
                                     className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 shadow-inner"
                                 />
@@ -159,15 +134,7 @@ export default function LoginPage() {
                         </div>
 
                         <div className="pt-4 relative z-20">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-4 bg-slate-900 hover:bg-black text-white font-black rounded-2xl transition-all shadow-[0_10px_20px_rgba(0,0,0,0.15)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none overflow-hidden relative group"
-                            >
-                                <span className="relative z-10">{loading ? 'Verificando Credenciais...' : 'Entrar na Plataforma'}</span>
-                                {!loading && <ArrowRight size={20} strokeWidth={3} className="relative z-10 group-hover:translate-x-1 transition-transform" />}
-                                <div className="absolute inset-0 bg-emerald-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300 -z-10" />
-                            </button>
+                            <SubmitButton />
                         </div>
                     </form>
 
@@ -191,7 +158,13 @@ export default function LoginPage() {
 
                 <div className="mt-8 flex flex-col items-center gap-2">
                     <p className="text-xs font-bold text-slate-400">
-                        Problemas com o acesso? <a href="#" className="text-slate-600 hover:text-emerald-600 underline underline-offset-4 decoration-slate-200 hover:decoration-emerald-200 transition-all">Fale com seu consultor</a>
+                        Problemas com o acesso?{' '}
+                        <a
+                            href="#"
+                            className="text-slate-600 hover:text-emerald-600 underline underline-offset-4 decoration-slate-200 hover:decoration-emerald-200 transition-all"
+                        >
+                            Fale com seu consultor
+                        </a>
                     </p>
                 </div>
             </motion.div>
