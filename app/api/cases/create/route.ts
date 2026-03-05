@@ -239,9 +239,9 @@ export async function POST(request: NextRequest) {
     // ──────────────────────────────────────────────
     const host = request.headers.get('host') || 'localhost:3000'
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
-    const defaultAppUrl = `${protocol}://${host}`
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || defaultAppUrl
-    const loginLink = `${appUrl}/login`
+    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
+    const baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`
+    const loginLink = new URL('/login', baseUrl).toString()
 
     let emailSent = false
 

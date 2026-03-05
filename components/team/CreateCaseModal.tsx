@@ -104,10 +104,15 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
     setTimeout(() => setCopied(null), 2000)
   }
 
+  const getAbsoluteLoginUrl = () => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.bomjur.com'
+    return new URL('/login', baseUrl).toString()
+  }
+
   const handleCopyWAMessage = () => {
     if (!result) return
-    const loginUrl = `${window.location.origin}/login`
-    const msg = `Olá! O seu processo na Bomjur foi iniciado.\nPara acessar o seu painel e dar continuidade, clique no link abaixo:\n\n🔗 ${loginUrl}\n\n🔑 *Seus dados de acesso:*\n*Login:* ${form.client_email}\n*Senha:* ${result.tempPassword}`
+    const loginUrl = getAbsoluteLoginUrl()
+    const msg = `Olá! O seu processo com a equipe Proexpand foi iniciado.\nPara acessar o seu painel seguro e dar continuidade aos seus formulários, clique no link abaixo:\n\n🔗 ${loginUrl}\n\n🔑 *Seus dados de acesso:*\n*Login:* ${form.client_email}\n*Senha:* ${result.tempPassword}`
     copyToClipboard(msg, 'wa')
   }
 
@@ -419,11 +424,11 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                       <div className="flex gap-2">
                         <input
                           readOnly
-                          value={`${typeof window !== 'undefined' ? window.location.origin : ''}/login`}
+                          value={getAbsoluteLoginUrl()}
                           className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
                         />
                         <button
-                          onClick={() => copyToClipboard(`${window.location.origin}/login`, 'link')}
+                          onClick={() => copyToClipboard(getAbsoluteLoginUrl(), 'link')}
                           className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'link'
                             ? 'border-green-500/20 bg-green-500/10 text-green-400'
                             : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
