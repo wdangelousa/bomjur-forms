@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 
 const supabase = createClient()
-const BUCKET_NAME = 'case-documents'
+const BUCKET_NAME = 'documents'
 
 /**
  * Faz o upload de um documento para o Supabase Storage

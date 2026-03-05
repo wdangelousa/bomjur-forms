@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     try {
         // Baixa o arquivo do Storage
         const { data: fileBlob, error: dlErr } = await supabase.storage
-            .from('bomjur-documents')
+            .from('documents')
             .download(filePath)
 
         if (dlErr || !fileBlob) {
