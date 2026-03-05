@@ -46,17 +46,19 @@ export default function ClientHeadquarters() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
+        console.error('[DASHBOARD] Sem usuário autenticado. Redirecionando para login.')
         router.push('/login')
         return
       }
 
-      const { data: prof } = await supabase
+      const { data: prof, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      if (!prof) {
+      if (profErr || !prof) {
+        console.error('[DASHBOARD] Erro ao buscar perfil. Redirecionando para login.', profErr)
         router.push('/login')
         return
       }

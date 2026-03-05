@@ -15,9 +15,9 @@ import { redirect } from 'next/navigation'
 // ============================================================
 
 export async function loginWithPassword(
-    _prevState: { error: string | null },
+    _prevState: { error: string | null; url?: string | null },
     formData: FormData
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; url?: string | null }> {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
@@ -72,16 +72,16 @@ export async function loginWithPassword(
 
     const role = profile?.role
 
-    // 4. Redirect determinístico — server-side, ZERO ambiguidade
+    // 4. Return URL para o client fazer refresh() e push() seguro
     switch (role) {
         case 'super_admin':
-            redirect('/admin')
+            return { error: null, url: '/admin' }
         case 'team':
         case 'tenant_admin':
-            redirect('/team')
+            return { error: null, url: '/team' }
         case 'client':
-            redirect('/dashboard')
+            return { error: null, url: '/dashboard' }
         default:
-            redirect('/dashboard')
+            return { error: null, url: '/dashboard' }
     }
 }

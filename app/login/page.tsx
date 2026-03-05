@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPassword } from './actions'
 import { useActionState } from 'react'
@@ -35,7 +35,15 @@ function PasswordSubmitButton() {
 // ── Página de Login ──
 export default function LoginPage() {
     const searchParams = useSearchParams()
-    const [passwordState, passwordAction] = useActionState(loginWithPassword, { error: null })
+    const router = useRouter()
+    const [passwordState, passwordAction] = useActionState(loginWithPassword, { error: null, url: null })
+
+    useEffect(() => {
+        if (passwordState?.url) {
+            router.refresh()
+            router.push(passwordState.url)
+        }
+    }, [passwordState?.url, router])
 
     return (
         <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-80px)] w-full relative overflow-hidden bg-slate-50 py-16 px-4 font-sans">

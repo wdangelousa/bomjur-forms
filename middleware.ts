@@ -42,12 +42,15 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  console.log(`[PROXY] Path: ${pathname} | User: ${user?.email || 'None'}`)
+
   // ── Rotas privadas ──
   const privatePrefixes = ['/admin', '/team', '/case', '/dashboard', '/upload']
   const isPrivate = privatePrefixes.some(prefix => pathname.startsWith(prefix))
 
   // Sem sessão + rota privada → /login
   if (!user && isPrivate) {
+    console.log(`[PROXY] Bloqueado - redirecionando para /login (isPrivate: ${isPrivate})`)
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -72,6 +75,7 @@ export async function proxy(request: NextRequest) {
 
       // Cliente tentando /admin ou /team → forçar /dashboard
       if (role === 'client') {
+        console.log(`[PROXY] Role 'client' interceptou tentativa de acesso a admin/team. Redirecionando para /dashboard`)
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
@@ -79,11 +83,13 @@ export async function proxy(request: NextRequest) {
 
       // Team tentando /admin → forçar /team
       if (role === 'team' && pathname.startsWith('/admin')) {
+        console.log(`[PROXY] Role 'team' tentou /admin. Redirecionando para /team`)
         const url = request.nextUrl.clone()
         url.pathname = '/team'
         return NextResponse.redirect(url)
       }
-    } catch {
+    } catch (e) {
+      console.error(`[PROXY] Erro ao buscar role para user ${user.id}:`, e)
       // Fail-open: se a query falhar, deixar passar
       // Cada página tem seus próprios guards
     }

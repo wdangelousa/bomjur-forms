@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     // ──────────────────────────────────────────────
     // 5. UPSERT CLIENT IN BOTH PROFILE TABLES
     // ──────────────────────────────────────────────
-    await adminClient.from('profiles').upsert({
+    const { error: profileErr } = await adminClient.from('profiles').upsert({
       id: clientUserId,
       full_name: client_name,
       email: client_email,
@@ -143,7 +143,12 @@ export async function POST(request: NextRequest) {
       preferred_language,
     }, { onConflict: 'id' })
 
-    await adminClient.from('user_profiles').upsert({
+    if (profileErr) {
+      console.error('[CREATE_CASE] Erro no form profiles:', profileErr)
+      // Se falhar o perfil, ainda tentamos prosseguir mas algo está errado na BD.
+    }
+
+    const { error: userProfileErr } = await adminClient.from('user_profiles').upsert({
       id: clientUserId,
       tenant_id: tenantId,
       full_name: client_name,
@@ -152,6 +157,10 @@ export async function POST(request: NextRequest) {
       role: 'client',
       preferred_language,
     }, { onConflict: 'id' })
+
+    if (userProfileErr) {
+      console.error('[CREATE_CASE] Erro no form user_profiles:', userProfileErr)
+    }
 
     // ──────────────────────────────────────────────
     // 6. CREATE THE CASE
