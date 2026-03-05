@@ -17,11 +17,12 @@ export default function LoginPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setLoading(true)
 
-        const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password })
 
         if (authErr) {
             alert('E-mail ou senha incorretos. Tente novamente.')
@@ -30,9 +31,16 @@ export default function LoginPage() {
         }
 
         try {
-            const res = await fetch('/api/auth/role')
-            const data = await res.json()
-            const role = data?.role
+            // Query profile directly from the browser client (already authenticated)
+            // This avoids the race condition where the server-side API route
+            // may not see the session cookie immediately after login.
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', authData.user.id)
+                .single()
+
+            const role = profile?.role
 
             if (role === 'super_admin') {
                 router.push('/admin')
@@ -44,7 +52,7 @@ export default function LoginPage() {
                 router.push('/dashboard')
             }
         } catch {
-            router.push('/dashboard') // Safety fallback - don't loop back to login
+            router.push('/dashboard') // Safety fallback
         }
     }
 
