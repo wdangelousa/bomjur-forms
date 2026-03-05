@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { ShieldCheck, ArrowRight, Mail, Lock, CheckCircle2 } from 'lucide-react'
@@ -16,6 +16,12 @@ export default function LoginPage() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
+
+    // Ao montar a página de login, limpar qualquer sessão anterior
+    // Isso garante que sessões stale não redirecionem o user automaticamente
+    useEffect(() => {
+        supabase.auth.signOut()
+    }, [])
 
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
