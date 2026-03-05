@@ -184,7 +184,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_name}
                     onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
                     placeholder="Maria da Silva"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 
@@ -198,7 +198,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_email}
                     onChange={e => setForm(f => ({ ...f, client_email: e.target.value }))}
                     placeholder="maria@email.com"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 
@@ -213,7 +213,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_phone}
                     onChange={e => setForm(f => ({ ...f, client_phone: phoneFormat(e.target.value) }))}
                     placeholder="(321) 555-0123"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 

@@ -155,13 +155,13 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                     <img
                         src="/proexpandbrasil-logo.png"
                         alt="Proexpand Brasil"
-                        style={{ height: 48, width: 'auto' }}
+                        style={{ height: 64, width: 'auto' }}
                     />
                     <div style={{ width: 1, height: 28, background: '#e2e8f0' }} />
                     <img
                         src="/bomjur-logo.png"
                         alt="Bomjur Platform"
-                        style={{ height: 28, width: 'auto', opacity: 0.7 }}
+                        style={{ height: 36, width: 'auto', opacity: 0.7 }}
                     />
                 </div>
                 <h2 style={{ fontSize: 28, fontWeight: 900, color: C.text1, letterSpacing: -0.5, marginBottom: 6 }}>

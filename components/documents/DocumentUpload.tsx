@@ -87,12 +87,7 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
 
     return (
         <div
-            className="p-5 rounded-2xl border transition-all"
-            style={{
-                background: COLORS.card,
-                borderColor: step === 'error' ? COLORS.danger : COLORS.border,
-                boxShadow: step === 'processing' ? `0 0 20px ${COLORS.primary}22` : 'none'
-            }}
+            className={`p-5 rounded-2xl border bg-white shadow-sm transition-all ${step === 'error' ? 'border-red-200' : 'border-slate-200'}`}
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -130,7 +125,7 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
 
                         <button
                             onClick={triggerFileSelect}
-                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-white/5"
+                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-slate-50"
                             style={{ borderColor: COLORS.border }}
                         >
                             <ImageIcon className="w-6 h-6" style={{ color: COLORS.blue }} />

@@ -46,8 +46,8 @@ const navConfig: Record<UserRole, NavItem[]> = {
 
 function NotificationBell({ count }: { count: number }) {
   return (
-    <button className="relative p-2 rounded-lg hover:bg-bomjur-card transition-colors">
-      <Bell size={20} className="text-bomjur-muted" />
+    <button className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors">
+      <Bell size={20} className="text-slate-500" />
       {count > 0 && (
         <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
           {count > 9 ? '9+' : count}
@@ -61,7 +61,7 @@ function LanguageToggle({ lang, onToggle }: { lang: 'pt' | 'en'; onToggle: () =>
   return (
     <button
       onClick={onToggle}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-bomjur-muted hover:text-bomjur-text hover:bg-bomjur-card transition-colors"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
     >
       <Globe size={14} />
       {lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
@@ -138,8 +138,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-bomjur-lime border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -150,15 +150,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-[260px] min-h-screen border-r border-bomjur-border bg-bomjur-card fixed left-0 top-0 z-40">
-        <div className="px-6 py-5 border-b border-bomjur-border">
+      <aside className="hidden lg:flex flex-col w-[260px] min-h-screen border-r border-slate-200 bg-white fixed left-0 top-0 z-40">
+        <div className="px-6 py-5 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">🛫</span>
-            <span className="text-xl font-extrabold text-bomjur-lime tracking-tight">Bomjur</span>
+            <span className="text-xl font-extrabold text-slate-900 tracking-tight">Bomjur</span>
           </div>
-          <p className="text-[11px] text-bomjur-dim mt-1">Immigration Platform</p>
+          <p className="text-[11px] text-slate-400 mt-1">Immigration Platform</p>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -167,8 +167,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive(item.href)
-                ? 'bg-bomjur-lime/10 text-bomjur-lime border border-bomjur-lime/20'
-                : 'text-bomjur-muted hover:text-bomjur-text hover:bg-bomjur-bg'
+                ? 'bg-sky-50 text-sky-600 border border-sky-100'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                 }`}
             >
               {item.icon}
@@ -177,21 +177,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="px-4 py-4 border-t border-bomjur-border">
+        <div className="px-4 py-4 border-t border-slate-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-bomjur-lime/20 flex items-center justify-center text-bomjur-lime text-sm font-bold">
+            <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 text-sm font-bold">
               {profile.full_name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-bomjur-text truncate">{profile.full_name}</p>
-              <p className="text-[11px] text-bomjur-dim capitalize">{profile.role.replace('_', ' ')}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{profile.full_name}</p>
+              <p className="text-[11px] text-slate-400 capitalize">{profile.role.replace('_', ' ')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <LanguageToggle lang={lang} onToggle={toggleLang} />
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-bomjur-dim hover:text-red-400 hover:bg-red-400/10 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
             >
               <LogOut size={14} />
               Sair
@@ -203,10 +203,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 lg:ml-[260px] pb-20 lg:pb-0">
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-bomjur-border bg-bomjur-bg/95 backdrop-blur-sm">
+        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <span className="text-lg">🛫</span>
-            <span className="text-base font-extrabold text-bomjur-lime">Bomjur</span>
+            <span className="text-base font-extrabold text-slate-900">Bomjur</span>
           </div>
           <div className="flex items-center gap-1">
             <LanguageToggle lang={lang} onToggle={toggleLang} />
@@ -215,9 +215,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-bomjur-border bg-bomjur-bg">
+        <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-slate-200 bg-white">
           <div>
-            <h2 className="text-lg font-bold text-bomjur-text">
+            <h2 className="text-lg font-bold text-slate-900">
               {lang === 'pt' ? 'Olá' : 'Hello'}, {profile.full_name?.split(' ')[0]}! 👋
             </h2>
           </div>
@@ -232,13 +232,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-bomjur-border bg-bomjur-card/95 backdrop-blur-sm safe-bottom">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-sm safe-bottom">
         <div className="flex items-center justify-around px-2 py-1">
           {navItems.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-colors ${isActive(item.href) ? 'text-bomjur-lime' : 'text-bomjur-dim'
+              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg min-w-[56px] transition-colors ${isActive(item.href) ? 'text-sky-600' : 'text-slate-400'
                 }`}
             >
               <span className={isActive(item.href) ? 'scale-110 transition-transform' : ''}>
@@ -251,7 +251,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ))}
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg text-bomjur-dim min-w-[56px]"
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg text-slate-400 min-w-[56px]"
           >
             <LogOut size={20} />
             <span className="text-[10px] font-medium">Sair</span>
@@ -261,3 +261,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+

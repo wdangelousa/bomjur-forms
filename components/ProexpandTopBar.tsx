@@ -9,7 +9,7 @@ export default function ProexpandTopBar() {
                 <img
                     src="/proexpand-logo.png"
                     alt="Proexpand Brasil"
-                    className="h-14 w-auto object-contain block transition-transform hover:scale-105 duration-300"
+                    className="h-16 w-auto object-contain block transition-transform hover:scale-105 duration-300"
                 />
             </div>
 

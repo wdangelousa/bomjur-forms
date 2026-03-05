@@ -80,11 +80,7 @@ export default function DocumentCard({
 
     return (
         <div
-            className="group relative p-4 rounded-2xl border transition-all hover:bg-slate-50 shadow-sm"
-            style={{
-                background: COLORS.card,
-                borderColor: status === 'rejected' ? `${COLORS.danger}33` : COLORS.border
-            }}
+            className={`group relative p-4 rounded-2xl border bg-white transition-all hover:bg-slate-50 shadow-sm ${status === 'rejected' ? 'border-red-200' : 'border-slate-200'}`}
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -97,7 +93,7 @@ export default function DocumentCard({
                         )}
 
                         {aiProcessed && (status === 'uploaded' || status === 'approved') && (
-                            <div className="absolute -top-1 -right-1 p-1 rounded-full bg-sky-500 shadow-lg shadow-sky-500/20">
+                            <div className="absolute -top-1 -right-1 p-1 rounded-full bg-sky-500 shadow-sm">
                                 <Sparkles className="w-2.5 h-2.5 text-white" />
                             </div>
                         )}
@@ -125,7 +121,7 @@ export default function DocumentCard({
                     {status === 'pending' || status === 'rejected' ? (
                         <button
                             onClick={() => setIsUploadOpen(true)}
-                            className="p-2 rounded-xl bg-sky-500 text-white shadow-lg shadow-sky-500/20 transition-all active:scale-95"
+                            className="p-2 rounded-xl bg-sky-500 text-white shadow-sm transition-all active:scale-95"
                         >
                             {status === 'rejected' ? <RotateCcw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                         </button>
