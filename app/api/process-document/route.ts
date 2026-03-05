@@ -40,16 +40,11 @@ export async function POST(req: NextRequest) {
 
         if (dbErr) throw new Error(`Erro na DB: ${dbErr.message}`)
 
-        // 3. Disparar a Edge Function (robusta para PDFs e evita timeouts no Vercel)
-        const { error: funcError } = await supabase.functions.invoke('process-document', {
-            body: { documentId: doc.id, filePath: filePath }
-        })
-
-        if (funcError) throw new Error(`Falha ao disparar Edge Function: ${funcError.message}`)
-
+        // O cliente invocará a Edge Function diretamente para fugir do limite de 10s do Vercel
         return NextResponse.json({
             success: true,
             documentId: doc.id,
+            filePath: filePath,
             message: 'Processamento iniciado com sucesso.'
         })
 

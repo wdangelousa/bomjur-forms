@@ -54,7 +54,18 @@ const DocumentUpload: React.FC = () => {
             setDocId(data.documentId);
             setStatus('processing');
             setProgress(55);
+
+            // 2. Acionar a Edge Function diretamente do cliente para contornar timeout de 10s do Vercel
+            const { error: fnError } = await supabase.functions.invoke('process-document', {
+                body: { documentId: data.documentId, filePath: data.filePath }
+            });
+            if (fnError) {
+                console.error("Erro na Edge Function:", fnError);
+                // a lógica realtime pode cobrir mas se falhar de vez devolve erro
+                setStatus('error');
+            }
         } catch (e) {
+            console.error(e);
             setStatus('error');
         }
     };

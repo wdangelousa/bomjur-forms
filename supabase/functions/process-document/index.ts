@@ -99,13 +99,8 @@ serve(async (req) => {
     const { documentId, filePath } = await req.json();
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    // Inicia extração em background
-    const edgeRuntime = (globalThis as any).EdgeRuntime;
-    if (edgeRuntime?.waitUntil) {
-        edgeRuntime.waitUntil(extractDocument(supabase, documentId, filePath));
-    } else {
-        extractDocument(supabase, documentId, filePath);
-    }
+    // Aguarda a extração terminar para o worker não pausar (EarlyDrop)
+    await extractDocument(supabase, documentId, filePath);
 
-    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 });
+    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 });
