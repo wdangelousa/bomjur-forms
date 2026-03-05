@@ -32,14 +32,14 @@ interface SavedDoc {
 // DESIGN TOKENS
 // ============================================================
 const C = {
-    bgCard: 'rgba(255,255,255,0.05)',
-    border: 'rgba(255,255,255,0.08)',
-    text1: '#f1f5f9',
-    text2: '#94a3b8',
+    bgCard: '#ffffff',
+    border: '#e2e8f0',
+    text1: '#0f172a',
+    text2: '#475569',
     text3: '#64748b',
-    accent: '#a78bfa',
-    accentDk: '#7c3aed',
-    success: '#22c55e',
+    accent: '#0ea5e9',
+    accentDk: '#0284c7',
+    success: '#10b981',
 }
 const F = "'Inter', system-ui, sans-serif"
 
@@ -130,7 +130,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                 background: C.bgCard, border: `1px dashed ${C.border}`,
                 borderRadius: 20, animation: 'fadeIn 0.35s ease both',
             }}>
-                <div style={{ fontSize: 60, marginBottom: 20, filter: 'drop-shadow(0 4px 16px rgba(167,139,250,0.25))' }}>📋</div>
+                <div style={{ fontSize: 60, marginBottom: 20, filter: 'drop-shadow(0 4px 16px rgba(14,165,233,0.15))' }}>📋</div>
                 <h3 style={{ fontSize: 20, fontWeight: 800, color: C.text1, margin: '0 0 10px' }}>
                     Nenhum processo vinculado à sua conta ainda.
                 </h3>
@@ -157,7 +157,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                         alt="Proexpand Brasil"
                         style={{ height: 48, width: 'auto' }}
                     />
-                    <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.1)' }} />
+                    <div style={{ width: 1, height: 28, background: '#e2e8f0' }} />
                     <img
                         src="/bomjur-logo.png"
                         alt="Bomjur Platform"
@@ -176,7 +176,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
             <div style={{
                 background: C.bgCard, border: `1px solid ${C.border}`,
                 borderRadius: 22, padding: '32px 36px', marginBottom: 28,
-                boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
             }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 24 }}>
                     Status da sua Petição (I-140)
@@ -209,14 +209,14 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                                                     ? 'linear-gradient(135deg, #22c55e, #16a34a)'
                                                     : isActive
                                                         ? `linear-gradient(135deg, ${C.accent}, ${C.accentDk})`
-                                                        : 'rgba(255,255,255,0.04)',
+                                                        : 'rgba(241,245,249,1)',
                                                 border: isDone
                                                     ? '2px solid rgba(34,197,94,0.5)'
                                                     : isActive
-                                                        ? '2px solid rgba(167,139,250,0.6)'
+                                                        ? '2px solid rgba(14,165,233,0.5)'
                                                         : `2px solid ${C.border}`,
                                                 color: isPending ? C.text3 : '#fff',
-                                                boxShadow: isActive ? '0 0 24px rgba(167,139,250,0.4)' : isDone ? '0 0 16px rgba(34,197,94,0.3)' : 'none',
+                                                boxShadow: isActive ? '0 0 16px rgba(14,165,233,0.25)' : isDone ? '0 0 12px rgba(16,185,129,0.2)' : 'none',
                                                 transition: 'all 0.4s ease',
                                             }}>
                                                 {isDone ? '✓' : idx + 1}
@@ -241,7 +241,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                                                 background: completed > idx + 1
                                                     ? 'linear-gradient(90deg, #22c55e, rgba(34,197,94,0.4))'
                                                     : completed === idx + 1
-                                                        ? `linear-gradient(90deg, ${C.accent}, rgba(167,139,250,0.2))`
+                                                        ? `linear-gradient(90deg, ${C.accent}, rgba(14,165,233,0.2))`
                                                         : C.border,
                                             }} />
                                         )}
@@ -258,7 +258,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                                     ? 'linear-gradient(90deg, #22c55e, #16a34a)'
                                     : `linear-gradient(90deg, ${C.accent}, ${C.accentDk})`,
                                 transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: `0 0 12px ${isApproved ? 'rgba(34,197,94,0.5)' : 'rgba(167,139,250,0.4)'}`,
+                                boxShadow: `0 0 8px ${isApproved ? 'rgba(16,185,129,0.3)' : 'rgba(14,165,233,0.25)'}`,
                             }} />
                         </div>
                     </div>
@@ -269,26 +269,26 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
             {isTransitioning && (
                 <div style={{
                     background: isApproved
-                        ? 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(16,185,129,0.06) 50%, rgba(124,58,237,0.08) 100%)'
-                        : 'linear-gradient(135deg, rgba(167,139,250,0.08) 0%, rgba(124,58,237,0.06) 50%, rgba(99,102,241,0.08) 100%)',
-                    border: `1.5px solid ${isApproved ? 'rgba(34,197,94,0.3)' : 'rgba(167,139,250,0.3)'}`,
+                        ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.03) 50%, rgba(14,165,233,0.06) 100%)'
+                        : 'linear-gradient(135deg, rgba(14,165,233,0.06) 0%, rgba(14,165,233,0.03) 50%, rgba(56,189,248,0.06) 100%)',
+                    border: `1.5px solid ${isApproved ? 'rgba(16,185,129,0.25)' : 'rgba(14,165,233,0.25)'}`,
                     borderRadius: 22, padding: '36px 40px', marginBottom: 28,
                     display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap',
                     position: 'relative', overflow: 'hidden',
-                    boxShadow: isApproved ? '0 12px 40px rgba(34,197,94,0.15)' : 'none',
+                    boxShadow: isApproved ? '0 4px 20px rgba(16,185,129,0.1)' : 'none',
                 }}>
                     <div style={{
                         position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%',
-                        background: isApproved ? 'radial-gradient(circle, rgba(34,197,94,0.12) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(167,139,250,0.10) 0%, transparent 70%)',
+                        background: isApproved ? 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)',
                         pointerEvents: 'none'
                     }} />
 
                     <div style={{
                         width: 80, height: 80, borderRadius: 20, flexShrink: 0,
-                        background: isApproved ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)',
-                        border: `2px solid ${isApproved ? 'rgba(34,197,94,0.4)' : 'rgba(167,139,250,0.3)'}`,
+                        background: isApproved ? 'rgba(16,185,129,0.08)' : 'rgba(14,165,233,0.08)',
+                        border: `2px solid ${isApproved ? 'rgba(16,185,129,0.3)' : 'rgba(14,165,233,0.2)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36,
-                        boxShadow: isApproved ? '0 8px 24px rgba(34,197,94,0.2)' : 'none',
+                        boxShadow: isApproved ? '0 4px 12px rgba(16,185,129,0.15)' : 'none',
                         zIndex: 1
                     }}>🚀</div>
 
@@ -296,9 +296,9 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                         <div style={{
                             display: 'inline-block', padding: '4px 12px', borderRadius: 20, marginBottom: 12,
                             fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.2,
-                            background: isApproved ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.12)',
+                            background: isApproved ? 'rgba(16,185,129,0.1)' : 'rgba(14,165,233,0.08)',
                             color: isApproved ? C.success : C.accent,
-                            border: `1px solid ${isApproved ? 'rgba(34,197,94,0.3)' : 'rgba(167,139,250,0.25)'}`,
+                            border: `1px solid ${isApproved ? 'rgba(16,185,129,0.25)' : 'rgba(14,165,233,0.2)'}`,
                         }}>
                             {isApproved ? 'Próximo Passo Disponível' : 'Fase 3 — Em Breve'}
                         </div>
@@ -316,10 +316,10 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                         disabled={!isApproved}
                         style={{
                             padding: '16px 32px', borderRadius: 14, flexShrink: 0, zIndex: 1,
-                            background: isApproved ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.06)',
+                            background: isApproved ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(241,245,249,1)',
                             border: 'none', color: isApproved ? '#fff' : C.text3,
                             fontFamily: F, fontSize: 15, fontWeight: 800, cursor: isApproved ? 'pointer' : 'not-allowed',
-                            boxShadow: isApproved ? '0 8px 24px rgba(34,197,94,0.4)' : 'none',
+                            boxShadow: isApproved ? '0 4px 16px rgba(16,185,129,0.3)' : 'none',
                             transition: 'all 0.2s',
                         }}
                     >
@@ -337,7 +337,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{
                             width: 42, height: 42, borderRadius: 12,
-                            background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+                            background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20
                         }}>📂</div>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: C.text1, margin: 0 }}>Meus Documentos Validados</h3>
@@ -347,7 +347,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                 {docsLoading ? (
                     <div style={{
                         padding: '40px', borderRadius: 14, border: `1px dashed ${C.border}`,
-                        background: 'rgba(255,255,255,0.02)', textAlign: 'center',
+                        background: 'rgba(241,245,249,1)', textAlign: 'center',
                         color: C.text3, fontSize: 14, animation: 'pulse 1.5s infinite'
                     }}>
                         Carregando seus documentos...
@@ -355,13 +355,13 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                 ) : docs.length === 0 ? (
                     <div style={{
                         padding: '40px', borderRadius: 14, border: `1px dashed ${C.border}`,
-                        background: 'rgba(255,255,255,0.02)', textAlign: 'center'
+                        background: 'rgba(241,245,249,1)', textAlign: 'center'
                     }}>
                         <p style={{ fontSize: 14, color: C.text2, margin: '0 0 16px' }}>
                             Nenhum documento processado pela Inteligência Artificial foi encontrado na sua conta.
                         </p>
                         <button style={{
-                            padding: '10px 20px', borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                            padding: '10px 20px', borderRadius: 10, background: 'rgba(241,245,249,1)',
                             border: `1px solid ${C.border}`, color: C.text1, fontWeight: 600, fontSize: 13, cursor: 'pointer'
                         }}>
                             Central de Documentos
@@ -375,11 +375,11 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                             return (
                                 <div key={doc.id} style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    padding: '16px 20px', background: 'rgba(255,255,255,0.03)',
+                                    padding: '16px 20px', background: '#ffffff',
                                     border: `1px solid ${C.border}`, borderRadius: 14, flexWrap: 'wrap', gap: 16,
                                     transition: 'all 0.2s', cursor: 'default'
-                                }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.06)' }}
-                                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)' }}>
+                                }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#f8fafc' }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#ffffff' }}>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                                         <div style={{ fontSize: 24 }}>📄</div>
@@ -395,7 +395,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                                         {extCount > 0 ? (
                                             <div style={{
                                                 padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                                                background: 'rgba(34,197,94,0.15)', color: C.success, border: '1px solid rgba(34,197,94,0.3)',
+                                                background: 'rgba(16,185,129,0.1)', color: C.success, border: '1px solid rgba(16,185,129,0.25)',
                                                 display: 'flex', alignItems: 'center', gap: 6
                                             }}>
                                                 <span>✨</span> IA Validou {extCount} campo{extCount !== 1 ? 's' : ''}
@@ -403,7 +403,7 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                                         ) : (
                                             <div style={{
                                                 padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                                background: 'rgba(148,163,184,0.1)', color: C.text3, border: `1px solid ${C.border}`
+                                                background: 'rgba(241,245,249,1)', color: C.text3, border: `1px solid ${C.border}`
                                             }}>
                                                 Sem extração
                                             </div>
@@ -415,6 +415,6 @@ export default function ClientDashboard({ petition, tenantName }: ClientDashboar
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

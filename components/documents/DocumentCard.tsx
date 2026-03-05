@@ -48,31 +48,31 @@ export default function DocumentCard({
             label: 'Pendente',
             icon: <Clock className="w-3.5 h-3.5" />,
             color: COLORS.textDim,
-            bg: 'bg-white/5'
+            bg: 'bg-slate-100'
         },
         uploaded: {
             label: 'Enviado',
             icon: <CheckCircle2 className="w-3.5 h-3.5" />,
             color: COLORS.blue,
-            bg: 'bg-blue-500/10'
+            bg: 'bg-blue-50'
         },
         under_review: {
             label: 'Em Revisão',
             icon: <LoaderIcon />,
             color: COLORS.purple,
-            bg: 'bg-purple-500/10'
+            bg: 'bg-sky-50'
         },
         approved: {
             label: 'Aprovado',
             icon: <CheckCircle2 className="w-3.5 h-3.5" />,
             color: COLORS.success,
-            bg: 'bg-green-500/10'
+            bg: 'bg-emerald-50'
         },
         rejected: {
             label: 'Rejeitado',
             icon: <XCircle className="w-3.5 h-3.5" />,
             color: COLORS.danger,
-            bg: 'bg-red-500/10'
+            bg: 'bg-red-50'
         }
     }
 
@@ -80,7 +80,7 @@ export default function DocumentCard({
 
     return (
         <div
-            className="group relative p-4 rounded-2xl border transition-all hover:bg-white/[0.02]"
+            className="group relative p-4 rounded-2xl border transition-all hover:bg-slate-50 shadow-sm"
             style={{
                 background: COLORS.card,
                 borderColor: status === 'rejected' ? `${COLORS.danger}33` : COLORS.border
@@ -89,7 +89,7 @@ export default function DocumentCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
                     {/* Icon / Thumbnail */}
-                    <div className="relative w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="relative w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
                         {fileUrl && (status === 'uploaded' || status === 'approved') ? (
                             <img src={fileUrl} alt={label} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                         ) : (
@@ -97,7 +97,7 @@ export default function DocumentCard({
                         )}
 
                         {aiProcessed && (status === 'uploaded' || status === 'approved') && (
-                            <div className="absolute -top-1 -right-1 p-1 rounded-full bg-purple-500 shadow-lg shadow-purple-500/40">
+                            <div className="absolute -top-1 -right-1 p-1 rounded-full bg-sky-500 shadow-lg shadow-sky-500/20">
                                 <Sparkles className="w-2.5 h-2.5 text-white" />
                             </div>
                         )}
@@ -112,7 +112,7 @@ export default function DocumentCard({
                             </span>
 
                             {aiProcessed && (status === 'uploaded' || status === 'approved') && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-400 uppercase tracking-tighter">
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-600 uppercase tracking-tighter">
                                     <Sparkles className="w-2.5 h-2.5" />
                                     Extraído por IA
                                 </span>
@@ -125,14 +125,14 @@ export default function DocumentCard({
                     {status === 'pending' || status === 'rejected' ? (
                         <button
                             onClick={() => setIsUploadOpen(true)}
-                            className="p-2 rounded-xl bg-lime-500 text-black shadow-lg shadow-lime-500/20 transition-all active:scale-95"
+                            className="p-2 rounded-xl bg-sky-500 text-white shadow-lg shadow-sky-500/20 transition-all active:scale-95"
                         >
                             {status === 'rejected' ? <RotateCcw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                         </button>
                     ) : (
                         <button
                             onClick={() => fileUrl && window.open(fileUrl, '_blank')}
-                            className="p-2 rounded-xl bg-white/5 border border-white/10 text-dim hover:text-white transition-all"
+                            className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-900 transition-all"
                         >
                             <Eye className="w-4 h-4" />
                         </button>
@@ -149,9 +149,9 @@ export default function DocumentCard({
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden mt-3"
                     >
-                        <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 flex items-start gap-3">
+                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
                             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                            <p className="text-xs font-medium text-red-400 leading-relaxed">
+                            <p className="text-xs font-medium text-red-600 leading-relaxed">
                                 <span className="font-bold block mb-1">Motivo da Rejeição:</span>
                                 {rejectionReason}
                             </p>
@@ -163,7 +163,7 @@ export default function DocumentCard({
             {/* Upload Modal Overlay */}
             <AnimatePresence>
                 {isUploadOpen && (
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-sm">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -172,7 +172,7 @@ export default function DocumentCard({
                         >
                             <button
                                 onClick={() => setIsUploadOpen(false)}
-                                className="absolute -top-12 right-0 p-2 text-white/40 hover:text-white transition-colors"
+                                className="absolute -top-12 right-0 p-2 text-slate-400 hover:text-slate-900 transition-colors"
                             >
                                 <XCircle className="w-8 h-8" />
                             </button>

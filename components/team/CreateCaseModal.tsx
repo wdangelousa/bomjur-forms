@@ -152,19 +152,19 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9998]" onClick={handleClose} />
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9998]" onClick={handleClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-        <div className="w-full sm:max-w-lg bg-bomjur-card border border-bomjur-border rounded-t-3xl sm:rounded-3xl max-h-[95vh] overflow-y-auto animate-slide-up pointer-events-auto shadow-2xl shadow-black/50">
+        <div className="w-full sm:max-w-lg bg-white border border-slate-200 rounded-t-3xl sm:rounded-3xl max-h-[95vh] overflow-y-auto animate-slide-up pointer-events-auto shadow-2xl shadow-slate-900/10">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-bomjur-border sticky top-0 bg-bomjur-card rounded-t-3xl z-10">
-            <h2 className="text-xl font-black text-white">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 sticky top-0 bg-white rounded-t-3xl z-10">
+            <h2 className="text-xl font-black text-slate-900">
               {result ? '✅ Caso Criado!' : '➕ Novo Caso'}
             </h2>
             <button
               onClick={handleClose}
-              className="p-2.5 rounded-xl hover:bg-white/5 transition-all text-white/50 hover:text-white"
+              className="p-2.5 rounded-xl hover:bg-slate-100 transition-all text-slate-400 hover:text-slate-900"
             >
               <X size={22} />
             </button>
@@ -184,7 +184,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_name}
                     onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
                     placeholder="Maria da Silva"
-                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 
@@ -198,14 +198,14 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_email}
                     onChange={e => setForm(f => ({ ...f, client_email: e.target.value }))}
                     placeholder="maria@email.com"
-                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 
                 {/* Phone */}
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-dim uppercase tracking-[0.2em]">
-                    Telefone <span className="text-white/20 font-medium">(opcional)</span>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Telefone <span className="text-slate-300 font-medium">(opcional)</span>
                   </label>
                   <input
                     type="tel"
@@ -213,7 +213,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     value={form.client_phone}
                     onChange={e => setForm(f => ({ ...f, client_phone: phoneFormat(e.target.value) }))}
                     placeholder="(321) 555-0123"
-                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-white/20 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500/20 transition-all font-bold"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-all font-bold"
                   />
                 </div>
 
@@ -232,15 +232,15 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                           type="button"
                           onClick={() => setForm(f => ({ ...f, case_type: type, import_i140: false, i140_file: null }))}
                           className={`p-4 rounded-2xl border text-left transition-all ${selected
-                            ? 'border-lime-500 bg-lime-500/10'
-                            : 'border-white/10 bg-white/5 hover:border-white/20'
+                            ? 'border-sky-500 bg-sky-50'
+                            : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                             }`}
                         >
-                          <div className={`text-lg font-black ${selected ? 'text-lime-500' : 'text-white'}`}>
+                          <div className={`text-lg font-black ${selected ? 'text-sky-600' : 'text-slate-900'}`}>
                             {info.label}
                           </div>
-                          <div className={`text-[10px] font-bold mt-0.5 ${selected ? 'text-lime-500/60' : 'text-dim'}`}>{info.desc}</div>
-                          <div className={`text-[8px] font-black uppercase tracking-widest mt-2 px-1.5 py-0.5 rounded-md w-fit ${selected ? 'bg-lime-500/20 text-lime-500' : 'bg-white/5 text-dim'}`}>
+                          <div className={`text-[10px] font-bold mt-0.5 ${selected ? 'text-sky-500/70' : 'text-dim'}`}>{info.desc}</div>
+                          <div className={`text-[8px] font-black uppercase tracking-widest mt-2 px-1.5 py-0.5 rounded-md w-fit ${selected ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-dim'}`}>
                             {info.docs} Docs
                           </div>
                         </button>
@@ -254,16 +254,16 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                   <div className="space-y-3">
                     <div
                       className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${form.import_i140
-                        ? 'border-purple-500/50 bg-purple-500/10'
-                        : 'border-white/10 bg-white/5 hover:border-white/20'
+                        ? 'border-sky-400/50 bg-sky-50'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                         }`}
                       onClick={() => setForm(f => ({ ...f, import_i140: !f.import_i140, i140_file: f.import_i140 ? null : f.i140_file }))}
                     >
-                      <div className={`w-10 h-6 rounded-full relative transition-all ${form.import_i140 ? 'bg-purple-500' : 'bg-white/10'}`}>
+                      <div className={`w-10 h-6 rounded-full relative transition-all ${form.import_i140 ? 'bg-sky-500' : 'bg-slate-200'}`}>
                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${form.import_i140 ? 'left-5' : 'left-1'}`} />
                       </div>
                       <div className="flex-1">
-                        <div className={`text-xs font-black ${form.import_i140 ? 'text-purple-400' : 'text-white'}`}>
+                        <div className={`text-xs font-black ${form.import_i140 ? 'text-sky-600' : 'text-slate-900'}`}>
                           <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                           Importar dados de um I-140 anterior?
                         </div>
@@ -278,8 +278,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                       <div
                         onClick={() => fileInputRef.current?.click()}
                         className={`relative p-6 rounded-2xl border-2 border-dashed cursor-pointer text-center transition-all ${form.i140_file
-                          ? 'border-purple-500/40 bg-purple-500/5'
-                          : 'border-white/10 bg-white/[0.02] hover:border-purple-500/30'
+                          ? 'border-sky-400/40 bg-sky-50'
+                          : 'border-slate-200 bg-slate-50 hover:border-sky-300'
                           }`}
                       >
                         <input
@@ -291,9 +291,9 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                         />
                         {form.i140_file ? (
                           <div className="flex items-center justify-center gap-3">
-                            <FileText size={20} className="text-purple-400" />
+                            <FileText size={20} className="text-sky-500" />
                             <div>
-                              <p className="text-sm font-bold text-purple-300">{form.i140_file.name}</p>
+                              <p className="text-sm font-bold text-sky-600">{form.i140_file.name}</p>
                               <p className="text-[10px] text-dim mt-0.5">
                                 {(form.i140_file.size / 1024 / 1024).toFixed(1)}MB • Clique para trocar
                               </p>
@@ -302,7 +302,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                         ) : (
                           <div>
                             <Upload size={24} className="mx-auto text-dim mb-2" />
-                            <p className="text-xs font-bold text-white/60">Clique ou arraste o PDF do I-140</p>
+                            <p className="text-xs font-bold text-slate-500">Clique ou arraste o PDF do I-140</p>
                             <p className="text-[10px] text-dim mt-1">PDF • máx 20MB</p>
                           </div>
                         )}
@@ -328,8 +328,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                           type="button"
                           onClick={() => setForm(f => ({ ...f, preferred_language: opt.value }))}
                           className={`flex-1 py-3.5 rounded-2xl border text-xs font-black tracking-widest uppercase transition-all ${selected
-                            ? 'border-lime-500 bg-lime-500/10 text-lime-500'
-                            : 'border-white/10 text-dim hover:text-white hover:border-white/20'
+                            ? 'border-sky-500 bg-sky-50 text-sky-600'
+                            : 'border-slate-200 text-dim hover:text-slate-900 hover:border-slate-300'
                             }`}
                         >
                           {opt.label}
@@ -340,22 +340,22 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                 </div>
 
                 {/* Preview */}
-                <div className="bg-white/5 rounded-2xl p-5 border border-white/10 space-y-3">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-3">
                   <p className="text-[9px] font-black text-dim uppercase tracking-[0.2em]">Fluxo Automatizado:</p>
-                  <div className="space-y-2 text-[11px] font-bold text-white/60">
-                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Criar o caso {form.case_type}</div>
-                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Registrar {caseTypeInfo[form.case_type].docs} documentos vinculados</div>
+                  <div className="space-y-2 text-[11px] font-bold text-slate-500">
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Criar o caso {form.case_type}</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Registrar {caseTypeInfo[form.case_type].docs} documentos vinculados</div>
                     {form.import_i140 && form.i140_file && (
-                      <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Extrair dados do I-140 via IA</div>
+                      <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Extrair dados do I-140 via IA</div>
                     )}
-                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Ativar Gamificação e XP do Cliente</div>
-                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Gerar Senha de Embarque</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Ativar Gamificação e XP do Cliente</div>
+                    <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Gerar Senha de Embarque</div>
                   </div>
                 </div>
 
                 {/* Error */}
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-4 text-red-400 text-xs font-bold flex items-center gap-3">
+                  <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-red-600 text-xs font-bold flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
                     {error}
                   </div>
@@ -365,7 +365,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                 <button
                   onClick={handleSubmit}
                   disabled={loading || !form.client_name.trim() || !form.client_email.trim()}
-                  className="w-full py-4 bg-lime-500 text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl hover:bg-lime-400 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-lime-500/20"
+                  className="w-full py-4 bg-sky-500 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl hover:bg-sky-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-sky-500/20"
                 >
                   {loading ? (
                     <>
@@ -385,8 +385,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
               <div className="space-y-6 animate-fade-in py-4">
                 <div className="text-center relative">
                   <div className="text-6xl mb-4">✨</div>
-                  <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full -z-10" />
-                  <h3 className="text-xl font-black text-white">Missão Inicial Concluída!</h3>
+                  <div className="absolute inset-0 bg-sky-100 blur-3xl rounded-full -z-10" />
+                  <h3 className="text-xl font-black text-slate-900">Missão Inicial Concluída!</h3>
                   <p className="text-dim text-sm font-medium mt-1">
                     {result.docsCount} requisitos de inteligência inicializados.
                   </p>
@@ -394,11 +394,11 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
 
                 <div className="space-y-4">
                   {result.emailSent ? (
-                    <div className="py-3 px-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                    <div className="py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-600 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
                       ✅ Convite enviado por e-mail
                     </div>
                   ) : (
-                    <div className="py-3 px-4 bg-amber-500/10 border border-amber-200 rounded-xl text-amber-400 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
+                    <div className="py-3 px-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-600 text-[10px] font-black uppercase tracking-widest mx-auto w-fit">
                       ⚠️ Enviar credenciais manualmente
                     </div>
                   )}
@@ -407,8 +407,8 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                   <button
                     onClick={handleCopyWAMessage}
                     className={`w-full py-4 rounded-2xl border-2 font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all ${copied === 'wa'
-                      ? 'border-green-500 bg-green-500/10 text-green-400'
-                      : 'border-lime-500/30 bg-lime-500/5 text-lime-500 hover:bg-lime-500/10'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                      : 'border-sky-300 bg-sky-50 text-sky-600 hover:bg-sky-100'
                       }`}
                   >
                     {copied === 'wa' ? <Check size={18} /> : <Send size={18} />}
@@ -425,13 +425,13 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                         <input
                           readOnly
                           value={getAbsoluteLoginUrl()}
-                          className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white/40 text-[10px] font-mono truncate"
+                          className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 text-[10px] font-mono truncate"
                         />
                         <button
                           onClick={() => copyToClipboard(getAbsoluteLoginUrl(), 'link')}
                           className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'link'
-                            ? 'border-green-500/20 bg-green-500/10 text-green-400'
-                            : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                            : 'border-slate-200 bg-slate-50 text-dim hover:text-slate-900 hover:border-slate-300'
                             }`}
                         >
                           {copied === 'link' ? <Check size={14} /> : <Copy size={14} />}
@@ -448,13 +448,13 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                         <input
                           readOnly
                           value={result.tempPassword}
-                          className="flex-1 px-4 py-3 bg-lime-500/10 border border-lime-500/20 rounded-xl text-lime-400 text-sm font-mono font-bold tracking-widest"
+                          className="flex-1 px-4 py-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-600 text-sm font-mono font-bold tracking-widest"
                         />
                         <button
                           onClick={() => copyToClipboard(result.tempPassword || '', 'pass')}
                           className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${copied === 'pass'
-                            ? 'border-green-500/20 bg-green-500/10 text-green-400'
-                            : 'border-white/10 bg-white/5 text-dim hover:text-white hover:border-white/20'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                            : 'border-slate-200 bg-slate-50 text-dim hover:text-slate-900 hover:border-slate-300'
                             }`}
                         >
                           {copied === 'pass' ? <Check size={14} /> : <Copy size={14} />}
@@ -466,7 +466,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
 
                 <button
                   onClick={handleClose}
-                  className="w-full py-4 mt-4 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-white/10 transition-all"
+                  className="w-full py-4 mt-4 bg-slate-100 border border-slate-200 text-slate-900 font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-slate-200 transition-all"
                 >
                   Finalizar e Sair
                 </button>

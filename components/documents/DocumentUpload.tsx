@@ -91,12 +91,12 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
             style={{
                 background: COLORS.card,
                 borderColor: step === 'error' ? COLORS.danger : COLORS.border,
-                boxShadow: step === 'processing' ? `0 0 20px ${COLORS.purple}22` : 'none'
+                boxShadow: step === 'processing' ? `0 0 20px ${COLORS.primary}22` : 'none'
             }}
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-white/5">
+                    <div className="p-2.5 rounded-xl bg-slate-50">
                         <FileText className="w-5 h-5 text-dim" />
                     </div>
                     <div>
@@ -121,10 +121,10 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={triggerCamera}
-                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-white/5"
+                            className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl border border-dashed transition-all active:scale-95 hover:bg-slate-50"
                             style={{ borderColor: COLORS.border }}
                         >
-                            <Camera className="w-6 h-6" style={{ color: COLORS.lime }} />
+                            <Camera className="w-6 h-6" style={{ color: COLORS.primary }} />
                             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textDim }}>Câmera</span>
                         </button>
 
@@ -142,15 +142,15 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
                         <div className="relative">
                             {step === 'processing' ? (
                                 <div className="relative">
-                                    <Sparkles className="w-8 h-8 text-purple-400 animate-pulse" />
+                                    <Sparkles className="w-8 h-8 text-sky-500 animate-pulse" />
                                     <motion.div
-                                        className="absolute inset-0 rounded-full border-2 border-purple-500/30"
+                                        className="absolute inset-0 rounded-full border-2 border-sky-300"
                                         animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
                                         transition={{ duration: 2, repeat: Infinity }}
                                     />
                                 </div>
                             ) : (
-                                <Loader2 className="w-8 h-8 text-lime-500 animate-spin" />
+                                <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
                             )}
                         </div>
 
@@ -169,7 +169,7 @@ export default function DocumentUpload({ caseId, category, label, onComplete }: 
                 )}
 
                 {error && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 mt-2">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 mt-2">
                         <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
                         <p className="text-[10px] font-medium text-red-500">{error}</p>
                     </div>
