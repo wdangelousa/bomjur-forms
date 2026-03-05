@@ -40,27 +40,45 @@ export default function ClientDocumentsChecklist() {
 
     const fetchDocuments = async () => {
         try {
+            console.log(`[DocumentsPage] Fetching data for case: ${caseId}`);
             // 1. Buscar dados do caso
-            const { data: cData } = await supabase
+            const { data: cData, error: cError } = await supabase
                 .from('cases')
                 .select('*')
                 .eq('id', caseId)
                 .single()
+
+            if (cError) {
+                console.error('[DocumentsPage] Error fetching case:', cError);
+                throw cError;
+            }
+
+            if (!cData) {
+                console.warn('[DocumentsPage] No case found for ID:', caseId);
+                return;
+            }
+
             setCaseData(cData)
 
             // 2. Buscar documentos existentes
-            const { data: dData, error } = await supabase
+            const { data: dData, error: dError } = await supabase
                 .from('case_documents')
                 .select('*')
                 .eq('case_id', caseId)
 
-            if (error) throw error
+            if (dError) {
+                console.error('[DocumentsPage] Error fetching documents:', dError);
+                throw dError;
+            }
+
+            console.log(`[DocumentsPage] Found ${dData?.length || 0} existing documents`);
 
             // 3. Simular requisitos baseados no tipo de caso (Normalmente viria de uma tabela de config)
             const requirements = getRequirementsForType(cData.case_type)
 
             const mergedDocs = requirements.map(req => {
-                const existing = dData?.find(d => d.category === req.category)
+                // Ajustado para 'document_type' para dar match com o banco
+                const existing = dData?.find(d => d.document_type === req.category)
                 return {
                     ...req,
                     id: existing?.id || req.category,
@@ -72,8 +90,10 @@ export default function ClientDocumentsChecklist() {
             })
 
             setDocs(mergedDocs)
-        } catch (err) {
-            console.error('Error fetching docs:', err)
+        } catch (err: any) {
+            // Mais detalhe no log para não vir apenas {}
+            const errorMsg = err?.message || err?.details || JSON.stringify(err);
+            console.error('Error fetching docs:', errorMsg);
         } finally {
             setLoading(false)
         }
