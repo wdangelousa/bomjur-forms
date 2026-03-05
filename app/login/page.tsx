@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPassword } from './actions'
@@ -49,6 +49,8 @@ export default function LoginPage() {
     const [magicLoading, setMagicLoading] = useState(false)
     const [magicSent, setMagicSent] = useState(false)
     const [magicError, setMagicError] = useState('')
+    const [cooldown, setCooldown] = useState(0) // seconds remaining before retry allowed
+    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const [isPending, startTransition] = useTransition()
 
     // Pre-fill email from ?email= param (from WhatsApp deep link)
@@ -57,11 +59,22 @@ export default function LoginPage() {
         if (paramEmail) setMagicEmail(paramEmail)
     }, [searchParams])
 
+    // Countdown ticker
+    useEffect(() => {
+        if (cooldown <= 0) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current)
+            return
+        }
+        cooldownRef.current = setInterval(() => setCooldown(s => s - 1), 1000)
+        return () => { if (cooldownRef.current) clearInterval(cooldownRef.current) }
+    }, [cooldown > 0])
+
     const handleMagicLink = async () => {
         if (!magicEmail.trim() || !magicEmail.includes('@')) {
             setMagicError('Digite um e-mail válido')
             return
         }
+        if (cooldown > 0) return // button should already be disabled, guard anyway
 
         setMagicLoading(true)
         setMagicError('')
@@ -77,7 +90,20 @@ export default function LoginPage() {
         setMagicLoading(false)
 
         if (error) {
-            setMagicError(`Erro: ${error.message}`)
+            const msg = error.message || ''
+            const isRateLimit =
+                msg.toLowerCase().includes('rate limit') ||
+                msg.toLowerCase().includes('for security purposes')
+
+            if (isRateLimit) {
+                // Extract seconds from message e.g. "...after 57 seconds"
+                const match = msg.match(/(\d+)\s*second/)
+                const secs = match ? parseInt(match[1], 10) : 60
+                setCooldown(secs)
+                setMagicError('')
+            } else {
+                setMagicError(`Erro: ${msg}`)
+            }
         } else {
             setMagicSent(true)
         }
@@ -306,17 +332,34 @@ export default function LoginPage() {
                                                 </div>
                                             </div>
 
+                                            {/* Rate-limit cooldown banner */}
+                                            {cooldown > 0 && (
+                                                <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+                                                    <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-amber-800 text-xs font-black">Aguarde um momento</p>
+                                                        <p className="text-amber-700 text-[11px] font-medium mt-0.5">
+                                                            Por segurança, pode solicitar um novo link em{' '}
+                                                            <span className="font-black tabular-nums">{cooldown}s</span>.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Generic error */}
                                             {magicError && (
                                                 <p className="text-red-600 text-xs font-bold px-1">{magicError}</p>
                                             )}
 
                                             <button
                                                 onClick={handleMagicLink}
-                                                disabled={magicLoading || !magicEmail.trim()}
-                                                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-3 active:scale-[0.98]"
+                                                disabled={magicLoading || cooldown > 0 || !magicEmail.trim()}
+                                                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-black rounded-2xl transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-3 active:scale-[0.98]"
                                             >
                                                 {magicLoading ? (
                                                     <><Loader2 size={18} className="animate-spin" /> Enviando...</>
+                                                ) : cooldown > 0 ? (
+                                                    <><Lock size={18} /> Aguarde {cooldown}s...</>
                                                 ) : (
                                                     <><Send size={18} /> Enviar Link de Acesso</>
                                                 )}
