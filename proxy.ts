@@ -54,13 +54,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Se houver sessão e estiver em rota pública (/login) → dashboard (evita loop)
-  if (user && pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
   // ── Role-based access enforcement ──
   // Apenas para rotas privadas com utilizador autenticado
   if (user && isPrivate) {
