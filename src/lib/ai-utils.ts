@@ -32,7 +32,7 @@ export async function callClaude(prompt: string, fileBlock: Record<string, unkno
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-latest', // Usando alias latest para evitar 404
+      model: 'claude-3-haiku-20240307', // Usando Haiku para evitar 404 de acesso aos modelos 3.5
       max_tokens: maxTokens,
       system: "Você é o Ben, um analista especialista em documentos de imigração. Responda APENAS com JSON válido.",
       messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: prompt }] }],

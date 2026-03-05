@@ -40,7 +40,7 @@ async function extractDocument(supabase: any, documentId: string, filePath: stri
             method: 'POST',
             headers,
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-latest',
+                model: 'claude-3-haiku-20240307',
                 max_tokens: 2048,
                 system: "Você é o Ben, um analista sênior de documentos de imigração. Sua missão é extrair dados com precisão cirúrgica. Responda APENAS em JSON.",
                 messages: [{
