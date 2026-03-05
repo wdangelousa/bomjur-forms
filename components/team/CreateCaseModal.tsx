@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Loader2, Copy, Check, Send } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Loader2, Copy, Check, Send, Upload, FileText, Sparkles } from 'lucide-react'
 
 interface CreateCaseModalProps {
   open: boolean
@@ -12,12 +12,14 @@ interface CreateCaseModalProps {
 type CaseType = 'I-485' | 'I-140'
 type Language = 'pt' | 'en'
 
-interface FormData {
+interface FormState {
   client_name: string
   client_email: string
   client_phone: string
   case_type: CaseType
   preferred_language: Language
+  import_i140: boolean
+  i140_file: File | null
 }
 
 const caseTypeInfo: Record<CaseType, { label: string; desc: string; docs: number }> = {
@@ -26,17 +28,20 @@ const caseTypeInfo: Record<CaseType, { label: string; desc: string; docs: number
 }
 
 export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCaseModalProps) {
-  const [form, setForm] = useState<FormData>({
+  const [form, setForm] = useState<FormState>({
     client_name: '',
     client_email: '',
     client_phone: '',
     case_type: 'I-485',
     preferred_language: 'pt',
+    import_i140: false,
+    i140_file: null,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ magicLink: string | null; docsCount: number; emailSent: boolean } | null>(null)
   const [copied, setCopied] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
 
@@ -50,10 +55,22 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
     setError('')
 
     try {
+      // Build FormData for multipart/form-data (supports file upload)
+      const formData = new FormData()
+      formData.append('client_name', form.client_name.trim())
+      formData.append('client_email', form.client_email.trim())
+      formData.append('client_phone', form.client_phone.trim())
+      formData.append('case_type', form.case_type)
+      formData.append('preferred_language', form.preferred_language)
+
+      if (form.import_i140 && form.i140_file) {
+        formData.append('i140_file', form.i140_file)
+      }
+
       const res = await fetch('/api/cases/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: formData,
+        // Do NOT set Content-Type — browser sets multipart boundary automatically
       })
 
       const data = await res.json()
@@ -86,7 +103,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
 
   const handleClose = () => {
     if (result) onSuccess()
-    setForm({ client_name: '', client_email: '', client_phone: '', case_type: 'I-485', preferred_language: 'pt' })
+    setForm({ client_name: '', client_email: '', client_phone: '', case_type: 'I-485', preferred_language: 'pt', import_i140: false, i140_file: null })
     setResult(null)
     setError('')
     setCopied(false)
@@ -99,6 +116,22 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
     if (digits.length >= 4) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
     if (digits.length > 0) return `(${digits}`
     return ''
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        setError('Apenas arquivos PDF são aceitos')
+        return
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        setError('Arquivo deve ter no máximo 20MB')
+        return
+      }
+      setForm(f => ({ ...f, i140_file: file }))
+      setError('')
+    }
   }
 
   return (
@@ -182,7 +215,7 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                         <button
                           key={type}
                           type="button"
-                          onClick={() => setForm(f => ({ ...f, case_type: type }))}
+                          onClick={() => setForm(f => ({ ...f, case_type: type, import_i140: false, i140_file: null }))}
                           className={`p-4 rounded-2xl border text-left transition-all ${selected
                             ? 'border-lime-500 bg-lime-500/10'
                             : 'border-white/10 bg-white/5 hover:border-white/20'
@@ -200,6 +233,68 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                     })}
                   </div>
                 </div>
+
+                {/* I-140 Import Toggle — only visible for I-485 cases */}
+                {form.case_type === 'I-485' && (
+                  <div className="space-y-3">
+                    <div
+                      className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${form.import_i140
+                          ? 'border-purple-500/50 bg-purple-500/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                        }`}
+                      onClick={() => setForm(f => ({ ...f, import_i140: !f.import_i140, i140_file: f.import_i140 ? null : f.i140_file }))}
+                    >
+                      <div className={`w-10 h-6 rounded-full relative transition-all ${form.import_i140 ? 'bg-purple-500' : 'bg-white/10'}`}>
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${form.import_i140 ? 'left-5' : 'left-1'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <div className={`text-xs font-black ${form.import_i140 ? 'text-purple-400' : 'text-white'}`}>
+                          <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
+                          Importar dados de um I-140 anterior?
+                        </div>
+                        <div className="text-[10px] text-dim mt-0.5">
+                          Envie o PDF para pré-preencher dados via IA
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* File Upload Area */}
+                    {form.import_i140 && (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`relative p-6 rounded-2xl border-2 border-dashed cursor-pointer text-center transition-all ${form.i140_file
+                            ? 'border-purple-500/40 bg-purple-500/5'
+                            : 'border-white/10 bg-white/[0.02] hover:border-purple-500/30'
+                          }`}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        {form.i140_file ? (
+                          <div className="flex items-center justify-center gap-3">
+                            <FileText size={20} className="text-purple-400" />
+                            <div>
+                              <p className="text-sm font-bold text-purple-300">{form.i140_file.name}</p>
+                              <p className="text-[10px] text-dim mt-0.5">
+                                {(form.i140_file.size / 1024 / 1024).toFixed(1)}MB • Clique para trocar
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <Upload size={24} className="mx-auto text-dim mb-2" />
+                            <p className="text-xs font-bold text-white/60">Clique ou arraste o PDF do I-140</p>
+                            <p className="text-[10px] text-dim mt-1">PDF • máx 20MB</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Language */}
                 <div className="space-y-3">
@@ -235,6 +330,9 @@ export default function CreateCaseModal({ open, onClose, onSuccess }: CreateCase
                   <div className="space-y-2 text-[11px] font-bold text-white/60">
                     <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Criar o caso {form.case_type}</div>
                     <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Registrar {caseTypeInfo[form.case_type].docs} documentos vinculados</div>
+                    {form.import_i140 && form.i140_file && (
+                      <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Extrair dados do I-140 via IA</div>
+                    )}
                     <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Ativar Gamificação e XP do Cliente</div>
                     <div className="flex gap-3 items-center"><div className="w-1.5 h-1.5 rounded-full bg-lime-500" /> Blindar acesso via Magic Link</div>
                   </div>
