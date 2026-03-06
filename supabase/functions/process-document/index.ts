@@ -87,7 +87,7 @@ async function extractDocument(
             method: 'POST',
             headers: requestHeaders,
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20240620', // ID estável para evitar Erro 404
+                model: 'claude-sonnet-4-5-20250929', // ID estável para evitar Erro 404
                 max_tokens: 2048,
                 system: "Você é o Ben, um analista sênior de documentos de imigração para processos I-485. Sua missão é extrair dados com precisão total. Responda APENAS em JSON.",
                 messages: [{
