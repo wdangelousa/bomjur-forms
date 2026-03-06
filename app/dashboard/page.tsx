@@ -1,112 +1,202 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Rocket,
-  ArrowRight,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   FileText,
-  TrendingUp,
-  LogOut
+  Upload,
+  Image as ImageIcon,
+  Languages,
+  Info,
+  ChevronRight,
+  ShieldCheck,
+  User,
+  LogOut,
+  Check,
+  FileSearch,
+  HelpCircle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
-interface CaseWithStats {
+// ============================================================
+// TYPES & CONFIG
+// ============================================================
+
+type DocStatus = 'pending' | 'under_review' | 'approved'
+
+interface ChecklistItem {
   id: string
-  case_type: string
-  status: string
-  created_at: string
-  progress: number
-  approvedCount: number
-  totalCount: number
+  title: string
+  category: string
+  description: string
+  tooltip: string
+  status: DocStatus
+  hasTranslation?: boolean
 }
 
-export default function ClientHeadquarters() {
+const DASHBOARD_CHECKLIST: ChecklistItem[] = [
+  {
+    id: 'passport',
+    title: 'Identidade (Passaporte)',
+    category: 'passport',
+    description: 'Página de identificação',
+    tooltip: 'Envie a cópia da página com sua foto e dados.',
+    status: 'pending'
+  },
+  {
+    id: 'i94',
+    title: 'Status Legal (I-94)',
+    category: 'i94',
+    description: 'Registro de entrada',
+    tooltip: 'Seu registro de chegada/partida. Pode ser obtido no site do CBP.',
+    status: 'pending'
+  },
+  {
+    id: 'birth_cert',
+    title: 'Registros Vitais (Certidão)',
+    category: 'birth_certificate',
+    description: 'Nascimento / Casamento',
+    tooltip: 'Envie sua certidão de nascimento original.',
+    status: 'pending',
+    hasTranslation: true
+  },
+  {
+    id: 'photos',
+    title: 'Fotografias (Estilo Passaporte)',
+    category: 'passport_photos',
+    description: '2 fotos idênticas 2x2',
+    tooltip: '2 fotos idênticas coloridas estilo passaporte (2x2 polegadas), tiradas nos últimos 30 dias.',
+    status: 'pending'
+  }
+]
+
+// ============================================================
+// COMPONENTS
+// ============================================================
+
+const StatusBadge = ({ status }: { status: DocStatus }) => {
+  switch (status) {
+    case 'approved':
+      return (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-black uppercase tracking-wider">Aprovado</span>
+        </div>
+      )
+    case 'under_review':
+      return (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+          <Clock className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-black uppercase tracking-wider">Em Revisão</span>
+        </div>
+      )
+    default:
+      return (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-black uppercase tracking-wider">Pendente</span>
+        </div>
+      )
+  }
+}
+
+export default function IntelligentChecklistDashboard() {
   const router = useRouter()
   const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<any>(null)
-  const [cases, setCases] = useState<CaseWithStats[]>([])
-  const [greeting, setGreeting] = useState('')
+  const [currentCase, setCurrentCase] = useState<any>(null)
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(DASHBOARD_CHECKLIST)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
 
+  // Load Data
   useEffect(() => {
-    const hours = new Date().getHours()
-    if (hours < 12) setGreeting('Bom dia')
-    else if (hours < 18) setGreeting('Boa tarde')
-    else setGreeting('Boa noite')
-  }, [])
-
-  useEffect(() => {
-    async function loadData() {
+    async function loadDashboard() {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
-        console.error('[DASHBOARD] Sem usuário autenticado. Redirecionando para login.')
         router.push('/login')
         return
       }
 
-      const { data: prof, error: profErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+      // Fetch Profile & Case
+      const [profRes, caseRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('cases').select('*').eq('client_id', user.id).neq('status', 'archived').order('created_at', { ascending: false }).limit(1).single()
+      ])
 
-      if (profErr || !prof) {
-        console.error('[DASHBOARD] Erro ao buscar perfil. Redirecionando para login.', profErr)
-        router.push('/login')
-        return
-      }
+      if (profRes.data) setProfile(profRes.data)
+      if (caseRes.data) {
+        setCurrentCase(caseRes.data)
 
-      // Redirect non-clients back to their respective dashboards if they somehow get here
-      if (prof.role !== 'client') {
-        if (['super_admin', 'admin'].includes(prof.role)) router.push('/admin')
-        else if (['team', 'tenant_admin'].includes(prof.role)) router.push('/team')
-        return
-      }
+        // Fetch Documents status for the case
+        const { data: docs } = await supabase
+          .from('case_documents')
+          .select('category, status')
+          .eq('case_id', caseRes.data.id)
 
-      setProfile(prof)
-
-      // Fetch Cases
-      const { data: userCases } = await supabase
-        .from('cases')
-        .select('*')
-        .eq('client_id', user.id)
-        .neq('status', 'archived')
-        .order('created_at', { ascending: false })
-
-      if (userCases) {
-        const caseStats: CaseWithStats[] = await Promise.all(
-          userCases.map(async (c) => {
-            const { data: docs } = await supabase
-              .from('case_documents')
-              .select('status')
-              .eq('case_id', c.id)
-
-            const total = docs?.length || 0
-            const approved = docs?.filter(d => d.status === 'approved').length || 0
-            const progress = total > 0 ? Math.round((approved / total) * 100) : 0
-
-            return {
-              ...c,
-              progress,
-              approvedCount: approved,
-              totalCount: total
+        if (docs) {
+          const updatedChecklist = checklist.map(item => {
+            const match = docs.find(d => d.category === item.category)
+            if (match) {
+              return { ...item, status: match.status as DocStatus }
             }
+            return item
           })
-        )
-        setCases(caseStats)
+          setChecklist(updatedChecklist)
+        }
       }
 
       setLoading(false)
     }
 
-    loadData()
+    loadDashboard()
   }, [router, supabase])
+
+  const handleUpload = async (itemId: string, category: string, file: File) => {
+    if (!currentCase || !profile) return
+
+    setUploadingId(itemId)
+    try {
+      const fileName = `${currentCase.id}/${category}/${Date.now()}-${file.name}`
+
+      // 1. Upload to Supabase Storage
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file)
+
+      if (storageError) throw storageError
+
+      // 2. Insert into case_documents table
+      const { error: dbError } = await supabase
+        .from('case_documents')
+        .insert({
+          case_id: currentCase.id,
+          client_id: profile.id,
+          category: category,
+          title: file.name,
+          file_url: storageData.path,
+          status: 'under_review'
+        })
+
+      if (dbError) throw dbError
+
+      // 3. Update local state
+      setChecklist(prev => prev.map(item => item.id === itemId ? { ...item, status: 'under_review' } : item))
+
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Erro ao enviar documento. Tente novamente.')
+    } finally {
+      setUploadingId(null)
+    }
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -116,172 +206,209 @@ export default function ClientHeadquarters() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-lime-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20 text-slate-900">
-      {/* ── Top Navigation ── */}
-      <nav className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img
-              src="/proexpand-logo.png"
-              alt="Proexpand Brasil"
-              className="h-10 w-auto object-contain"
-            />
-            <div className="w-px h-8 bg-slate-200 hidden sm:block" />
-            <div className="hidden sm:flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Immigration Technology</span>
-              <span className="text-sm font-semibold text-slate-800 tracking-tight">Employment-Based Platform</span>
-            </div>
-          </div>
+  const approvedCount = checklist.filter(i => i.status === 'approved').length
+  const totalCount = checklist.length
+  const progress = Math.round((approvedCount / totalCount) * 100)
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-2xl">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wide whitespace-nowrap">Sistema Ativo</span>
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24">
+      {/* ── Top Bar ── */}
+      <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 z-50 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <img src="/proexpand-logo.png" alt="Proexpand" className="h-8 w-auto" />
+          <div className="flex items-center gap-6">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              Ambiente Seguro
             </div>
-            <div className="w-px h-6 bg-slate-200 hidden sm:block" />
-            <button
-              onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-              title="Sair"
-            >
-              <LogOut size={20} />
+            <div className="w-px h-6 bg-slate-200" />
+            <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors">
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-5xl mx-auto px-6 pt-12">
-        {/* ── Greeting ── */}
+      <main className="max-w-3xl mx-auto px-6 pt-10">
+        {/* ── Progress Header ── */}
         <header className="mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{greeting}, {profile?.full_name?.split(' ')[0]}!</span>
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
+                Olá, <span className="text-sky-500">{profile?.full_name?.split(' ')[0]}!</span>
+              </h1>
+              <p className="text-slate-500 font-medium mt-1">Checklist de Evidências USCIS</p>
             </div>
-            <h1 className="text-4xl font-black text-slate-900 leading-tight tracking-tight mb-2">
-              Pronto para o <span className="text-lime-600">próximo passo?</span>
-            </h1>
-            <p className="text-slate-500 font-medium max-w-lg">
-              Sua jornada para os Estados Unidos está em boas mãos. Acompanhe o progresso dos seus formulários abaixo.
+            <div className="text-right">
+              <span className="text-4xl font-black text-slate-900 leading-none">{approvedCount}/{totalCount}</span>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Documentos Aprovados</p>
+            </div>
+          </div>
+
+          <div className="h-4 w-full bg-slate-200 rounded-2xl overflow-hidden p-1 border border-white shadow-inner">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 1.5, ease: "circOut" }}
+              className="h-full bg-gradient-to-r from-sky-400 to-blue-600 rounded-xl shadow-[0_0_15px_rgba(14,165,233,0.4)]"
+            />
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex -space-x-2">
+              {[1, 2, 3, 4].map(num => (
+                <div key={num} className={`w-8 h-8 rounded-full border-2 border-slate-50 flex items-center justify-center text-[10px] font-black ${approvedCount >= num ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                  {approvedCount >= num ? <Check className="w-3 h-3" /> : num}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs font-bold text-slate-500 flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-sky-500" />
+              Dúvidas no envio? Fale com suporte.
             </p>
-          </motion.div>
+          </div>
         </header>
 
-        {/* ── Case Cards Grid ── */}
-        {cases.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {cases.map((c, idx) => (
+        {/* ── Document Checklist ── */}
+        <div className="space-y-4">
+          {checklist.map((item, idx) => {
+            const isCert = item.id === 'birth_cert'
+
+            return (
               <motion.div
-                key={c.id}
+                key={item.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                whileHover={{ y: -4 }}
-                className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.02)] flex flex-col relative overflow-hidden group transition-all hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]"
+                transition={{ delay: idx * 0.1 }}
+                className={`group relative bg-white border rounded-[2rem] p-6 transition-all ${item.status === 'approved' ? 'border-emerald-100 bg-emerald-50/20' : 'border-slate-200 hover:border-sky-300 hover:shadow-xl hover:shadow-slate-200/50'}`}
               >
-                {/* Background Decor */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-lime-500/5 rounded-full blur-3xl" />
-
-                <div className="relative flex-1">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group-hover:bg-lime-50 group-hover:border-lime-100 transition-colors">
-                      <FileText className="w-6 h-6 text-slate-400 group-hover:text-lime-600" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="flex items-start gap-5">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${item.status === 'approved' ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-400 group-hover:bg-sky-50 group-hover:border-sky-100 group-hover:text-sky-500'}`}>
+                      {item.id === 'photos' ? <ImageIcon className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                     </div>
-                    <div className="px-3 py-1 bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                      {c.status === 'pending_onboarding' ? 'Inicialização' : 'Processamento'}
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="font-black text-slate-900 tracking-tight">{item.title}</h3>
+                        <StatusBadge status={item.status} />
+                      </div>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-xs uppercase text-[11px] tracking-wider">
+                        {item.description}
+                      </p>
+
+                      {/* Tooltip Tip */}
+                      <div className="mt-3 flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-100 opacity-80">
+                        <Info className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-500 leading-tight">
+                          {item.tooltip}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-slate-900 mb-2 truncate">
-                    Formulário {c.case_type}
-                  </h2>
-                  <p className="text-sm font-medium text-slate-400 mb-8 capitalize">
-                    {/* Status mapping to humanized text */}
-                    {c.status === 'pending_onboarding' ? 'Aguardando revisão inicial' : 'Documentação em análise'}
-                  </p>
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    <input
+                      type="file"
+                      id={`upload-${item.id}`}
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleUpload(item.id, item.category, file)
+                      }}
+                      disabled={item.status === 'approved'}
+                    />
 
-                  {/* Progress Section */}
-                  <div className="space-y-3 mb-8">
-                    <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Progresso de Documentos
-                      </span>
-                      <span className="text-lg font-black text-slate-900">
-                        {c.progress}%
-                      </span>
-                    </div>
-                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${c.progress}%` }}
-                        transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
-                        className="h-full bg-lime-500 rounded-full shadow-[0_0_10px_rgba(132,204,22,0.3)]"
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                      <span>{c.approvedCount} aprovados</span>
-                      <span>{c.totalCount} total</span>
-                    </div>
+                    {item.status === 'pending' ? (
+                      <label
+                        htmlFor={`upload-${item.id}`}
+                        className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-sky-600 hover:scale-105 hover:shadow-lg hover:shadow-sky-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        {uploadingId === item.id ? (
+                          <Clock className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4" />
+                        )}
+                        Enviar Documento
+                      </label>
+                    ) : item.status === 'under_review' ? (
+                      <button disabled className="flex items-center gap-2 px-6 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                        <Clock className="w-4 h-4" />
+                        Em Análise
+                      </button>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200">
+                        <Check className="w-5 h-5" />
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <Link
-                  href={c.status === 'pending_onboarding' ? `/case/${c.id}/onboarding` : `/case/${c.id}/documents`}
-                  className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-2xl flex items-center justify-center gap-3 transition-all group-hover:scale-[1.02] shadow-xl shadow-slate-900/10"
-                >
-                  <span className="font-black uppercase tracking-[0.15em] text-xs">Continuar Missão</span>
-                  <ArrowRight size={16} strokeWidth={3} />
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 p-16 text-center"
-          >
-            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-300">
-              <Rocket size={32} />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 mb-2">Sua base está sendo preparada</h3>
-            <p className="text-slate-500 font-medium max-w-sm mx-auto">
-              Ainda não existem formulários ativos em sua conta. Entre em contato com nossa equipe se acreditar que isso é um erro.
-            </p>
-          </motion.div>
-        )}
+                {/* CRITICAL ALERT FOR BIRTH CERTIFICATE */}
+                {isCert && (
+                  <div className="mt-6 p-5 bg-orange-50 border border-orange-100 rounded-2xl overflow-hidden relative group/alert">
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+                        <Languages className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-[11px] font-black text-orange-800 uppercase tracking-widest mb-1 flex items-center gap-2">
+                          Alerta de Tradução
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                        </h4>
+                        <p className="text-xs font-bold text-orange-700/80 leading-relaxed">
+                          Qualquer documento em língua estrangeira deve estar acompanhado de uma tradução certificada completa para o inglês.
+                        </p>
 
-        {/* ── Help Support Section ── */}
-        <footer className="mt-16 pt-12 border-t border-slate-200">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
-                <TrendingUp size={24} />
-              </div>
-              <div>
-                <h4 className="font-black text-slate-900 text-sm italic">"A liberdade favorece os audazes."</h4>
-                <p className="text-xs text-slate-400 font-bold">Estamos aqui para garantir seu sucesso.</p>
-              </div>
+                        <div className="mt-4 flex gap-4">
+                          <button className="flex-1 px-4 py-2 bg-white border border-orange-200 rounded-xl text-[10px] font-black text-orange-600 uppercase tracking-tighter hover:bg-orange-100 transition-colors">
+                            Original
+                          </button>
+                          <button className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                            <Plus className="w-3 h-3" /> Tradução
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="mt-16 p-8 bg-slate-900 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
+            <ShieldCheck className="w-40 h-40 text-white" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+            <div>
+              <span className="px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-sky-500/30">Próxima Etapa</span>
+              <h3 className="text-xl font-black text-white mt-4 tracking-tight leading-tight">Preparação Final USCIS</h3>
+              <p className="text-slate-400 text-sm font-medium mt-2 max-w-sm">
+                Assim que aprovarmos todos os seus documentos, iniciaremos a assembleia física do seu processo.
+              </p>
             </div>
-            <button
-              onClick={() => window.open('https://wa.me/5500000000000', '_blank')}
-              className="px-6 py-3 bg-white border-2 border-slate-100 hover:border-lime-50 rounded-xl text-slate-600 hover:text-lime-600 font-black text-xs uppercase tracking-widest transition-all"
-            >
-              Falar com Consultor
+            <button className="px-8 py-4 bg-white hover:bg-sky-500 hover:text-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all shadow-xl active:scale-95 whitespace-nowrap">
+              Ver Tutorial de Envio
             </button>
           </div>
-        </footer>
+        </div>
       </main>
     </div>
+  )
+}
+
+function Plus({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
   )
 }

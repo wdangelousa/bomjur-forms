@@ -3,15 +3,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 
 // ============================================================
 // Server Action: loginWithPassword
 //
 // 100% Server-Side Authority — o cliente NÃO decide a rota.
-// 1. Autentica via Supabase SSR (server cookies)
-// 2. Busca role via Admin Client (bypassa RLS)
-// 3. Redireciona com redirect() do Next.js (server-side)
 // ============================================================
 
 export async function loginWithPassword(
@@ -58,12 +54,24 @@ export async function loginWithPassword(
         return { error: 'E-mail ou senha incorretos. Tente novamente.' }
     }
 
-    // 3. Buscar role via Admin Client (bypassa RLS — 100% determinístico)
+    // 3. Cliente Admin (Bypassa RLS)
     const supabaseAdmin = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // 🚀 A CARTEIRADA VIP: Se for o seu e-mail, força o update para super_admin e redireciona.
+    if (email.toLowerCase() === 'wdangelo81@gmail.com') {
+        // Usa upsert para garantir que, se o perfil não existir, ele é criado com o cargo certo
+        await supabaseAdmin.from('profiles').upsert({
+            id: authData.user.id,
+            role: 'super_admin'
+        }, { onConflict: 'id' })
+
+        return { error: null, url: '/admin' }
+    }
+
+    // 4. Fluxo normal para os outros usuários
     const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('role')
@@ -72,7 +80,7 @@ export async function loginWithPassword(
 
     const role = profile?.role
 
-    // 4. Return URL para o client fazer refresh() e push() seguro
+    // 5. Redirecionamento seguro baseado no cargo
     switch (role) {
         case 'super_admin':
             return { error: null, url: '/admin' }
