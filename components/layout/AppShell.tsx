@@ -15,6 +15,7 @@ import {
   Kanban,
   LogOut,
   Globe,
+  ArrowLeft,
 } from 'lucide-react'
 
 interface NavItem {
@@ -204,9 +205,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 lg:ml-[260px] pb-20 lg:pb-0">
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🛫</span>
-            <span className="text-base font-extrabold text-slate-900">Bomjur</span>
+          <div className="flex items-center gap-3">
+            {/* Mobile Back Button */}
+            <button
+              onClick={() => router.back()}
+              className="p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              title="Voltar"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🛫</span>
+              <span className="text-base font-extrabold text-slate-900">Bomjur</span>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <LanguageToggle lang={lang} onToggle={toggleLang} />
@@ -216,7 +227,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Desktop Header */}
         <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-slate-200 bg-white">
-          <div>
+          <div className="flex items-center gap-4">
+            {/* Desktop Back Button */}
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-500 transition-colors flex items-center justify-center shadow-sm"
+              title="Voltar"
+            >
+              <ArrowLeft size={18} />
+            </button>
             <h2 className="text-lg font-bold text-slate-900">
               {lang === 'pt' ? 'Olá' : 'Hello'}, {profile.full_name?.split(' ')[0]}! 👋
             </h2>
