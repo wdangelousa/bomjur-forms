@@ -48,7 +48,7 @@ async function extractDocument(
     const logError = async (msg: string) => {
         console.error(`[Ben-Error] [${documentId}]: ${msg}`);
         await supabase.from('client_documents').update({
-            extraction_status: 'error',
+            extraction_status: 'failed',
             extraction_error: msg.substring(0, 500),
             updated_at: new Date().toISOString(),
         }).eq('id', documentId);
@@ -215,13 +215,13 @@ async function extractDocument(
             console.log('[Ben] ETAPA 6 OK: Campos salvos');
         }
 
-        // ── ETAPA 7: UPDATE final — status 'extracted' ──────────────
-        console.log(`[Ben] ETAPA 7: Atualizando status para 'extracted' (documentId: ${documentId})`);
+        // ── ETAPA 7: UPDATE final — status 'completed' ──────────────
+        console.log(`[Ben] ETAPA 7: Atualizando status para 'completed' (documentId: ${documentId})`);
 
         const { data: updateResult, error: updateErr } = await supabase
             .from('client_documents')
             .update({
-                extraction_status: 'extracted',
+                extraction_status: 'completed',
                 document_type: parsed.document_type || 'Desconhecido',
                 document_type_confidence: parsed.confidence || 0.9,
                 extraction_completed_at: new Date().toISOString(),

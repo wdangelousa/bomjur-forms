@@ -64,11 +64,9 @@ export async function POST(req: NextRequest) {
             file_name: file.name,
             file_url: publicUrl,
             file_size: file.size,
-            file_type: file.type,
-            bucket_name: 'documents',
+            mime_type: file.type,
             extraction_status: 'processing',
-            document_category: documentCategory,
-            uploaded_at: new Date().toISOString(),
+            document_type: documentCategory,
         }
 
         // Se temos o userId, incluir uploaded_by (necessário para RLS)

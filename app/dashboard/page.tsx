@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   CheckCircle2,
   Clock,
@@ -11,16 +11,15 @@ import {
   Image as ImageIcon,
   Languages,
   Info,
-  ChevronRight,
   ShieldCheck,
-  User,
   LogOut,
   Check,
-  FileSearch,
-  HelpCircle
+  HelpCircle,
+  Eye
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 // ============================================================
 // TYPES & CONFIG
@@ -113,6 +112,7 @@ export default function IntelligentChecklistDashboard() {
   const [currentCase, setCurrentCase] = useState<any>(null)
   const [checklist, setChecklist] = useState<ChecklistItem[]>(DASHBOARD_CHECKLIST)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [clientDocIds, setClientDocIds] = useState<Record<string, string>>({})
 
   // Load Data
   useEffect(() => {
@@ -138,14 +138,27 @@ export default function IntelligentChecklistDashboard() {
         // Fetch Documents status for the case
         const { data: docs } = await supabase
           .from('case_documents')
-          .select('category, status')
+          .select('document_type, status')
           .eq('case_id', caseRes.data.id)
 
         if (docs) {
+          const DOC_TYPE_MAP: Record<string, string> = {
+            passport: 'passport',
+            i94: 'i94',
+            birth_certificate: 'birth_certificate',
+            photo_2x2: 'passport_photos',
+          }
+          const DB_STATUS_MAP: Record<string, DocStatus> = {
+            uploaded: 'under_review',
+            in_review: 'under_review',
+            approved: 'approved',
+            pending: 'pending',
+            rejected: 'pending',
+          }
           const updatedChecklist = checklist.map(item => {
-            const match = docs.find(d => d.category === item.category)
+            const match = docs.find(d => DOC_TYPE_MAP[d.document_type] === item.category)
             if (match) {
-              return { ...item, status: match.status as DocStatus }
+              return { ...item, status: DB_STATUS_MAP[match.status] ?? item.status }
             }
             return item
           })
@@ -164,35 +177,29 @@ export default function IntelligentChecklistDashboard() {
 
     setUploadingId(itemId)
     try {
-      const fileName = `${currentCase.id}/${category}/${Date.now()}-${file.name}`
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('caseId', currentCase.id)
+      formData.append('clientId', profile.id)
+      formData.append('category', category)
 
-      // 1. Upload to Supabase Storage
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file)
+      const res = await fetch('/api/dashboard/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-      if (storageError) throw storageError
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro no upload')
 
-      // 2. Insert into case_documents table
-      const { error: dbError } = await supabase
-        .from('case_documents')
-        .insert({
-          case_id: currentCase.id,
-          client_id: profile.id,
-          category: category,
-          title: file.name,
-          file_url: storageData.path,
-          status: 'under_review'
-        })
-
-      if (dbError) throw dbError
-
-      // 3. Update local state
       setChecklist(prev => prev.map(item => item.id === itemId ? { ...item, status: 'under_review' } : item))
+      if (data.clientDocumentId) {
+        setClientDocIds(prev => ({ ...prev, [itemId]: data.clientDocumentId }))
+      }
 
     } catch (error) {
-      console.error('Upload error:', error)
-      alert('Erro ao enviar documento. Tente novamente.')
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Upload error:', msg)
+      alert(`Erro ao enviar documento: ${msg}`)
     } finally {
       setUploadingId(null)
     }
@@ -329,17 +336,33 @@ export default function IntelligentChecklistDashboard() {
                         className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-sky-600 hover:scale-105 hover:shadow-lg hover:shadow-sky-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
                       >
                         {uploadingId === item.id ? (
-                          <Clock className="w-4 h-4 animate-spin" />
+                          <>
+                            <Clock className="w-4 h-4 animate-spin" />
+                            Extraindo...
+                          </>
                         ) : (
-                          <Upload className="w-4 h-4" />
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Enviar Documento
+                          </>
                         )}
-                        Enviar Documento
                       </label>
                     ) : item.status === 'under_review' ? (
-                      <button disabled className="flex items-center gap-2 px-6 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-2xl text-[10px] font-black uppercase tracking-widest">
-                        <Clock className="w-4 h-4" />
-                        Em Análise
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button disabled className="flex items-center gap-2 px-6 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                          <Clock className="w-4 h-4" />
+                          Em Análise
+                        </button>
+                        {clientDocIds[item.id] && (
+                          <Link
+                            href={`/upload/review/${clientDocIds[item.id]}`}
+                            className="flex items-center gap-2 px-4 py-3.5 bg-sky-50 text-sky-600 border border-sky-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-100 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver Dados
+                          </Link>
+                        )}
+                      </div>
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200">
                         <Check className="w-5 h-5" />

@@ -1,3 +1,4 @@
+// Substitua todo o código por...
 'use client'
 
 import React, { useState } from 'react'
@@ -12,9 +13,12 @@ import {
     Upload,
     Sparkles,
     XCircle,
-    RotateCcw
+    RotateCcw,
+    Trash2,
+    RefreshCw
 } from 'lucide-react'
 import { COLORS } from '@/lib/design-system'
+import { createClient } from '@/lib/supabase/client'
 import DocumentUpload from './DocumentUpload'
 
 export type DocumentStatus = 'pending' | 'uploaded' | 'under_review' | 'approved' | 'rejected'
@@ -33,6 +37,7 @@ interface DocumentCardProps {
 
 export default function DocumentCard({
     caseId,
+    id,
     category,
     label,
     status,
@@ -42,6 +47,8 @@ export default function DocumentCard({
     onUpdate
 }: DocumentCardProps) {
     const [isUploadOpen, setIsUploadOpen] = useState(false)
+    const [isRemoving, setIsRemoving] = useState(false)
+    const supabase = createClient()
 
     const statusConfig = {
         pending: {
@@ -53,13 +60,13 @@ export default function DocumentCard({
         uploaded: {
             label: 'Enviado',
             icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-            color: COLORS.blue,
+            color: COLORS.primary,
             bg: 'bg-blue-50'
         },
         under_review: {
             label: 'Em Revisão',
             icon: <LoaderIcon />,
-            color: COLORS.purple,
+            color: COLORS.accent,
             bg: 'bg-sky-50'
         },
         approved: {
@@ -77,6 +84,37 @@ export default function DocumentCard({
     }
 
     const currentStatus = statusConfig[status]
+
+    const handleRemove = async () => {
+        if (!window.confirm('Tem certeza que deseja remover este documento? Esta ação não pode ser desfeita.')) return
+
+        setIsRemoving(true)
+        try {
+            // Se o status não for pendente, id é o UUID do documento na tabela case_documents
+            if (status !== 'pending') {
+                // 1. Remover do Storage (fileUrl contém o path conforme page.tsx)
+                if (fileUrl) {
+                    await supabase.storage.from('documents').remove([fileUrl])
+                }
+
+                // 2. Remover da tabela case_documents
+                const { error } = await supabase
+                    .from('case_documents')
+                    .delete()
+                    .eq('id', id)
+
+                if (error) throw error
+            }
+
+            // 3. Atualizar UI
+            if (onUpdate) onUpdate()
+        } catch (err) {
+            console.error('[DocumentCard] Error removing document:', err)
+            alert('Erro ao remover documento. Tente novamente.')
+        } finally {
+            setIsRemoving(false)
+        }
+    }
 
     return (
         <div
@@ -101,7 +139,7 @@ export default function DocumentCard({
 
                     <div className="space-y-1">
                         <h4 className="text-sm font-bold" style={{ color: COLORS.text }}>{label}</h4>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${currentStatus.bg}`} style={{ color: currentStatus.color }}>
                                 {currentStatus.icon}
                                 {currentStatus.label}
@@ -112,6 +150,22 @@ export default function DocumentCard({
                                     <Sparkles className="w-2.5 h-2.5" />
                                     Extraído por IA
                                 </span>
+                            )}
+
+                            {/* Ghost Button para Substituir/Remover */}
+                            {status !== 'pending' && (
+                                <button
+                                    onClick={handleRemove}
+                                    disabled={isRemoving}
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer group/btn disabled:opacity-50"
+                                >
+                                    {isRemoving ? (
+                                        <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-2.5 h-2.5" />
+                                    )}
+                                    Substituir
+                                </button>
                             )}
                         </div>
                     </div>

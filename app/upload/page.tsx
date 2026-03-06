@@ -116,7 +116,7 @@ export default function UploadPage() {
                     console.log('[Upload] Realtime UPDATE recebido:', payload.new);
                     const newStatus = (payload.new as Record<string, unknown>).extraction_status as string;
 
-                    if (newStatus === 'extracted') {
+                    if (newStatus === 'completed') {
                         setDocStatus(prev => ({
                             ...prev,
                             [configDocId]: {
@@ -127,7 +127,7 @@ export default function UploadPage() {
                         // Limpar o canal após sucesso
                         supabase.removeChannel(channel);
                         channelsRef.current.delete(dbDocumentId);
-                    } else if (newStatus === 'error') {
+                    } else if (newStatus === 'failed') {
                         const errorMsg = (payload.new as Record<string, unknown>).extraction_error as string;
                         setDocStatus(prev => ({
                             ...prev,
