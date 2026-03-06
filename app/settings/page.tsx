@@ -1,170 +1,125 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-    User,
-    Lock,
-    ShieldCheck,
-    Smartphone,
-    Mail,
-    Check,
-    Save,
-    Eye,
-    EyeOff,
-    AlertCircle
-} from 'lucide-react'
-import { motion } from 'framer-motion'
+import React from 'react'
 
-// ============================================================
-// SUPABASE INTEGRATION (PREPARATION)
-// ============================================================
-// import { createClient } from '@/lib/supabase/client'
-// const supabase = createClient()
-// ============================================================
-
+/**
+ * Substitua todo o código por...
+ * 
+ * PROEXPAND - Self-Service Center (Configurações)
+ * Design System: Light Mode Premium (Slate-50 + Sky-500)
+ */
 export default function SettingsPage() {
-    const [showPassword, setShowPassword] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
 
-    const handleSave = () => {
-        setIsSaving(true)
-        setTimeout(() => setIsSaving(false), 2000)
-    }
+    // Supabase Preparation (Future Integration)
+    // import { createClient } from '@/lib/supabase/client'
+    // const supabase = createClient()
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
-            {/* ── Page Header ── */}
-            <div className="max-w-4xl mx-auto px-6 pt-12">
-                <div className="mb-10">
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Minha Conta</h1>
-                    <p className="text-slate-500 font-medium mt-1">Gira os seus dados pessoais e preferências de segurança.</p>
-                </div>
+        <div className="min-h-screen bg-slate-50 p-6 md:p-8 font-sans">
+            <div className="max-w-4xl mx-auto space-y-8">
 
-                <div className="grid grid-cols-1 gap-10">
+                {/* ── Page Header ── */}
+                <header>
+                    <h1 className="text-2xl font-bold text-slate-900">Minha Conta</h1>
+                    <p className="text-slate-500 mt-1">Gira as tuas informações pessoais e preferências de segurança abaixo.</p>
+                </header>
+
+                <div className="space-y-6">
 
                     {/* ── SEÇÃO 1: DADOS PESSOAIS ── */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-10 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
-                                <User className="w-5 h-5" />
-                            </div>
-                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Dados Pessoais</h2>
-                        </div>
+                    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h2 className="text-lg font-bold text-slate-900 mb-6">Informações Pessoais</h2>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                        <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                                    Nome Completo
+                                </label>
                                 <input
                                     type="text"
+                                    placeholder="Seu nome completo"
                                     defaultValue="Walter D'Angelo"
-                                    className="w-full bg-slate-50 border border-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all"
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email de Acesso</label>
-                                <div className="relative">
-                                    <input
-                                        type="email"
-                                        value="wdangelo81@gmail.com"
-                                        readOnly
-                                        className="w-full bg-slate-100 border border-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold text-slate-400 cursor-not-allowed"
-                                    />
-                                    <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                                </div>
-                                <p className="text-[11px] text-slate-400 italic ml-1 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" /> Email não pode ser alterado manualmente.
-                                </p>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                                    Email de Acesso
+                                </label>
+                                <input
+                                    type="email"
+                                    value="wdangelo81@gmail.com"
+                                    disabled
+                                    readOnly
+                                    className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-500 cursor-not-allowed outline-none"
+                                />
+                                <p className="text-[10px] text-slate-400 italic ml-1">* O email não pode ser alterado por motivos de segurança.</p>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                                    Telefone / WhatsApp
+                                </label>
                                 <input
                                     type="tel"
                                     placeholder="+55 (11) 99999-9999"
-                                    className="w-full bg-slate-50 border border-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all"
                                 />
                             </div>
-                        </div>
 
-                        <div className="mt-10 flex justify-end">
-                            <button
-                                onClick={handleSave}
-                                className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.1em] shadow-xl shadow-slate-900/10 hover:bg-sky-500 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                                {isSaving ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="w-4 h-4" />
-                                )}
-                                Salvar Alterações
-                            </button>
-                        </div>
-                    </motion.section>
+                            <div className="md:col-span-2">
+                                <button className="bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg px-6 py-2 mt-2 transition-colors active:scale-95 shadow-sm">
+                                    Salvar Alterações
+                                </button>
+                            </div>
+                        </form>
+                    </section>
 
                     {/* ── SEÇÃO 2: SEGURANÇA ── */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-10 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                                <ShieldCheck className="w-5 h-5" />
-                            </div>
-                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Alterar Senha</h2>
-                        </div>
+                    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h2 className="text-lg font-bold text-slate-900 mb-6">Segurança e Senha</h2>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nova Senha</label>
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        placeholder="••••••••"
-                                        className="w-full bg-slate-50 border border-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
-                                    >
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Nova Senha</label>
+                        <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={(e) => e.preventDefault()}>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                                    Nova Senha
+                                </label>
                                 <input
-                                    type={showPassword ? "text" : "password"}
+                                    type="password"
                                     placeholder="••••••••"
-                                    className="w-full bg-slate-50 border border-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all"
                                 />
                             </div>
-                        </div>
 
-                        <div className="mt-10 flex justify-end">
-                            <button className="flex items-center gap-2 bg-white border-2 border-slate-900 text-slate-900 px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.1em] hover:bg-slate-900 hover:text-white transition-all active:scale-95">
-                                <Check className="w-4 h-4" />
-                                Atualizar Senha
-                            </button>
-                        </div>
-                    </motion.section>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                                    Confirmar Nova Senha
+                                </label>
+                                <input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <button className="bg-white border-2 border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium rounded-lg px-6 py-2 mt-2 transition-all active:scale-95">
+                                    Atualizar Senha
+                                </button>
+                            </div>
+                        </form>
+                    </section>
 
                 </div>
 
-                {/* ── Logout Button ── */}
-                <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center">
-                    <button className="text-[11px] font-black text-red-400 uppercase tracking-[0.2em] hover:text-red-500 transition-colors flex items-center gap-2">
-                        Desconectar desta sessão
-                    </button>
-                </div>
+                {/* ── Info Footer ── */}
+                <footer className="text-center pt-8 border-t border-slate-200">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        Proexpand LegalTech Hub • Proteção de Dados Garantida
+                    </p>
+                </footer>
+
             </div>
         </div>
     )
