@@ -36,6 +36,8 @@ export default function OnboardingWizard({
     const [step, setStep] = useState(1)
     const [direction, setDirection] = useState(0)
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+    const [validationError, setValidationError] = useState<string | null>(null)
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Data States
     const [personalData, setPersonalData] = useState(initialData?.personal_data || {
@@ -87,7 +89,49 @@ export default function OnboardingWizard({
         return () => clearTimeout(timer)
     }, [personalData, addressData, saveToSupabase])
 
-    const nextStep = () => {
+    // Clear error on input change
+    useEffect(() => {
+        if (validationError) setValidationError(null)
+    }, [personalData, addressData])
+
+    const nextStep = async () => {
+        setValidationError(null)
+
+        if (step === 2) {
+            if (!personalData.full_name?.trim() || !personalData.birth_date) {
+                setValidationError('Por favor, preencha o Nome Completo e a Data de Nascimento.')
+                return
+            }
+        }
+
+        if (step === 3) {
+            if (!addressData.street?.trim() || !addressData.city?.trim() || !addressData.state?.trim() || !addressData.zip_code?.trim()) {
+                setValidationError('Por favor, preencha todos os campos do endereço.')
+                return
+            }
+
+            setIsSubmitting(true)
+            try {
+                const { error } = await supabase
+                    .from('cases')
+                    .update({
+                        personal_data: personalData,
+                        address_data: addressData,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', caseId)
+
+                if (error) throw error
+                setSaveStatus('saved')
+            } catch (err) {
+                console.error('Error saving final data:', err)
+                setValidationError('Erro ao salvar os dados. Tente novamente.')
+                setIsSubmitting(false)
+                return
+            }
+            setIsSubmitting(false)
+        }
+
         if (step < 4) {
             setDirection(1)
             setStep(s => s + 1)
@@ -188,6 +232,9 @@ export default function OnboardingWizard({
                                 </select>
                             </div>
                         </div>
+                        {validationError && step === 2 && (
+                            <p className="text-red-500 text-sm font-medium mt-2 animate-in fade-in">{validationError}</p>
+                        )}
                     </div>
                 </div>
             )
@@ -254,6 +301,9 @@ export default function OnboardingWizard({
                                 style={{ color: COLORS.text }}
                             />
                         </div>
+                        {validationError && step === 3 && (
+                            <p className="text-red-500 text-sm font-medium mt-2 animate-in fade-in">{validationError}</p>
+                        )}
                     </div>
                 </div>
             )
@@ -306,7 +356,7 @@ export default function OnboardingWizard({
         <div className="min-h-screen flex flex-col p-6 max-w-4xl mx-auto relative overflow-hidden" style={{ background: COLORS.bg }}>
             {/* Background Decorative Elements */}
             <div className="absolute top-[-10%] right-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-10 pointer-events-none" style={{ background: COLORS.primary }} />
-            <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-10 pointer-events-none" style={{ background: COLORS.blue }} />
+            <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 rounded-full blur-[120px] opacity-10 pointer-events-none" style={{ background: COLORS.accent }} />
 
             {/* Header */}
             <header className="flex justify-between items-center mb-10 relative z-10 px-4">
@@ -358,14 +408,24 @@ export default function OnboardingWizard({
 
                 <button
                     onClick={step === 4 ? () => window.location.href = `/case/${caseId}/documents` : nextStep}
-                    className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all active:scale-[0.98] shadow-xl text-white"
+                    disabled={isSubmitting}
+                    className={`flex-[2] flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all shadow-xl text-white ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
                     style={{
                         background: COLORS.primary,
                         boxShadow: `0 8px 24px ${COLORS.primary}33`
                     }}
                 >
-                    {step === 4 ? 'Aceder Documentos' : 'Próxima Etapa'}
-                    <ChevronRight className="w-5 h-5" />
+                    {isSubmitting ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Salvando...
+                        </>
+                    ) : (
+                        <>
+                            {step === 4 ? 'Aceder Documentos' : 'Próxima Etapa'}
+                            <ChevronRight className="w-5 h-5" />
+                        </>
+                    )}
                 </button>
             </footer>
         </div>
