@@ -20,6 +20,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import XPBar from '@/components/gamification/XPBar'
+import ClientWaiverModal from '@/components/onboarding/ClientWaiverModal'
 
 interface TimelineEvent {
     id: string
@@ -41,11 +42,27 @@ export default function ClientDashboard() {
     const [timeline, setTimeline] = useState<TimelineEvent[]>([])
     const [gamification, setGamification] = useState({ currentXP: 0, level: 1 })
 
+    // State for Waiver
+    const [showWaiver, setShowWaiver] = useState(false)
+
     const fetchDashboardData = async () => {
         try {
             // 0. Fetch User
             const { data: { user: u } } = await supabase.auth.getUser()
             setUser(u)
+
+            if (u) {
+                // Fetch Profile for Waiver Status
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('has_accepted_waiver')
+                    .eq('id', u.id)
+                    .single()
+
+                if (profile && profile.has_accepted_waiver === false) {
+                    setShowWaiver(true)
+                }
+            }
 
             // 1. Fetch Case & Client Info
             const { data: cData } = await supabase
@@ -150,6 +167,13 @@ export default function ClientDashboard() {
 
     return (
         <div className="min-h-screen flex flex-col p-6 max-w-md mx-auto" style={{ background: COLORS.bg }}>
+            {user && (
+                <ClientWaiverModal
+                    isOpen={showWaiver}
+                    userId={user.id}
+                    onAccept={() => setShowWaiver(false)}
+                />
+            )}
             <header className="py-6 flex flex-col gap-4">
                 <div className="flex justify-between items-start w-full">
                     <div className="space-y-1">
