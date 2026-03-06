@@ -16,6 +16,7 @@ import {
   LogOut,
   Globe,
   ArrowLeft,
+  User,
 } from 'lucide-react'
 
 interface NavItem {
@@ -27,21 +28,23 @@ interface NavItem {
 
 const navConfig: Record<UserRole, NavItem[]> = {
   client: [
-    { label: 'Dashboard', labelPt: 'Meu Caso', href: '/case', icon: <LayoutDashboard size={20} /> },
-    { label: 'Documents', labelPt: 'Documentos', href: '/documents', icon: <FileText size={20} /> },
-    { label: 'Notifications', labelPt: 'Avisos', href: '/notifications', icon: <Bell size={20} /> },
+    { label: 'Dashboard', labelPt: 'Meu Caso', href: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { label: 'Documents', labelPt: 'Cofre de Documentos', href: '/documents', icon: <FileText size={20} /> },
+    { label: 'Notifications', labelPt: 'Notificações', href: '/notifications', icon: <Bell size={20} /> },
+    { label: 'Settings', labelPt: 'Minha Conta', href: '/settings', icon: <Settings size={20} /> },
   ],
   team: [
     { label: 'Cases', labelPt: 'Casos', href: '/team', icon: <FolderOpen size={20} /> },
     { label: 'Review', labelPt: 'Revisão', href: '/team/review', icon: <ClipboardCheck size={20} /> },
     { label: 'Clients', labelPt: 'Clientes', href: '/team/clients', icon: <Users size={20} /> },
-    { label: 'Notifications', labelPt: 'Avisos', href: '/notifications', icon: <Bell size={20} /> },
+    { label: 'Notifications', labelPt: 'Notificações', href: '/notifications', icon: <Bell size={20} /> },
+    { label: 'Settings', labelPt: 'Configurações', href: '/settings', icon: <Settings size={20} /> },
   ],
   super_admin: [
     { label: 'Dashboard', labelPt: 'Dashboard', href: '/admin', icon: <LayoutDashboard size={20} /> },
     { label: 'Pipeline', labelPt: 'Pipeline', href: '/admin/pipeline', icon: <Kanban size={20} /> },
     { label: 'Team', labelPt: 'Equipe', href: '/admin/team', icon: <Users size={20} /> },
-    { label: 'Settings', labelPt: 'Config', href: '/admin/settings', icon: <Settings size={20} /> },
+    { label: 'Settings', labelPt: 'Configurações', href: '/settings', icon: <Settings size={20} /> },
   ],
 }
 
@@ -240,8 +243,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {lang === 'pt' ? 'Olá' : 'Hello'}, {profile.full_name?.split(' ')[0]}! 👋
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <NotificationBell count={unreadCount} />
+            <div className="w-px h-6 bg-slate-200" />
+
+            {/* User Menu Dropdown (Simplified for now) */}
+            <div className="flex items-center gap-3">
+              <a
+                href="/settings"
+                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 hover:border-sky-200 hover:bg-sky-50 flex items-center justify-center text-slate-500 hover:text-sky-600 transition-all shadow-sm"
+                title={lang === 'pt' ? 'Configurações' : 'Settings'}
+              >
+                <User size={18} />
+              </a>
+              <button
+                onClick={handleLogout}
+                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 hover:border-red-200 hover:bg-red-50 flex items-center justify-center text-slate-500 hover:text-red-600 transition-all shadow-sm"
+                title={lang === 'pt' ? 'Sair' : 'Logout'}
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
         </header>
 
