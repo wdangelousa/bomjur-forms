@@ -27,27 +27,48 @@ export default function DocumentHubPage() {
         try {
             setLoading(true)
             const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
+            if (!user) {
+                console.error('DocumentHub: No authenticated user found')
+                return
+            }
 
+            // 1. Get the current active case for this client
+            const { data: caseData, error: caseError } = await supabase
+                .from('cases')
+                .select('id')
+                .eq('client_id', user.id)
+                .neq('status', 'archived')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (caseError) {
+                console.error('DocumentHub: Error fetching case:', caseError)
+                setDocuments([])
+                return
+            }
+
+            if (!caseData?.id) {
+                console.warn('DocumentHub: No active case found for user')
+                setDocuments([])
+                return
+            }
+
+            // 2. Fetch all documents for this specific case
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
-                .eq('case_id', (
-                    await supabase
-                        .from('cases')
-                        .select('id')
-                        .eq('client_id', user.id)
-                        .neq('status', 'archived')
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .single()
-                ).data?.id)
+                .eq('case_id', caseData.id)
                 .order('created_at', { ascending: false })
 
-            if (error) throw error
-            if (data) setDocuments(data)
+            if (error) {
+                console.error('DocumentHub: Error fetching client_documents:', error)
+                throw error
+            }
+
+            setDocuments(data || [])
         } catch (err) {
-            console.error('Error fetching documents:', err)
+            console.error('DocumentHub: Critical error in fetchDocuments:', err)
         } finally {
             setLoading(false)
         }
