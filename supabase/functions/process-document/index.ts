@@ -1,4 +1,3 @@
-// Substitua todo o código por:
 // supabase/functions/process-document/index.ts
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -10,7 +9,6 @@ const corsHeaders = {
 
 /**
  * Converte ArrayBuffer para base64 byte a byte.
- * Essencial para evitar "Maximum call stack size exceeded" em PDFs grandes.
  */
 function toBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
@@ -36,57 +34,57 @@ function resolveMediaType(blob: Blob, filePath: string): { isPdf: boolean; media
 }
 
 /**
- * Lógica principal de extração — COM LOGGING PESADO E FAIL-SAFE
+ * Lógica principal de extração — BULLETPROOF
  */
 async function extractDocument(
     supabase: ReturnType<typeof createClient>,
     documentId: string,
     filePath: string,
 ) {
-    // ── logError RESILIENTE ────────────────────────────────────────────────────
-    // Primeiro atualiza o status (crítico). Depois tenta salvar a mensagem de erro
-    // (a coluna extraction_error pode não existir — tratado como não-fatal).
     const logError = async (msg: string) => {
         console.error(`[Ben-Error] [${documentId}]: ${msg}`);
 
-        // Atualização crítica: apenas o status
-        const { error: statusErr } = await supabase
-            .from('client_documents')
-            .update({
-                extraction_status: 'failed',
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', documentId);
+        const baseUpdate = {
+            extraction_status: 'failed',
+            updated_at: new Date().toISOString(),
+        };
 
-        if (statusErr) {
-            console.error('[Ben-Error] CRÍTICO: falha ao salvar status=failed:', statusErr.message);
-        } else {
-            console.log('[Ben-Error] Status atualizado para failed com sucesso.');
+        try {
+            // Tentativa de update unificado (status + erro) com await
+            const { error: err } = await supabase
+                .from('client_documents')
+                .update({
+                    ...baseUpdate,
+                    extraction_error: msg.substring(0, 500)
+                })
+                .eq('id', documentId);
+
+            if (err && err.code === '42703') {
+                console.warn('[Ben-Error] Coluna extraction_error não disponível, salvando apenas status.');
+                await supabase
+                    .from('client_documents')
+                    .update(baseUpdate)
+                    .eq('id', documentId);
+            }
+        } catch (updateEx) {
+            console.error('[Ben-Error] Falha crítica ao atualizar status de erro:', updateEx);
         }
-
-        // Tentativa não-fatal: salvar mensagem de erro (coluna opcional)
-        supabase
-            .from('client_documents')
-            .update({ extraction_error: msg.substring(0, 500) })
-            .eq('id', documentId)
-            .then(({ error: e }) => {
-                if (e) console.warn('[Ben-Error] Coluna extraction_error indisponível (não-fatal):', e.message);
-            });
     };
 
     try {
         // ── ETAPA 1: Marcar como processing ──────────────────────────────────
-        console.log(`[Ben] ETAPA 1: Marcando documento ${documentId} como 'processing'`);
+        console.log(`[Ben] ETAPA 1: Iniciando processamento do documento ${documentId}`);
         const { error: updProcErr } = await supabase
             .from('client_documents')
             .update({
                 extraction_status: 'processing',
                 extraction_started_at: new Date().toISOString(),
-                extraction_error: null,
             })
             .eq('id', documentId);
-        if (updProcErr) console.error('[Ben] ETAPA 1 aviso:', updProcErr.message);
-        else console.log('[Ben] ETAPA 1 OK');
+
+        if (updProcErr && updProcErr.code !== '42703') {
+            console.error('[Ben] ETAPA 1 aviso:', updProcErr.message);
+        }
 
         // ── ETAPA 2: Download do Storage ─────────────────────────────────────
         console.log(`[Ben] ETAPA 2: Baixando arquivo: ${filePath}`);
@@ -94,20 +92,16 @@ async function extractDocument(
             .from('documents')
             .download(filePath);
         if (dlErr || !fileBlob) throw new Error(`Download falhou: ${dlErr?.message ?? 'fileBlob null'}`);
-        console.log(`[Ben] ETAPA 2 OK: ${fileBlob.size} bytes, tipo: ${fileBlob.type}`);
 
         // ── ETAPA 3: Base64 + Media Type ─────────────────────────────────────
         console.log('[Ben] ETAPA 3: Convertendo para base64...');
         const { isPdf, mediaType } = resolveMediaType(fileBlob, filePath);
         const base64Data = toBase64(await fileBlob.arrayBuffer());
-        console.log(`[Ben] ETAPA 3 OK: isPdf=${isPdf}, mediaType=${mediaType}, base64Length=${base64Data.length}`);
 
         // ── ETAPA 4: Chamada Anthropic ────────────────────────────────────────
         const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada nos Secrets do Supabase.');
-        console.log(`[Ben] ETAPA 4: API Key presente (${anthropicKey.substring(0, 8)}...)`);
+        if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY não configurada.');
 
-        // Headers: adiciona beta header para suporte a PDF nativo
         const requestHeaders: Record<string, string> = {
             'x-api-key': anthropicKey,
             'anthropic-version': '2023-06-01',
@@ -115,10 +109,8 @@ async function extractDocument(
         };
         if (isPdf) {
             requestHeaders['anthropic-beta'] = 'pdfs-2024-09-25';
-            console.log('[Ben] ETAPA 4: Header PDF beta adicionado');
         }
 
-        // Content block: "document" para PDF, "image" para imagens
         const fileContentBlock = isPdf
             ? {
                 type: 'document' as const,
@@ -138,8 +130,7 @@ async function extractDocument(
             };
 
         const requestBody = {
-            // CORREÇÃO: modelo atualizado para a versão estável atual
-            model: 'claude-sonnet-4-6',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 2048,
             system: "Você é o Ben, analista sênior de documentos de imigração (processos I-140 / I-485). Extraia dados com precisão máxima. Responda APENAS em JSON válido, sem texto adicional.",
             messages: [{
@@ -154,46 +145,24 @@ async function extractDocument(
             }],
         };
 
-        console.log('[Ben] ETAPA 4: Enviando para Anthropic...', {
-            model: requestBody.model,
-            contentType: isPdf ? 'document (PDF)' : `image (${mediaType})`,
-            base64SizeKB: Math.round(base64Data.length / 1024),
-        });
-
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: requestHeaders,
             body: JSON.stringify(requestBody),
         });
 
-        console.log(`[Ben] ETAPA 4: Anthropic respondeu HTTP ${claudeRes.status}`);
-
         if (!claudeRes.ok) {
             const errorText = await claudeRes.text();
-            console.error(`[Ben] ETAPA 4 ERRO Anthropic: ${errorText}`);
             throw new Error(`Claude API ${claudeRes.status}: ${errorText.substring(0, 300)}`);
         }
 
         const claudeData = await claudeRes.json();
-        console.log('[Ben] ETAPA 4 OK:', {
-            stopReason: claudeData.stop_reason,
-            inputTokens: claudeData.usage?.input_tokens,
-            outputTokens: claudeData.usage?.output_tokens,
-        });
-
-        // ── ETAPA 5: Parse do JSON ────────────────────────────────────────────
         const aiText = claudeData.content?.[0]?.text;
         if (!aiText) throw new Error('Nenhum texto na resposta da IA.');
-        console.log(`[Ben] ETAPA 5: Texto bruto (300 chars): ${aiText.substring(0, 300)}`);
 
         const match = aiText.match(/\{[\s\S]*\}/);
         if (!match) throw new Error('JSON não encontrado na resposta da IA.');
         const parsed = JSON.parse(match[0]);
-        console.log('[Ben] ETAPA 5 OK:', {
-            documentType: parsed.document_type,
-            fieldsCount: Object.keys(parsed.fields || {}).length,
-            confidence: parsed.confidence,
-        });
 
         // ── ETAPA 6: Salvar extracted_fields ─────────────────────────────────
         const rows = Object.entries(parsed.fields || {})
@@ -205,49 +174,61 @@ async function extractDocument(
                 confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.85,
             }));
 
-        console.log(`[Ben] ETAPA 6: Inserindo ${rows.length} campos...`);
         if (rows.length > 0) {
             const { error: insErr } = await supabase.from('extracted_fields').insert(rows);
-            if (insErr) throw new Error(`Erro ao salvar campos: ${insErr.message}`);
-        }
-        console.log('[Ben] ETAPA 6 OK');
-
-        // ── ETAPA 7: UPDATE crítico — apenas extraction_status ───────────────
-        // ATENÇÃO: NÃO sobrescrevemos document_type para preservar a categoria
-        // original (ex: 'passport') que alimenta o agrupamento do dashboard.
-        console.log(`[Ben] ETAPA 7: Atualizando status para 'completed'...`);
-
-        const { data: updateResult, error: updateErr } = await supabase
-            .from('client_documents')
-            .update({ extraction_status: 'completed' })
-            .eq('id', documentId)
-            .select('id, extraction_status');
-
-        if (updateErr) throw new Error(`UPDATE status falhou: ${updateErr.message}`);
-
-        if (!updateResult || updateResult.length === 0) {
-            console.error('[Ben] ⚠️ UPDATE retornou 0 linhas! Possível problema de RLS ou documentId errado.');
-        } else {
-            console.log('[Ben] ETAPA 7 OK:', updateResult);
+            if (insErr) console.error('[Ben] Erro ao salvar campos (não-fatal):', insErr.message);
         }
 
-        // ── ETAPA 7b: Colunas opcionais (não-fatal) ───────────────────────────
-        // document_type_confidence, raw_extraction_json, extraction_completed_at
-        // podem não existir — ignoramos erros aqui.
-        supabase
+        // ── ETAPA 7: UPDATE Unificado (Bulletproof) ───────────────────────────
+        console.log(`[Ben] ETAPA 7: Salvando extração e metadados...`);
+
+        // Fail-safe: Busca metadados atuais para merge
+        const { data: currentDoc } = await supabase
             .from('client_documents')
-            .update({
-                document_type_detected: parsed.document_type || null,
-                document_type_confidence: typeof parsed.confidence === 'number' ? parsed.confidence : null,
-                extraction_completed_at: new Date().toISOString(),
-                raw_extraction_json: JSON.stringify(parsed),
-                updated_at: new Date().toISOString(),
-            })
+            .select('metadata')
             .eq('id', documentId)
-            .then(({ error: optErr }) => {
-                if (optErr) console.warn('[Ben] ETAPA 7b: Colunas opcionais não disponíveis (não-fatal):', optErr.message);
-                else console.log('[Ben] ETAPA 7b: Metadados opcionais salvos.');
-            });
+            .single();
+
+        const mergedMetadata = {
+            ...(currentDoc?.metadata || {}),
+            extracted_data: parsed
+        };
+
+        const updatePayload: any = {
+            extraction_status: 'completed',
+            document_type_detected: parsed.document_type || null,
+            document_type_confidence: typeof parsed.confidence === 'number' ? parsed.confidence : null,
+            extraction_completed_at: new Date().toISOString(),
+            raw_extraction_json: parsed,
+            metadata: mergedMetadata,
+            updated_at: new Date().toISOString(),
+        };
+
+        const { error: updateErr } = await supabase
+            .from('client_documents')
+            .update(updatePayload)
+            .eq('id', documentId);
+
+        if (updateErr) {
+            console.error('[Ben] Erro no UPDATE final:', updateErr.message);
+            // Se falhou por falta de coluna (42703), tentamos apenas as colunas garantidas
+            if (updateErr.code === '42703' || updateErr.message.includes('column')) {
+                console.warn('[Ben] Colunas opcionais ausentes. Executando fallback para metadata.');
+                const { error: fallbackErr } = await supabase
+                    .from('client_documents')
+                    .update({
+                        extraction_status: 'completed',
+                        metadata: mergedMetadata,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', documentId);
+
+                if (fallbackErr) throw new Error(`Fallback falhou: ${fallbackErr.message}`);
+                else console.log('[Ben] Fallback para metadata concluído.');
+            } else {
+                throw new Error(`UPDATE crítico falhou: ${updateErr.message}`);
+            }
+        }
 
         console.log(`[Ben] ✅ Documento ${documentId} processado com SUCESSO!`);
 
@@ -260,38 +241,32 @@ async function extractDocument(
 
 // ── Handler Principal ─────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-    console.log(`[Ben] Request: ${req.method} ${new URL(req.url).pathname}`);
-
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
 
     try {
-        const body = await req.json();
-        const { documentId, filePath } = body;
-
-        console.log('[Ben] Payload recebido:', { documentId, filePath });
+        const { documentId, filePath } = await req.json();
 
         if (!documentId || !filePath) {
-            throw new Error(`Parâmetros ausentes. Recebido: documentId=${documentId}, filePath=${filePath}`);
+            throw new Error('Parâmetros documentId ou filePath ausentes.');
         }
 
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-        console.log('[Ben] Env check:', { hasUrl: !!supabaseUrl, hasServiceKey: !!serviceRoleKey });
-
         if (!supabaseUrl || !serviceRoleKey) {
-            throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausentes nos Secrets.');
+            throw new Error('Configuração do Supabase ausente.');
         }
 
         const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-        // Aguarda extração completa ANTES de responder (Deno Deploy encerra no Response)
+        // Aguarda a extração completa ANTES de responder. 
+        // Deno Deploy pode encerrar o processo assim que a Response é retornada.
         await extractDocument(supabase, documentId, filePath);
 
         return new Response(
-            JSON.stringify({ status: 'completed', documentId }),
+            JSON.stringify({ status: 'success', documentId }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
         );
 
