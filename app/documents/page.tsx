@@ -36,7 +36,6 @@ export default function DocumentHubPage() {
             setLoading(true)
             setErrorMsg(null)
 
-            // 1. SESSION FIRST
             const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
             if (sessionError) {
@@ -52,7 +51,7 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
-            // 2. BULLETPROOF QUERY: Filtrando por 'uploaded_by' conforme missão técnica
+            // QUERY REFORÇADA: uploaded_by
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
@@ -68,8 +67,7 @@ export default function DocumentHubPage() {
             setDocuments(data || [])
         } catch (err: any) {
             console.error('DocumentHub: Critical mapping error:', err)
-            // Error feedback visual for debugging
-            setErrorMsg('Erro Crítico: Verifique a conexão ou permissões.')
+            setErrorMsg('Erro na busca de dados do cofre.')
         } finally {
             setLoading(false)
         }
@@ -125,7 +123,6 @@ export default function DocumentHubPage() {
         try {
             setDeletingId(docId)
 
-            // 3. DELETE ACTION: Dual cleanup
             const { error: dbError } = await supabase
                 .from('client_documents')
                 .delete()
@@ -160,26 +157,9 @@ export default function DocumentHubPage() {
         }
     }
 
-    // SAFE CATEGORY MAPPING with optional chaining
-    const getDocCategory = (doc: any) => {
-        const category = doc.category || doc.metadata?.category || 'Geral'
-        return category.replace(/_/g, ' ')
-    }
-
-    // BULLETPROOF STATUS MAPPING (inc. CONFIRMADO)
-    const isDocVerified = (doc: any) => {
-        const status = (doc.status || doc.extraction_status || '').toLowerCase()
-        const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado']
-        return verifiedStates.includes(status)
-    }
-
-    const getRelationshipTag = (doc: any) => {
-        return doc.metadata?.relationship || null
-    }
-
     const filteredDocs = documents.filter(doc => {
         const name = doc.file_name?.toLowerCase() || ''
-        const category = getDocCategory(doc).toLowerCase()
+        const category = (doc.category || doc.metadata?.category || 'GERAL').toLowerCase()
         return name.includes(searchTerm.toLowerCase()) || category.includes(searchTerm.toLowerCase())
     })
 
@@ -257,7 +237,6 @@ export default function DocumentHubPage() {
                                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sincronizando Cofre...</p>
                             </div>
                         ) : (
-                            /* 4. UI FIX: table-fixed and forced widths */
                             <table className="w-full table-fixed text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -270,8 +249,13 @@ export default function DocumentHubPage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredDocs.map((doc, idx) => {
-                                        const isVerified = isDocVerified(doc)
-                                        const relationship = getRelationshipTag(doc)
+                                        // 1. Status Mapping Logic (Strict) conforme solicitado
+                                        const rawStatus = (doc.status || '').toLowerCase();
+                                        const isVerified = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado'].includes(rawStatus);
+
+                                        // 2. Category & Tag Mapping Logic (Strict) conforme solicitado
+                                        const displayCategory = doc.category || doc.metadata?.category || 'GERAL';
+                                        const relationshipTag = doc.metadata?.relationship;
 
                                         return (
                                             <motion.tr
@@ -287,18 +271,17 @@ export default function DocumentHubPage() {
                                                             <FileText className="w-5 h-5 text-current" />
                                                         </div>
                                                         <div className="min-w-0 flex-1 overflow-hidden">
-                                                            {/* UI FIX: Truncate and tooltips */}
                                                             <p className="text-sm font-bold text-slate-900 truncate" title={doc.file_name}>
                                                                 {doc.file_name}
                                                             </p>
                                                             <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">PDF</p>
-                                                                {relationship && (
+                                                                {relationshipTag && (
                                                                     <>
                                                                         <span className="w-1 h-1 bg-slate-200 rounded-full flex-shrink-0" />
                                                                         <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase truncate">
                                                                             <Users className="w-2.5 h-2.5 flex-shrink-0" />
-                                                                            <span className="truncate" title={relationship}>{relationship}</span>
+                                                                            <span className="truncate" title={relationshipTag}>{relationshipTag}</span>
                                                                         </div>
                                                                     </>
                                                                 )}
@@ -307,8 +290,8 @@ export default function DocumentHubPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50 truncate max-w-full" title={getDocCategory(doc)}>
-                                                        {getDocCategory(doc)}
+                                                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50 truncate max-w-full" title={displayCategory}>
+                                                        {displayCategory.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5">
