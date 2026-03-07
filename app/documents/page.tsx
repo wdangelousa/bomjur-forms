@@ -114,7 +114,7 @@ export default function DocumentHubPage() {
     }
 
     const handleDelete = async (docId: string, filePath: string) => {
-        const confirmed = window.confirm('Você tem certeza que deseja excluir este documento permanentemente? Esta ação não pode ser desfeita.')
+        const confirmed = window.confirm('Deseja realmente excluir este documento?')
         if (!confirmed) return
 
         try {
@@ -247,78 +247,84 @@ export default function DocumentHubPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredDocs.map((doc, idx) => (
-                                        <motion.tr
-                                            key={doc.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className="group hover:bg-slate-50/50 transition-colors"
-                                        >
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
-                                                        <FileText className="w-5 h-5" />
+                                    {filteredDocs.map((doc, idx) => {
+                                        // User requested sync status logic: Accept 'approved' OR 'confirmed'
+                                        const isVerificado = doc.extraction_status === 'approved' || doc.status === 'approved' || doc.status === 'confirmed';
+
+                                        return (
+                                            <motion.tr
+                                                key={doc.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: idx * 0.05 }}
+                                                className="group hover:bg-slate-50/50 transition-colors"
+                                            >
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
+                                                            <FileText className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">PDF</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400">PDF</p>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
+                                                        {/* User requested correction: display category from DB with fallback */}
+                                                        {doc.category?.replace('_', ' ') || 'Geral'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    {isVerificado ? (
+                                                        <div className="flex items-center gap-2 text-emerald-600">
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-orange-500">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-5 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleView(doc.file_path)}
+                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Visualizar"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(doc.file_path, doc.file_name)}
+                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                            title="Download"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(doc.id, doc.file_path)}
+                                                            disabled={deletingId === doc.id}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                                                            title="Excluir"
+                                                        >
+                                                            {deletingId === doc.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                            )}
+                                                        </button>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
-                                                    {doc.category?.replace('_', ' ') || 'Geral'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                {doc.extraction_status === 'approved' ? (
-                                                    <div className="flex items-center gap-2 text-emerald-600">
-                                                        <CheckCircle2 className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-orange-500">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleView(doc.file_path)}
-                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                        title="Visualizar"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownload(doc.file_path, doc.file_name)}
-                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                        title="Download"
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(doc.id, doc.file_path)}
-                                                        disabled={deletingId === doc.id}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
-                                                        title="Excluir"
-                                                    >
-                                                        {deletingId === doc.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Trash2 className="w-4 h-4" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    })}
 
                                     {filteredDocs.length === 0 && !loading && (
                                         <tr>
