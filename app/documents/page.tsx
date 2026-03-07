@@ -10,11 +10,12 @@ import {
     CheckCircle2,
     Search,
     Filter,
-    MoreHorizontal,
+    Trash2,
     FilePlus,
     Archive,
     AlertCircle,
-    Loader2
+    Loader2,
+    Lock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -27,34 +28,28 @@ export default function DocumentHubPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [errorMsg, setErrorMsg] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
 
     const fetchDocuments = async () => {
         try {
             setLoading(true)
             setErrorMsg(null)
 
-            // 1. Await explicit session to ensure Auth is ready
             const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
             if (sessionError) {
-                console.error('DocumentHub: Session error:', sessionError.message || sessionError)
+                console.error('DocumentHub: Session error:', sessionError)
                 setErrorMsg('Erro de autenticação. Por favor, faça login novamente.')
-                setLoading(false)
                 return
             }
 
             if (!session?.user) {
-                console.warn('DocumentHub: No active session found')
                 setErrorMsg('Sessão expirada. Por favor, faça login novamente.')
-                setLoading(false)
                 return
             }
 
             const userId = session.user.id
 
-            // 2. Fetch all documents for this specific user
-            // FIX: Removed 'case_id' as it does not exist in the schema.
-            // Using 'client_id' which maps to the user ID in the public.client_documents table.
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
@@ -62,14 +57,14 @@ export default function DocumentHubPage() {
                 .order('created_at', { ascending: false })
 
             if (error) {
-                console.error('DocumentHub: Error fetching client_documents:', error.message || error)
+                console.error('DocumentHub: Error fetching documents:', error)
                 setErrorMsg('Não foi possível carregar seus documentos. Tente recarregar a página.')
                 throw error
             }
 
             setDocuments(data || [])
         } catch (err: any) {
-            console.error('DocumentHub: Critical error in fetchDocuments:', err.message || err)
+            console.error('DocumentHub: Critical error:', err)
         } finally {
             setLoading(false)
         }
@@ -90,7 +85,7 @@ export default function DocumentHubPage() {
                 window.open(data.signedUrl, '_blank')
             }
         } catch (err: any) {
-            console.error('Error viewing document:', err.message || err)
+            console.error('Error viewing document:', err)
             alert('Erro ao visualizar documento.')
         }
     }
@@ -113,12 +108,46 @@ export default function DocumentHubPage() {
                 window.URL.revokeObjectURL(url)
             }
         } catch (err: any) {
-            console.error('Error downloading document:', err.message || err)
+            console.error('Error downloading document:', err)
             alert('Erro ao baixar documento.')
         }
     }
 
-    // Filter Logic
+    const handleDelete = async (docId: string, filePath: string) => {
+        const confirmed = window.confirm('Você tem certeza que deseja excluir este documento permanentemente? Esta ação não pode ser desfeita.')
+        if (!confirmed) return
+
+        try {
+            setDeletingId(docId)
+
+            // 1. Delete from database
+            const { error: dbError } = await supabase
+                .from('client_documents')
+                .delete()
+                .eq('id', docId)
+
+            if (dbError) throw dbError
+
+            // 2. Delete from storage
+            const { error: storageError } = await supabase.storage
+                .from('documents')
+                .remove([filePath])
+
+            if (storageError) {
+                console.warn('Storage removal warning (might have been deleted already):', storageError)
+            }
+
+            // 3. Update local state
+            setDocuments(prev => prev.filter(d => d.id !== docId))
+
+        } catch (err: any) {
+            console.error('Error deleting document:', err)
+            alert('Erro ao excluir documento. Tente novamente.')
+        } finally {
+            setDeletingId(null)
+        }
+    }
+
     const filteredDocs = documents.filter(doc =>
         (doc.file_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (doc.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -274,8 +303,17 @@ export default function DocumentHubPage() {
                                                     >
                                                         <Download className="w-4 h-4" />
                                                     </button>
-                                                    <button className="p-2 text-slate-400 hover:text-slate-900 rounded-lg transition-all">
-                                                        <MoreHorizontal className="w-4 h-4" />
+                                                    <button
+                                                        onClick={() => handleDelete(doc.id, doc.file_path)}
+                                                        disabled={deletingId === doc.id}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                                                        title="Excluir"
+                                                    >
+                                                        {deletingId === doc.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
                                                     </button>
                                                 </div>
                                             </td>
@@ -304,7 +342,7 @@ export default function DocumentHubPage() {
                 {/* ── Footer Info ── */}
                 <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 px-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                        <Lock className="w-3 h-3 text-emerald-500" />
                         Criptografia de Ponta a Ponta Ativa
                     </div>
                     <p>© 2024 Proexpand Brasil • Document Hub v1.0</p>
