@@ -2,13 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-
-// ─── Supabase ─────────────────────────────────────────────────────────────────
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface ExtractedField {
@@ -49,10 +42,10 @@ function confidenceTier(score: number): 'green' | 'yellow' | 'red' | 'grey' {
 }
 
 const TIER_STYLES = {
-    green: { border: '#22c55e', bg: 'rgba(34,197,94,0.07)', label: '✓ Verificado', labelColor: '#22c55e' },
-    yellow: { border: '#f59e0b', bg: 'rgba(245,158,11,0.07)', label: '⚠ Confirme este dado', labelColor: '#f59e0b' },
-    red: { border: '#ef4444', bg: 'rgba(239,68,68,0.07)', label: '✕ Preenchimento necessário', labelColor: '#ef4444' },
-    grey: { border: '#475569', bg: 'rgba(71,85,105,0.07)', label: '○ Insira manualmente', labelColor: '#94a3b8' },
+    green: { border: '#22c55e', bg: 'rgba(34,197,94,0.06)', label: '✓ Verificado', labelColor: '#16a34a' },
+    yellow: { border: '#f59e0b', bg: 'rgba(245,158,11,0.06)', label: '⚠ Confirme este dado', labelColor: '#b45309' },
+    red: { border: '#ef4444', bg: 'rgba(239,68,68,0.06)', label: '✕ Preenchimento necessário', labelColor: '#dc2626' },
+    grey: { border: '#94a3b8', bg: 'rgba(148,163,184,0.06)', label: '○ Insira manualmente', labelColor: '#64748b' },
 }
 
 function badge(color: string): React.CSSProperties {
@@ -86,7 +79,7 @@ export default function ReviewPage() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [saved, setSaved] = useState(false)
+    const [toast, setToast] = useState<'idle' | 'success' | 'error'>('idle')
     const [error, setError] = useState<string | null>(null)
 
     // ── Carrega documento + campos via API route (service role key) ────────────
@@ -128,83 +121,46 @@ export default function ReviewPage() {
         ))
     }
 
-    // ── Confirmar todos os dados ───────────────────────────────────────────────
+    // ── Confirmar e persistir todos os dados (via API server-side) ────────────
     const handleConfirm = useCallback(async () => {
         if (!doc) return
         setSaving(true)
 
-        // 1. Atualiza extracted_fields para cada campo
-        const updates = fields.map(f => supabase
-            .from('extracted_fields')
-            .update({
-                review_status: 'confirmed',
-                corrected_value: f.editedValue !== f.field_value ? f.editedValue : null,
+        try {
+            const res = await fetch(`/api/documents/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fields: fields.map(f => ({
+                        id: f.id,
+                        editedValue: f.editedValue,
+                        field_value: f.field_value,
+                        maps_to_i140_field: f.maps_to_i140_field,
+                        maps_to_i485_field: f.maps_to_i485_field,
+                        maps_to_i485_mission: f.maps_to_i485_mission,
+                        confidence: f.confidence,
+                    })),
+                }),
             })
-            .eq('id', f.id)
-        )
-        await Promise.all(updates)
 
-        // 2. Se tem maps_to_i140_field → salva em i140_answers (busca petition pelo client)
-        const i140Fields = fields.filter(f => f.maps_to_i140_field)
-        if (i140Fields.length > 0 && doc.client_id) {
-            const { data: petition } = await supabase
-                .from('i140_petitions')
-                .select('id')
-                .eq('client_id', doc.client_id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single()
+            if (!res.ok) throw new Error('Falha na confirmação.')
 
-            if (petition) {
-                const rows = i140Fields.map(f => ({
-                    petition_id: petition.id,
-                    section: 'document_extraction',
-                    field_key: f.maps_to_i140_field!,
-                    field_value: f.editedValue,
-                    source: 'ai_extraction',
-                    source_document_id: doc.id,
-                    source_confidence: f.confidence,
-                    was_manually_confirmed: true,
-                }))
-                await supabase.from('i140_answers').upsert(rows, { onConflict: 'petition_id,field_key' })
-            }
+            setSaving(false)
+            setToast('success')
+            router.refresh()
+            setTimeout(() => router.push('/dashboard'), 2200)
+
+        } catch (err) {
+            console.error('Erro ao confirmar dados:', err)
+            setSaving(false)
+            setToast('error')
+            setTimeout(() => setToast('idle'), 4000)
         }
-
-        // 3. Se tem maps_to_i485_field → salva em application_answers
-        const i485Fields = fields.filter(f => f.maps_to_i485_field)
-        if (i485Fields.length > 0 && doc.client_id) {
-            const { data: application } = await supabase
-                .from('i485_applications')
-                .select('id')
-                .eq('client_id', doc.client_id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single()
-
-            if (application) {
-                const rows = i485Fields.map(f => ({
-                    application_id: application.id,
-                    mission_number: f.maps_to_i485_mission ?? 1,
-                    field_key: f.maps_to_i485_field!,
-                    field_value: f.editedValue,
-                    source: 'ai_extraction',
-                    source_document_id: doc.id,
-                    source_confidence: f.confidence,
-                    client_confirmed: true,
-                    client_confirmed_at: new Date().toISOString(),
-                }))
-                await supabase.from('application_answers').upsert(rows, { onConflict: 'application_id,field_key' })
-            }
-        }
-
-        setSaving(false)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
-    }, [doc, fields])
+    }, [doc, fields, id, router])
 
     // ── Métricas de progresso ──────────────────────────────────────────────────
     const total = fields.length
-    const confirmed = fields.filter(f => f.review_status === 'confirmed' || f.isDirty).length
+    const confirmed = fields.filter(f => f.isDirty || f.review_status === 'confirmed').length
     const greenCt = fields.filter(f => confidenceTier(f.confidence) === 'green').length
     const pct = total > 0 ? Math.round((confirmed / total) * 100) : 0
 
@@ -215,7 +171,7 @@ export default function ReviewPage() {
         <div style={S.page}>
             <div style={S.loadingCenter}>
                 <div style={S.spinnerLg} />
-                <p style={{ color: '#94a3b8', marginTop: 16 }}>Carregando documento...</p>
+                <p style={{ color: '#64748b', marginTop: 16 }}>Carregando documento...</p>
             </div>
         </div>
     )
@@ -223,14 +179,39 @@ export default function ReviewPage() {
     if (error) return (
         <div style={S.page}>
             <div style={S.loadingCenter}>
-                <p style={{ color: '#f87171', fontSize: 16 }}>❌ {error}</p>
-                <button style={S.backBtn} onClick={() => router.push('/')}>← Voltar</button>
+                <p style={{ color: '#dc2626', fontSize: 16 }}>❌ {error}</p>
+                <button style={S.backBtn} onClick={() => router.push('/dashboard')}>← Voltar ao Painel</button>
             </div>
         </div>
     )
 
     return (
         <div style={S.page}>
+            {/* ── TOAST ── */}
+            {toast !== 'idle' && (
+                <div style={{
+                    position: 'fixed', bottom: 32, right: 32, zIndex: 9999,
+                    background: '#fff',
+                    border: `1.5px solid ${toast === 'success' ? '#22c55e' : '#ef4444'}`,
+                    borderRadius: 14, padding: '16px 22px',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    animation: 'slideUp 0.3s ease',
+                }}>
+                    <span style={{ fontSize: 24 }}>{toast === 'success' ? '✅' : '❌'}</span>
+                    <div>
+                        <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 14, margin: 0 }}>
+                            {toast === 'success' ? 'Dados confirmados com sucesso!' : 'Erro ao salvar. Tente novamente.'}
+                        </p>
+                        {toast === 'success' && (
+                            <p style={{ color: '#64748b', fontSize: 12, marginTop: 3 }}>
+                                Redirecionando para o painel...
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* ── HEADER ── */}
             <header style={S.header}>
                 <div style={S.headerInner}>
@@ -246,24 +227,24 @@ export default function ReviewPage() {
                         {/* Barra de progresso */}
                         <div style={S.progressWrap}>
                             <div style={S.progressMeta}>
-                                <span style={{ fontSize: 12, color: '#94a3b8' }}>Missão: Revisão de Extração</span>
-                                <span style={{ fontSize: 12, color: '#a78bfa', fontWeight: 700 }}>{pct}%</span>
+                                <span style={{ fontSize: 12, color: '#64748b' }}>Missão: Revisão de Extração</span>
+                                <span style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700 }}>{pct}%</span>
                             </div>
                             <div style={S.progressBar}>
                                 <div style={{ ...S.progressFill, width: `${pct}%` }} />
                             </div>
                             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                                <span style={badge('#22c55e')}>✓ {greenCt} auto</span>
-                                <span style={badge('#a78bfa')}>{confirmed}/{total} revisados</span>
+                                <span style={badge('#16a34a')}>✓ {greenCt} auto</span>
+                                <span style={badge('#7c3aed')}>{confirmed}/{total} revisados</span>
                             </div>
                         </div>
 
                         <button
                             style={{ ...S.confirmBtn, opacity: saving ? 0.7 : 1 }}
                             onClick={handleConfirm}
-                            disabled={saving}
+                            disabled={saving || toast === 'success'}
                         >
-                            {saving ? '⟳ Salvando...' : saved ? '✓ Salvo!' : '✓ Confirmar Dados'}
+                            {saving ? '⟳ Salvando...' : toast === 'success' ? '✓ Aprovado!' : '✓ Confirmar Dados'}
                         </button>
                     </div>
                 </div>
@@ -273,12 +254,12 @@ export default function ReviewPage() {
             <div style={S.docStrip}>
                 <div style={S.docChip}>
                     <span>{isPdf ? '📄' : '🖼️'}</span>
-                    <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{doc?.file_name}</span>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>{doc?.file_name}</span>
                 </div>
                 {doc?.document_type && (
                     <div style={S.docChip}>
                         <span>🔍</span>
-                        <span style={{ color: '#a78bfa' }}>{doc.document_type}</span>
+                        <span style={{ color: '#7c3aed', fontWeight: 600 }}>{doc.document_type}</span>
                         {doc.document_type_confidence && (
                             <span style={{ fontSize: 11, color: '#64748b' }}>
                                 ({Math.round(doc.document_type_confidence * 100)}% conf.)
@@ -286,14 +267,12 @@ export default function ReviewPage() {
                         )}
                     </div>
                 )}
-                <div style={{ ...S.docChip, marginLeft: 'auto' }}>
-                    <span style={{
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: doc?.extraction_status === 'extracted' ? '#22c55e' : '#f59e0b',
-                        display: 'inline-block'
-                    }} />
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>{doc?.extraction_status}</span>
-                </div>
+                <button
+                    style={{ ...S.docChip, marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#64748b', padding: 0 }}
+                    onClick={() => router.push('/dashboard')}
+                >
+                    ← Voltar ao Painel
+                </button>
             </div>
 
             {/* ── SPLIT VIEW ── */}
@@ -359,12 +338,11 @@ export default function ReviewPage() {
                                     }}
                                 >
                                     {/* Campo header */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                                             {friendlyLabel(field.field_key)}
                                         </span>
                                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                            {/* Confidence badge */}
                                             <span style={{
                                                 fontSize: 10, fontWeight: 700, padding: '2px 7px',
                                                 borderRadius: 999, background: style.bg,
@@ -372,46 +350,28 @@ export default function ReviewPage() {
                                             }}>
                                                 {pctConf}%
                                             </span>
-                                            {isConfirmed && <span style={{ fontSize: 13, color: '#22c55e' }}>✓</span>}
+                                            {isConfirmed && <span style={{ fontSize: 13, color: '#16a34a' }}>✓</span>}
                                         </div>
                                     </div>
 
-                                    {/* Input */}
-                                    {tier === 'green' && !field.isDirty ? (
-                                        // Campo verde sem edição: exibe o valor com check e permite clicar para editar
-                                        <div
-                                            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'text' }}
-                                            onClick={() => handleEdit(field.id, field.editedValue)}
-                                        >
-                                            <span style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 500, flex: 1 }}>
-                                                {field.editedValue || '—'}
-                                            </span>
-                                            <span style={{ fontSize: 18, color: '#22c55e' }}>✓</span>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            value={field.editedValue}
-                                            onChange={e => handleEdit(field.id, e.target.value)}
-                                            placeholder={tier === 'grey' ? 'Digite o valor manualmente...' : 'Edite se necessário...'}
-                                            style={{
-                                                width: '100%', background: 'rgba(0,0,0,0.2)', border: 'none',
-                                                outline: 'none', color: '#f1f5f9', fontSize: 15, fontWeight: 500,
-                                                padding: '4px 0', fontFamily: 'inherit',
-                                                borderBottom: `1px solid ${style.border}40`,
-                                            }}
-                                        />
-                                    )}
+                                    {/* Input editável — todos os campos são editáveis diretamente */}
+                                    <input
+                                        className="bg-white border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 rounded-lg px-3 py-2.5 text-slate-900 font-semibold w-full transition-all outline-none text-[15px]"
+                                        value={field.editedValue}
+                                        onChange={e => handleEdit(field.id, e.target.value)}
+                                        placeholder={tier === 'grey' ? 'Digite o valor manualmente...' : 'Edite se necessário...'}
+                                    />
 
                                     {/* Label de status */}
                                     {!isConfirmed && (
-                                        <p style={{ fontSize: 11, color: style.labelColor, marginTop: 6 }}>
+                                        <p style={{ fontSize: 11, color: style.labelColor, marginTop: 6, fontWeight: 500 }}>
                                             {style.label}
                                         </p>
                                     )}
 
                                     {/* Onde esse campo vai ser salvo */}
                                     {(field.maps_to_i140_field || field.maps_to_i485_field) && (
-                                        <p style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>
+                                        <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                                             📌 {field.maps_to_i140_field ? `I-140: ${field.maps_to_i140_field}` : ''}
                                             {field.maps_to_i140_field && field.maps_to_i485_field ? ' · ' : ''}
                                             {field.maps_to_i485_field ? `I-485: ${field.maps_to_i485_field}` : ''}
@@ -430,6 +390,8 @@ export default function ReviewPage() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        input::placeholder { color: #94a3b8; }
       `}</style>
         </div>
     )
@@ -452,7 +414,7 @@ const S: Record<string, React.CSSProperties> = {
     },
     spinnerLg: {
         width: 40, height: 40,
-        border: '3px solid rgba(59,130,246,0.2)',
+        border: '3px solid #e2e8f0',
         borderTopColor: '#3b82f6',
         borderRadius: '50%',
         animation: 'spin 0.8s linear infinite',
@@ -479,31 +441,31 @@ const S: Record<string, React.CSSProperties> = {
     logoSub: { fontSize: 11, color: '#64748b' },
     progressWrap: { minWidth: 220 },
     progressMeta: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
-    progressBar: { height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden' },
+    progressBar: { height: 5, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' },
     progressFill: { height: '100%', background: 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 999, transition: 'width 0.4s ease' },
     confirmBtn: {
         padding: '10px 22px',
         background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
         color: '#fff', fontWeight: 700, fontSize: 13,
         border: 'none', borderRadius: 10, cursor: 'pointer',
-        boxShadow: '0 4px 20px rgba(124,58,237,0.4)',
+        boxShadow: '0 4px 20px rgba(124,58,237,0.3)',
         whiteSpace: 'nowrap', transition: 'all 0.2s',
     },
     backBtn: {
         marginTop: 16, padding: '8px 20px',
-        background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
-        color: '#94a3b8', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+        background: '#f1f5f9', border: '1px solid #e2e8f0',
+        color: '#64748b', borderRadius: 8, cursor: 'pointer', fontSize: 13,
     },
     docStrip: {
         display: 'flex', alignItems: 'center', gap: 16,
         padding: '8px 24px',
-        background: 'rgba(255,255,255,0.02)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        background: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
         flexShrink: 0,
     },
     docChip: {
         display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 13, color: '#94a3b8',
+        fontSize: 13, color: '#64748b',
     },
     splitView: {
         flex: 1, display: 'flex',
@@ -513,8 +475,8 @@ const S: Record<string, React.CSSProperties> = {
     },
     previewCol: {
         flex: '0 0 48%', maxWidth: '48%',
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
         borderRadius: 16, overflow: 'hidden',
         display: 'flex', flexDirection: 'column',
         position: 'sticky', top: 88,
@@ -525,11 +487,11 @@ const S: Record<string, React.CSSProperties> = {
     panelHeader: {
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '14px 18px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(255,255,255,0.02)',
+        borderBottom: '1px solid #e2e8f0',
+        background: '#f8fafc',
     },
     panelIcon: { fontSize: 18 },
-    panelTitle: { fontSize: 14, fontWeight: 700, color: '#e2e8f0', flex: 1 },
+    panelTitle: { fontSize: 14, fontWeight: 700, color: '#1e293b', flex: 1 },
     legend: { display: 'flex', gap: 12 },
     previewBox: {
         flex: 1, minHeight: 500,

@@ -54,10 +54,46 @@ export default function OnboardingWizard({
 
     const supabase = createClient()
 
+    // ── REALTIME: Cálculo de progresso ────────────────────────────────────────
+    // TODO: Expandir essa lógica à medida que novos steps forem adicionados.
+    // Cada step concluído deve contribuir com um peso proporcional ao total.
+    //
+    // Exemplo de implementação futura:
+    //
+    //   const TOTAL_STEPS_FORMULARIO = 4 // alterar conforme o wizard crescer
+    //
+    //   function calcularProgressoPercentual(stepAtual: number): number {
+    //       return Math.min(100, Math.round(((stepAtual - 1) / TOTAL_STEPS_FORMULARIO) * 100))
+    //   }
+    //
+    // Esse valor deve ser salvo no campo `form_progress_percentage` (INT 0-100)
+    // na tabela `cases` do Supabase. O dashboard da Proexpand escuta via:
+    //
+    //   supabase
+    //     .channel('progresso-clientes')
+    //     .on('postgres_changes', {
+    //         event: 'UPDATE',
+    //         schema: 'public',
+    //         table: 'cases',
+    //         filter: `id=eq.${caseId}`,
+    //     }, (payload) => {
+    //         const novoProgresso = payload.new.form_progress_percentage
+    //         atualizarBarraProgresso(novoProgresso) // atualiza UI do painel
+    //     })
+    //     .subscribe()
+    // ──────────────────────────────────────────────────────────────────────────
+
     // Auto-save function
     const saveToSupabase = useCallback(async (pData: any, aData: any) => {
         setSaveStatus('saving')
         try {
+            // TODO (REALTIME): Calcular e incluir `form_progress_percentage` aqui.
+            // Exemplo:
+            //   const progressoAtual = calcularProgressoPercentual(step)
+            //   form_progress_percentage: progressoAtual,
+            //
+            // Isso dispara o canal Realtime do Supabase no dashboard da Proexpand
+            // sem nenhuma configuração extra — o UPDATE já publica o evento.
             const { error } = await supabase
                 .from('cases')
                 .update({

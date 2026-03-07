@@ -1,3 +1,4 @@
+Substitua todo o código por...
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -11,18 +12,14 @@ import {
 } from 'lucide-react'
 import { COLORS } from '@/lib/design-system'
 import { createClient } from '@/lib/supabase/client'
-import DocumentCard, { DocumentStatus } from '@/components/documents/DocumentCard'
+import DocumentCard from '@/components/documents/DocumentCard'
 import DocumentGuide from '@/components/documents/DocumentGuide'
 import { useParams, useRouter } from 'next/navigation'
 
 interface DocRequirement {
-    id: string
     category: string
     label: string
-    status: DocumentStatus
-    file_url?: string
-    rejection_reason?: string
-    ai_processed?: boolean
+    documents: any[]
 }
 
 export default function ClientDocumentsChecklist() {
@@ -48,52 +45,40 @@ export default function ClientDocumentsChecklist() {
                 .eq('id', caseId)
                 .single()
 
-            if (cError) {
-                console.error('[DocumentsPage] Error fetching case:', cError);
-                throw cError;
-            }
-
-            if (!cData) {
-                console.warn('[DocumentsPage] No case found for ID:', caseId);
-                return;
-            }
-
+            if (cError) throw cError
             setCaseData(cData)
 
-            // 2. Buscar documentos existentes
+            // 2. Buscar documentos existentes (tabela client_documents para 1:N)
+            // Nota: usamos client_documents para listar os arquivos reais
             const { data: dData, error: dError } = await supabase
-                .from('case_documents')
+                .from('client_documents')
                 .select('*')
-                .eq('case_id', caseId)
+                .eq('client_id', cData.client_id)
+                .not('extraction_status', 'eq', 'skipped')
 
-            if (dError) {
-                console.error('[DocumentsPage] Error fetching documents:', dError);
-                throw dError;
-            }
+            if (dError) throw dError
 
-            console.log(`[DocumentsPage] Found ${dData?.length || 0} existing documents`);
-
-            // 3. Simular requisitos baseados no tipo de caso (Normalmente viria de uma tabela de config)
+            // 3. Obter requisitos baseados no tipo de caso
             const requirements = getRequirementsForType(cData.case_type)
 
+            // 4. Mapear requisitos para documentos
             const mergedDocs = requirements.map(req => {
-                // Ajustado para 'document_type' para dar match com o banco
-                const existing = dData?.find(d => d.document_type === req.category)
+                const categoryDocs = dData?.filter(d => d.document_type === req.category) || []
                 return {
                     ...req,
-                    id: existing?.id || req.category,
-                    status: (existing?.status as DocumentStatus) || 'pending',
-                    file_url: existing?.file_path, // Seria gerado signed URL no mundo real
-                    rejection_reason: existing?.rejection_reason,
-                    ai_processed: existing?.metadata?.ai_extraction_complete || false
+                    documents: categoryDocs.map(d => ({
+                        id: d.id,
+                        file_name: d.file_name,
+                        status: d.extraction_status === 'completed' ? 'approved' : 'uploaded', // Simplificação para a UI antiga
+                        file_path: d.file_path,
+                        metadata: d.metadata
+                    }))
                 }
             })
 
             setDocs(mergedDocs)
         } catch (err: any) {
-            // Mais detalhe no log para não vir apenas {}
-            const errorMsg = err?.message || err?.details || JSON.stringify(err);
-            console.error('Error fetching docs:', errorMsg);
+            console.error('Error fetching docs:', err.message);
         } finally {
             setLoading(false)
         }
@@ -107,7 +92,7 @@ export default function ClientDocumentsChecklist() {
             .channel(`docs-${caseId}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'case_documents', filter: `case_id=eq.${caseId}` },
+                { event: '*', schema: 'public', table: 'client_documents' },
                 () => fetchDocuments()
             )
             .subscribe()
@@ -115,6 +100,7 @@ export default function ClientDocumentsChecklist() {
         return () => {
             supabase.removeChannel(channel)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caseId])
 
     const openGuide = (category: string) => {
@@ -122,9 +108,9 @@ export default function ClientDocumentsChecklist() {
         setGuideOpen(true)
     }
 
-    const totalDocs = docs.length
-    const completedDocs = docs.filter(d => d.status === 'uploaded' || d.status === 'under_review' || d.status === 'approved').length
-    const progress = (completedDocs / totalDocs) * 100
+    const totalCategories = docs.length
+    const completedCategories = docs.filter(d => d.documents.some(doc => doc.status === 'approved')).length
+    const progress = totalCategories > 0 ? (completedCategories / totalCategories) * 100 : 0
 
     if (loading) return (
         <div className="min-h-screen bg-[#0A0E17] flex items-center justify-center">
@@ -151,7 +137,7 @@ export default function ClientDocumentsChecklist() {
                     <h1 className="text-sm font-black uppercase tracking-widest" style={{ color: COLORS.text }}>Checklist</h1>
                     <p className="text-[10px] font-bold text-dim">{caseData?.case_type}</p>
                 </div>
-                <div className="w-9 h-9" /> {/* Spacer */}
+                <div className="w-9 h-9" />
             </header>
 
             {/* Progress Card */}
@@ -167,7 +153,7 @@ export default function ClientDocumentsChecklist() {
                                 Progresso do Envio
                             </span>
                             <h2 className="text-3xl font-black text-white">
-                                {completedDocs}<span className="text-lime-500">/{totalDocs}</span>
+                                {completedCategories}<span className="text-lime-500">/{totalCategories}</span>
                             </h2>
                         </div>
                         <div className="text-right">
@@ -211,8 +197,10 @@ export default function ClientDocumentsChecklist() {
                             className="space-y-2"
                         >
                             <DocumentCard
-                                {...doc}
                                 caseId={caseId as string}
+                                category={doc.category}
+                                label={doc.label}
+                                documents={doc.documents}
                                 onUpdate={fetchDocuments}
                             />
                             <button
@@ -246,7 +234,6 @@ export default function ClientDocumentsChecklist() {
 }
 
 function getRequirementsForType(type: string) {
-    // Mock de requisitos por tipo de caso
     const base = [
         { category: 'passport', label: 'Passaporte (Página de Dados)' },
         { category: 'birth_certificate', label: 'Certidão de Nascimento' },
@@ -255,9 +242,9 @@ function getRequirementsForType(type: string) {
     if (type?.includes('I-485')) {
         return [
             ...base,
-            { category: 'i94_record', label: 'Registro de Entrada I-94' },
+            { category: 'i94', label: 'Registro de Entrada I-94' },
             { category: 'visa_copy', label: 'Cópia do Visto Atual' },
-            { category: 'photo_2x2', label: 'Foto 2x2 (Fundo Branco)' },
+            { category: 'passport_photos', label: 'Foto 2x2 (Fundo Branco)' },
             { category: 'marriage_certificate', label: 'Certidão de Casamento' },
             { category: 'tax_return', label: 'Declaração de Imposto (IRS)' }
         ]

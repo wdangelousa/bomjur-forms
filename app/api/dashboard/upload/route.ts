@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
         const caseId = formData.get('caseId') as string
         const category = formData.get('category') as string
         const userId = formData.get('clientId') as string | null
+        const relationship = (formData.get('relationship') as string | null) ?? 'Requerente Principal'
 
         if (!file || !caseId || !category) {
             return NextResponse.json({ error: 'Parâmetros ausentes' }, { status: 400 })
@@ -45,25 +46,34 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `Storage: ${msg}` }, { status: 500 })
         }
 
-        // 2. Upsert into case_documents (case tracking)
-        const { error: caseDocErr } = await supabaseAdmin
+        // 2. Upsert into case_documents apenas se ainda não estiver aprovado
+        const { data: existingCaseDoc } = await supabaseAdmin
             .from('case_documents')
-            .upsert({
-                case_id: caseId,
-                document_type: documentType,
-                version: 1,
-                file_path: storageData.path,
-                file_name: file.name,
-                file_size: file.size,
-                mime_type: file.type,
-                status: 'uploaded',
-                uploaded_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'case_id,document_type,version' })
+            .select('status')
+            .eq('case_id', caseId)
+            .eq('document_type', documentType)
+            .eq('version', 1)
+            .single()
 
-        if (caseDocErr) {
-            console.error('[Dashboard Upload] case_documents error:', caseDocErr.message)
-            // Non-fatal — continue with extraction
+        if (existingCaseDoc?.status !== 'approved') {
+            const { error: caseDocErr } = await supabaseAdmin
+                .from('case_documents')
+                .upsert({
+                    case_id: caseId,
+                    document_type: documentType,
+                    version: 1,
+                    file_path: storageData.path,
+                    file_name: file.name,
+                    file_size: file.size,
+                    mime_type: file.type,
+                    status: 'uploaded',
+                    uploaded_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'case_id,document_type,version' })
+
+            if (caseDocErr) {
+                console.error('[Dashboard Upload] case_documents error:', caseDocErr.message)
+            }
         }
 
         // 3. Insert into client_documents to trigger extraction pipeline
@@ -79,8 +89,12 @@ export async function POST(req: NextRequest) {
             mime_type: file.type,
             extraction_status: 'processing',
             document_type: category,
+            metadata: { relationship },
         }
-        if (userId) insertPayload.uploaded_by = userId
+        if (userId) {
+            insertPayload.client_id = userId
+            insertPayload.uploaded_by = userId
+        }
 
         const { data: clientDoc, error: clientDocErr } = await supabaseAdmin
             .from('client_documents')

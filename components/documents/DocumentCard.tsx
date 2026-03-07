@@ -1,4 +1,4 @@
-// Substitua todo o código por...
+Substitua todo o código por...
 'use client'
 
 import React, { useState } from 'react'
@@ -15,202 +15,176 @@ import {
     XCircle,
     RotateCcw,
     Trash2,
-    RefreshCw
+    RefreshCw,
+    PlusCircle
 } from 'lucide-react'
 import { COLORS } from '@/lib/design-system'
 import { createClient } from '@/lib/supabase/client'
 import DocumentUpload from './DocumentUpload'
+import Link from 'next/link'
 
 export type DocumentStatus = 'pending' | 'uploaded' | 'under_review' | 'approved' | 'rejected'
 
+interface DocumentItem {
+    id: string
+    file_name: string
+    status: DocumentStatus
+    file_path?: string
+    file_url?: string
+    rejection_reason?: string
+    metadata?: any
+}
+
 interface DocumentCardProps {
     caseId: string
-    id: string // Identificador único na tabela case_documents
     category: string
     label: string
-    status: DocumentStatus
-    fileUrl?: string
-    rejectionReason?: string
-    aiProcessed?: boolean
+    documents: DocumentItem[]
     onUpdate?: () => void
+}
+
+const RELATIONSHIP_BADGE: Record<string, string> = {
+    'Requerente Principal': 'bg-sky-100 text-sky-700',
+    'Cônjuge': 'bg-violet-100 text-violet-700',
+    'Filho(a)': 'bg-emerald-100 text-emerald-700',
+    'Outro': 'bg-slate-100 text-slate-600',
 }
 
 export default function DocumentCard({
     caseId,
-    id,
     category,
     label,
-    status,
-    fileUrl,
-    rejectionReason,
-    aiProcessed,
+    documents,
     onUpdate
 }: DocumentCardProps) {
     const [isUploadOpen, setIsUploadOpen] = useState(false)
-    const [isRemoving, setIsRemoving] = useState(false)
+    const [isRemoving, setIsRemoving] = useState(null as string | null)
     const supabase = createClient()
 
-    const statusConfig = {
-        pending: {
-            label: 'Pendente',
-            icon: <Clock className="w-3.5 h-3.5" />,
-            color: COLORS.textDim,
-            bg: 'bg-slate-100'
-        },
-        uploaded: {
-            label: 'Enviado',
-            icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-            color: COLORS.primary,
-            bg: 'bg-blue-50'
-        },
-        under_review: {
-            label: 'Em Revisão',
-            icon: <LoaderIcon />,
-            color: COLORS.accent,
-            bg: 'bg-sky-50'
-        },
-        approved: {
-            label: 'Aprovado',
-            icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-            color: COLORS.success,
-            bg: 'bg-emerald-50'
-        },
-        rejected: {
-            label: 'Rejeitado',
-            icon: <XCircle className="w-3.5 h-3.5" />,
-            color: COLORS.danger,
-            bg: 'bg-red-50'
-        }
-    }
+    const hasDocuments = documents.length > 0
+    const isCategoryApproved = documents.length > 0 && documents.some(d => d.status === 'approved')
 
-    const currentStatus = statusConfig[status]
+    const handleRemove = async (docId: string, filePath?: string) => {
+        if (!window.confirm('Tem certeza que deseja remover este documento?')) return
 
-    const handleRemove = async () => {
-        if (!window.confirm('Tem certeza que deseja remover este documento? Esta ação não pode ser desfeita.')) return
-
-        setIsRemoving(true)
+        setIsRemoving(docId)
         try {
-            // Se o status não for pendente, id é o UUID do documento na tabela case_documents
-            if (status !== 'pending') {
-                // 1. Remover do Storage (fileUrl contém o path conforme page.tsx)
-                if (fileUrl) {
-                    await supabase.storage.from('documents').remove([fileUrl])
-                }
-
-                // 2. Remover da tabela case_documents
-                const { error } = await supabase
-                    .from('case_documents')
-                    .delete()
-                    .eq('id', id)
-
-                if (error) throw error
+            if (filePath) {
+                await supabase.storage.from('documents').remove([filePath])
             }
 
-            // 3. Atualizar UI
+            const { error } = await supabase
+                .from('client_documents')
+                .delete()
+                .eq('id', docId)
+
+            if (error) throw error
+
             if (onUpdate) onUpdate()
         } catch (err) {
             console.error('[DocumentCard] Error removing document:', err)
-            alert('Erro ao remover documento. Tente novamente.')
+            alert('Erro ao remover documento.')
         } finally {
-            setIsRemoving(false)
+            setIsRemoving(null)
         }
     }
 
     return (
-        <div
-            className={`group relative p-4 rounded-2xl border bg-white transition-all hover:bg-slate-50 shadow-sm ${status === 'rejected' ? 'border-red-200' : 'border-slate-200'}`}
-        >
-            <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    {/* Icon / Thumbnail */}
-                    <div className="relative w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
-                        {fileUrl && (status === 'uploaded' || status === 'approved') ? (
-                            <img src={fileUrl} alt={label} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-                        ) : (
-                            <FileText className="w-6 h-6 text-dim" />
-                        )}
-
-                        {aiProcessed && (status === 'uploaded' || status === 'approved') && (
-                            <div className="absolute -top-1 -right-1 p-1 rounded-full bg-sky-500 shadow-sm">
-                                <Sparkles className="w-2.5 h-2.5 text-white" />
-                            </div>
-                        )}
+        <div className={`group relative p-6 rounded-[2rem] border bg-white transition-all shadow-sm ${isCategoryApproved ? 'border-emerald-100 bg-emerald-50/20' : 'border-slate-200'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                <div className="flex items-start gap-5 flex-1 min-w-0">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${isCategoryApproved ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                        <FileText className="w-6 h-6" />
                     </div>
-
-                    <div className="space-y-1">
-                        <h4 className="text-sm font-bold" style={{ color: COLORS.text }}>{label}</h4>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${currentStatus.bg}`} style={{ color: currentStatus.color }}>
-                                {currentStatus.icon}
-                                {currentStatus.label}
-                            </span>
-
-                            {aiProcessed && (status === 'uploaded' || status === 'approved') && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-600 uppercase tracking-tighter">
-                                    <Sparkles className="w-2.5 h-2.5" />
-                                    Extraído por IA
-                                </span>
-                            )}
-
-                            {/* Ghost Button para Substituir/Remover */}
-                            {status !== 'pending' && (
-                                <button
-                                    onClick={handleRemove}
-                                    disabled={isRemoving}
-                                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer group/btn disabled:opacity-50"
-                                >
-                                    {isRemoving ? (
-                                        <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="w-2.5 h-2.5" />
-                                    )}
-                                    Substituir
-                                </button>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                            <h3 className="font-black text-slate-900 tracking-tight">{label}</h3>
+                            {isCategoryApproved && (
+                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">Aprovado</span>
+                                </div>
                             )}
                         </div>
+                        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                            Requisito: {label}
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-2">
-                    {status === 'pending' || status === 'rejected' ? (
-                        <button
-                            onClick={() => setIsUploadOpen(true)}
-                            className="p-2 rounded-xl bg-sky-500 text-white shadow-sm transition-all active:scale-95"
-                        >
-                            {status === 'rejected' ? <RotateCcw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => fileUrl && window.open(fileUrl, '_blank')}
-                            className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-900 transition-all"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
-                    )}
+                <div className="flex flex-col items-end gap-3 self-end sm:self-start shrink-0">
+                    <button
+                        onClick={() => setIsUploadOpen(true)}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm ${hasDocuments
+                                ? 'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
+                                : 'bg-slate-900 text-white hover:bg-sky-600'
+                            }`}
+                    >
+                        {hasDocuments ? <><PlusCircle className="w-4 h-4" />Adicionar outro</> : <><Upload className="w-4 h-4" />Enviar Documento</>}
+                    </button>
                 </div>
             </div>
 
-            {/* Rejection Feedback */}
-            <AnimatePresence>
-                {status === 'rejected' && rejectionReason && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden mt-3"
-                    >
-                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
-                            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                            <p className="text-xs font-medium text-red-600 leading-relaxed">
-                                <span className="font-bold block mb-1">Motivo da Rejeição:</span>
-                                {rejectionReason}
-                            </p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* List of Documents (1:N) */}
+            {hasDocuments && (
+                <div className="mt-6 space-y-2 border-t border-slate-100 pt-5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">
+                        Arquivos Enviados ({documents.length})
+                    </p>
+                    <div className="grid gap-2">
+                        {documents.map(doc => {
+                            const relationship = doc.metadata?.relationship ?? 'Requerente Principal'
+                            return (
+                                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
+                                        <FileText className="w-4 h-4 text-slate-400" />
+                                    </div>
 
-            {/* Upload Modal Overlay */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-slate-700 font-bold truncate">{doc.file_name}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${RELATIONSHIP_BADGE[relationship] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                {relationship}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {doc.status === 'approved' ? (
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                                                <CheckCircle2 className="w-3 h-3" />
+                                                <span className="text-[9px] font-black uppercase tracking-wider">Aprovado</span>
+                                            </div>
+                                        ) : doc.status === 'rejected' ? (
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
+                                                <AlertCircle className="w-3 h-3" />
+                                                <span className="text-[9px] font-black uppercase tracking-wider">Rejeitado</span>
+                                            </div>
+                                        ) : (
+                                            <Link
+                                                href={`/upload/review/${doc.id}`}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors"
+                                            >
+                                                <span className="text-[9px] font-black uppercase tracking-wider">Revisar</span>
+                                                <ChevronRight className="w-3 h-3" />
+                                            </Link>
+                                        )}
+
+                                        <button
+                                            onClick={() => handleRemove(doc.id, doc.file_path)}
+                                            disabled={isRemoving === doc.id}
+                                            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                                        >
+                                            {isRemoving === doc.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
             <AnimatePresence>
                 {isUploadOpen && (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-sm">
@@ -222,7 +196,7 @@ export default function DocumentCard({
                         >
                             <button
                                 onClick={() => setIsUploadOpen(false)}
-                                className="absolute -top-12 right-0 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                                className="absolute -top-12 right-0 p-2 text-white/50 hover:text-white transition-colors"
                             >
                                 <XCircle className="w-8 h-8" />
                             </button>
@@ -232,7 +206,6 @@ export default function DocumentCard({
                                 category={category}
                                 label={label}
                                 onComplete={() => {
-                                    console.log(`[DocumentCard] Upload complete for ${label}`);
                                     setIsUploadOpen(false)
                                     if (onUpdate) onUpdate()
                                 }}
@@ -242,14 +215,5 @@ export default function DocumentCard({
                 )}
             </AnimatePresence>
         </div>
-    )
-}
-
-function LoaderIcon() {
-    return (
-        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
     )
 }
