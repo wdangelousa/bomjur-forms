@@ -36,7 +36,6 @@ export default function DocumentHubPage() {
             setLoading(true)
             setErrorMsg(null)
 
-            // 1. SESSION FIRST: Garantir que a sessão está pronta
             const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
             if (sessionError) {
@@ -52,7 +51,6 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
-            // 2. SIMPLE QUERY: Filtro estritamente por user_id
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
@@ -123,7 +121,6 @@ export default function DocumentHubPage() {
         try {
             setDeletingId(docId)
 
-            // DELETE ACTION: Banco + Storage
             const { error: dbError } = await supabase
                 .from('client_documents')
                 .delete()
@@ -158,20 +155,17 @@ export default function DocumentHubPage() {
         }
     }
 
-    // DETECTIVE CATEGORY MAPPING
     const getDocCategory = (doc: any) => {
         const category = doc.category || doc.metadata?.category || 'Geral'
         return category.replace(/_/g, ' ')
     }
 
-    // DETECTIVE STATUS MAPPING
     const isDocVerified = (doc: any) => {
         const status = (doc.status || doc.extraction_status || '').toLowerCase()
         const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado']
         return verifiedStates.includes(status)
     }
 
-    // UI: Relationship Tag
     const getRelationshipTag = (doc: any) => {
         return doc.metadata?.relationship || null
     }
@@ -249,6 +243,7 @@ export default function DocumentHubPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
                 >
+                    {/* UI REFACTOR: added overflow-x-auto for mobile safety */}
                     <div className="overflow-x-auto">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-24">
@@ -256,14 +251,16 @@ export default function DocumentHubPage() {
                                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sincronizando Cofre...</p>
                             </div>
                         ) : (
-                            <table className="w-full text-left border-collapse">
+                            /* UI REFACTOR: applied table-fixed and w-full */
+                            <table className="w-full table-fixed text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50/50 border-b border-slate-100">
-                                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Ficheiro</th>
-                                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria</th>
-                                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Envio</th>
-                                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                                        {/* UI REFACTOR: Percentage widths assigned */}
+                                        <th className="w-2/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Ficheiro</th>
+                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria</th>
+                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Envio</th>
+                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -281,11 +278,14 @@ export default function DocumentHubPage() {
                                             >
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
+                                                        <div className="flex-shrink-0 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
                                                             <FileText className="w-5 h-5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
+                                                        {/* UI REFACTOR: Truncate applied to document name */}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]" title={doc.file_name}>
+                                                                {doc.file_name}
+                                                            </p>
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">PDF</p>
                                                                 {relationship && (
@@ -302,28 +302,28 @@ export default function DocumentHubPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5">
-                                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
+                                                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50 truncate max-w-full">
                                                         {getDocCategory(doc)}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5">
-                                                    <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
+                                                    <p className="text-xs font-bold text-slate-600 truncate">{formatDocDate(doc.created_at)}</p>
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     {isVerified ? (
-                                                        <div className="flex items-center gap-2 text-emerald-600">
-                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        <div className="flex items-center gap-2 text-emerald-600 truncate">
+                                                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                                                             <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 text-orange-500">
-                                                            <Clock className="w-4 h-4" />
-                                                            <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
+                                                        <div className="flex items-center gap-2 text-orange-500 truncate">
+                                                            <Clock className="w-4 h-4 flex-shrink-0" />
+                                                            <span className="text-[11px] font-black uppercase tracking-widest text-nowrap">Em Análise</span>
                                                         </div>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-5 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                    <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             onClick={() => handleView(doc.file_path)}
                                                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
