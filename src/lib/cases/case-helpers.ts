@@ -30,6 +30,27 @@ export function calculateProgress(documents: { status: DocumentStatus; is_requir
   }
 }
 
+/**
+ * Novo cálculo baseado em categorias finalizadas (status 'approved' na case_documents)
+ */
+export function calculateCategoryProgress(caseDocuments: { status: string; is_required: boolean }[]): CaseProgress {
+  const required = caseDocuments.filter(d => d.is_required)
+  const total = required.length
+  const approved = required.filter(d => d.status === 'approved').length
+  const inReview = required.filter(d => d.status === 'in_review').length
+  const pending = required.filter(d => d.status === 'pending').length
+
+  return {
+    total,
+    approved,
+    uploaded: 0, // Ignorado no novo fluxo
+    inReview,
+    rejected: 0, // Ignorado no novo fluxo
+    pending,
+    percentage: total > 0 ? Math.round((approved / total) * 100) : 0,
+  }
+}
+
 const statusLabels: Record<CaseStatus, { pt: string; en: string }> = {
   pending_onboarding: { pt: 'Aguardando Onboarding', en: 'Pending Onboarding' },
   in_progress: { pt: 'Em Andamento', en: 'In Progress' },

@@ -24,6 +24,7 @@ export default function AdminDashboard() {
         totalCases: 0,
         totalAgencies: 0,
         finishedCases: 0,
+        averageProgress: 0
     })
     const [agencies, setAgencies] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -38,15 +39,17 @@ export default function AdminDashboard() {
                 .from('tenants')
                 .select('*', { count: 'exact' })
 
-            // 2. All Cases to calculate metrics and map to agencies
+            // 2. All Cases with document status to calculate progress
             const { data: casesData } = await supabase
                 .from('cases')
-                .select('*')
+                .select('*, case_documents(status)')
 
             const totalAgencies = tenantsCount || 0
 
             let totalCases = 0
             let finishedCases = 0
+            let sumProgress = 0
+            let casesWithCategories = 0
 
             const agencyMap = new Map()
 
@@ -65,6 +68,7 @@ export default function AdminDashboard() {
                 finishedCases = casesData.filter(c => c.status === 'complete').length
 
                 casesData.forEach(c => {
+                    // Update agency map
                     if (c.tenant_id && agencyMap.has(c.tenant_id)) {
                         const agency = agencyMap.get(c.tenant_id)
                         agency.activeClients += 1
@@ -72,13 +76,24 @@ export default function AdminDashboard() {
                             agency.completedCases += 1
                         }
                     }
+
+                    // Calculate progress for this case
+                    const docs = (c as any).case_documents || []
+                    if (docs.length > 0) {
+                        const approved = docs.filter((d: any) => d.status === 'approved').length
+                        sumProgress += (approved / docs.length) * 100
+                        casesWithCategories++
+                    }
                 })
             }
+
+            const averageProgress = casesWithCategories > 0 ? Math.round(sumProgress / casesWithCategories) : 0
 
             setKpis({
                 totalCases,
                 totalAgencies,
-                finishedCases
+                finishedCases,
+                averageProgress
             })
 
             // Convert to array and sort by active clients
@@ -127,7 +142,7 @@ export default function AdminDashboard() {
                 </header>
 
                 {/* KPI Cards */}
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <KPICard
                         title="Total de Processos"
                         value={kpis.totalCases}
@@ -143,6 +158,14 @@ export default function AdminDashboard() {
                         trend="Estável"
                         color="#a855f7"
                         bgColor="bg-purple-50"
+                    />
+                    <KPICard
+                        title="Média de Progresso"
+                        value={`${kpis.averageProgress}%`}
+                        icon={<TrendingUp className="w-5 h-5 text-amber-500" />}
+                        trend="Em curso"
+                        color="#f59e0b"
+                        bgColor="bg-amber-50"
                     />
                     <KPICard
                         title="Processos Finalizados"

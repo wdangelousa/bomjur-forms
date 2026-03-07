@@ -65,6 +65,21 @@ export interface CaseDocument {
   updated_at: string
 }
 
+export interface ClientDocument {
+  id: string
+  case_id: string
+  category: string
+  file_name: string
+  file_url: string
+  file_path: string
+  extraction_status: string
+  metadata: {
+    relationship?: string
+    [key: string]: any
+  }
+  created_at: string
+}
+
 export interface ClientProgress {
   id: string
   user_id: string

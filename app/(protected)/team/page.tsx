@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { calculateProgress, getCaseStatusLabel } from '@/lib/cases/case-helpers'
+import { calculateCategoryProgress, getCaseStatusLabel } from '@/lib/cases/case-helpers'
 import CreateCaseModal from '@/components/team/CreateCaseModal'
 import type { Case, Profile, CaseDocument, CaseStatus, CaseType } from '@/types'
 import {
@@ -205,7 +205,7 @@ export default function TeamPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filtered.map((c, idx) => {
               const client = c.profiles as any as Profile
-              const progress = calculateProgress(c.case_documents || [])
+              const progress = calculateCategoryProgress(c.case_documents || [])
 
               return (
                 <motion.div
@@ -234,15 +234,15 @@ export default function TeamPage() {
                           <CheckCircle2 size={12} />
                           <span className="text-[10px] font-black uppercase tracking-wider">Pronto</span>
                         </div>
-                      ) : progress.percentage > 0 ? (
+                      ) : progress.inReview > 0 ? (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
                           <Clock size={12} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">Revisão</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider">Pendente Finalização</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full border border-slate-200">
                           <AlertCircle size={12} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">Pendente</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider">Em Aberto</span>
                         </div>
                       )}
                     </div>
@@ -251,7 +251,7 @@ export default function TeamPage() {
                   {/* Progress Indicator (Mirrored from Client) */}
                   <div className="mb-8">
                     <div className="flex justify-between text-[10px] font-black mb-2 uppercase tracking-widest">
-                      <span className="text-slate-400">{progress.approved}/{progress.total} Documentos</span>
+                      <span className="text-slate-400">{progress.approved}/{progress.total} CATEGORIAS CONCLUÍDAS</span>
                       <span className="text-sky-500">{progress.percentage}%</span>
                     </div>
                     <div className="h-3 w-full bg-slate-100 rounded-2xl overflow-hidden p-0.5 border border-white shadow-inner">
