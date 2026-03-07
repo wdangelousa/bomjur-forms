@@ -1,5 +1,3 @@
-Substitua todo o código por...
-
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -15,10 +13,13 @@ import {
     MoreHorizontal,
     FilePlus,
     Archive,
-    AlertCircle
+    AlertCircle,
+    Loader2
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function DocumentHubPage() {
     const supabase = createClient()
@@ -51,12 +52,13 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
-            // 2. Fetch all documents for this specific user using 'uploaded_by'
-            // NOTE: 'case_id' column was removed from query as it does not exist in schema
+            // 2. Fetch all documents for this specific user
+            // FIX: Removed 'case_id' as it does not exist in the schema.
+            // Using 'client_id' which maps to the user ID in the public.client_documents table.
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
-                .eq('uploaded_by', userId) // Using uploaded_by as it's the standard user reference in this table
+                .eq('client_id', userId)
                 .order('created_at', { ascending: false })
 
             if (error) {
@@ -77,7 +79,7 @@ export default function DocumentHubPage() {
         fetchDocuments()
     }, [])
 
-    const handleViewDocument = async (filePath: string) => {
+    const handleView = async (filePath: string) => {
         try {
             const { data, error } = await supabase.storage
                 .from('documents')
@@ -93,7 +95,7 @@ export default function DocumentHubPage() {
         }
     }
 
-    const handleDownloadDocument = async (filePath: string, fileName: string) => {
+    const handleDownload = async (filePath: string, fileName: string) => {
         try {
             const { data, error } = await supabase.storage
                 .from('documents')
@@ -108,6 +110,7 @@ export default function DocumentHubPage() {
                 document.body.appendChild(link)
                 link.click()
                 link.parentNode?.removeChild(link)
+                window.URL.revokeObjectURL(url)
             }
         } catch (err: any) {
             console.error('Error downloading document:', err.message || err)
@@ -121,15 +124,13 @@ export default function DocumentHubPage() {
         (doc.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     )
 
-    const formatDate = (dateStr: string) => {
+    const formatDocDate = (dateStr: string) => {
         if (!dateStr) return 'N/A'
-        return new Date(dateStr).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
+        try {
+            return format(new Date(dateStr), 'dd/MM/yyyy HH:mm', { locale: ptBR })
+        } catch (e) {
+            return 'Data inválida'
+        }
     }
 
     return (
@@ -161,12 +162,19 @@ export default function DocumentHubPage() {
 
             <main className="max-w-6xl mx-auto px-8 mt-10">
                 {/* ── Error Feedback ── */}
-                {errorMsg && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 text-sm font-medium animate-in fade-in slide-in-from-top-2">
-                        <AlertCircle className="w-5 h-5 text-red-500" />
-                        {errorMsg}
-                    </div>
-                )}
+                <AnimatePresence>
+                    {errorMsg && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 text-sm font-medium"
+                        >
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                            {errorMsg}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* ── Search & Filter Controls ── */}
                 <div className="mb-6 flex flex-col md:flex-row gap-4">
@@ -194,8 +202,9 @@ export default function DocumentHubPage() {
                 >
                     <div className="overflow-x-auto">
                         {loading ? (
-                            <div className="flex items-center justify-center py-20">
-                                <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="flex flex-col items-center justify-center py-24">
+                                <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+                                <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Carregando Cofre...</p>
                             </div>
                         ) : (
                             <table className="w-full text-left border-collapse">
@@ -223,43 +232,43 @@ export default function DocumentHubPage() {
                                                         <FileText className="w-5 h-5" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-slate-900">{doc.file_name}</p>
+                                                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
                                                         <p className="text-[10px] font-bold text-slate-400">PDF</p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
-                                                    {doc.category || 'Geral'}
+                                                    {doc.category?.replace('_', ' ') || 'Geral'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <p className="text-xs font-bold text-slate-600">{formatDate(doc.created_at)}</p>
+                                                <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
                                             </td>
                                             <td className="px-6 py-5">
                                                 {doc.extraction_status === 'approved' ? (
                                                     <div className="flex items-center gap-2 text-emerald-600">
                                                         <CheckCircle2 className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Processado</span>
+                                                        <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center gap-2 text-amber-500">
+                                                    <div className="flex items-center gap-2 text-orange-500">
                                                         <Clock className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Em Revisão</span>
+                                                        <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-5 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button
-                                                        onClick={() => handleViewDocument(doc.file_path)}
+                                                        onClick={() => handleView(doc.file_path)}
                                                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                                         title="Visualizar"
                                                     >
                                                         <Eye className="w-4 h-4" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDownloadDocument(doc.file_path, doc.file_name)}
+                                                        onClick={() => handleDownload(doc.file_path, doc.file_name)}
                                                         className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                                                         title="Download"
                                                     >
