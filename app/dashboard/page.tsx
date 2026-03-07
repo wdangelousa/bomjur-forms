@@ -1,4 +1,3 @@
-Substitua todo o código por...
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -350,8 +349,8 @@ export default function IntelligentChecklistDashboard() {
                     key={opt}
                     onClick={() => setSelectedRelationship(opt)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-bold transition-all ${selectedRelationship === opt
-                        ? 'bg-sky-50 border-sky-400 text-sky-700'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      ? 'bg-sky-50 border-sky-400 text-sky-700'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                   >
                     <UserCircle2 className={`w-4 h-4 ${selectedRelationship === opt ? 'text-sky-500' : 'text-slate-400'}`} />
@@ -495,8 +494,8 @@ export default function IntelligentChecklistDashboard() {
                       <button
                         onClick={() => openRelationshipPicker(item.id, item.category)}
                         className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm ${hasDocuments
-                            ? 'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
-                            : 'bg-slate-900 text-white hover:bg-sky-600 hover:shadow-sky-500/20'
+                          ? 'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
+                          : 'bg-slate-900 text-white hover:bg-sky-600 hover:shadow-sky-500/20'
                           }`}
                       >
                         {hasDocuments ? <><PlusCircle className="w-4 h-4" />Adicionar outro</> : <><Upload className="w-4 h-4" />Enviar Documento</>}
@@ -545,7 +544,7 @@ export default function IntelligentChecklistDashboard() {
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors group/link"
                               >
                                 <span className="text-[9px] font-black uppercase tracking-wider">Revisar Extração</span>
-                                <ChevronRight className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5" />
+                                <ChevronRightIcon className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5" />
                               </Link>
                             )}
                           </div>

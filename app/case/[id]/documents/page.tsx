@@ -1,4 +1,3 @@
-Substitua todo o código por...
 'use client'
 
 import React, { useState, useEffect } from 'react'

@@ -1,4 +1,3 @@
-Substitua todo o código por...
 'use client'
 
 import React, { useState } from 'react'
@@ -116,8 +115,8 @@ export default function DocumentCard({
                     <button
                         onClick={() => setIsUploadOpen(true)}
                         className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm ${hasDocuments
-                                ? 'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
-                                : 'bg-slate-900 text-white hover:bg-sky-600'
+                            ? 'bg-white border border-slate-200 text-slate-900 hover:bg-slate-50'
+                            : 'bg-slate-900 text-white hover:bg-sky-600'
                             }`}
                     >
                         {hasDocuments ? <><PlusCircle className="w-4 h-4" />Adicionar outro</> : <><Upload className="w-4 h-4" />Enviar Documento</>}
