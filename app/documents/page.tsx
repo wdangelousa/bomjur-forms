@@ -1,3 +1,5 @@
+Substitua todo o código por...
+
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -49,40 +51,12 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
-            // 2. Get the current active case for this client
-            const { data: caseData, error: caseError } = await supabase
-                .from('cases')
-                .select('id')
-                .eq('client_id', userId)
-                .neq('status', 'archived')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single()
-
-            if (caseError) {
-                console.error('DocumentHub: Error fetching case:', caseError.message || caseError)
-                // PGRST116 means no rows returned
-                if (caseError.code !== 'PGRST116') {
-                    setErrorMsg('Não foi possível localizar seu caso ativo.')
-                }
-                setDocuments([])
-                setLoading(false)
-                return
-            }
-
-            if (!caseData?.id) {
-                console.warn('DocumentHub: No active case found for user')
-                setDocuments([])
-                setLoading(false)
-                return
-            }
-
-            // 3. Fetch all documents for this specific case with explicit user filtering
+            // 2. Fetch all documents for this specific user using 'uploaded_by'
+            // NOTE: 'case_id' column was removed from query as it does not exist in schema
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
-                .eq('case_id', caseData.id)
-                .eq('uploaded_by', userId)
+                .eq('uploaded_by', userId) // Using uploaded_by as it's the standard user reference in this table
                 .order('created_at', { ascending: false })
 
             if (error) {
@@ -113,8 +87,8 @@ export default function DocumentHubPage() {
             if (data?.signedUrl) {
                 window.open(data.signedUrl, '_blank')
             }
-        } catch (err) {
-            console.error('Error viewing document:', err)
+        } catch (err: any) {
+            console.error('Error viewing document:', err.message || err)
             alert('Erro ao visualizar documento.')
         }
     }
@@ -135,19 +109,20 @@ export default function DocumentHubPage() {
                 link.click()
                 link.parentNode?.removeChild(link)
             }
-        } catch (err) {
-            console.error('Error downloading document:', err)
+        } catch (err: any) {
+            console.error('Error downloading document:', err.message || err)
             alert('Erro ao baixar documento.')
         }
     }
 
     // Filter Logic
     const filteredDocs = documents.filter(doc =>
-        doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.category.toLowerCase().includes(searchTerm.toLowerCase())
+        (doc.file_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (doc.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     )
 
     const formatDate = (dateStr: string) => {
+        if (!dateStr) return 'N/A'
         return new Date(dateStr).toLocaleDateString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
@@ -255,7 +230,7 @@ export default function DocumentHubPage() {
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
-                                                    {doc.category}
+                                                    {doc.category || 'Geral'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
