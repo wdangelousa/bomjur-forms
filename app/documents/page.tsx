@@ -36,6 +36,7 @@ export default function DocumentHubPage() {
             setLoading(true)
             setErrorMsg(null)
 
+            // 1. SESSION FIRST
             const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
             if (sessionError) {
@@ -51,10 +52,11 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
+            // 2. BULLETPROOF QUERY: Filtrando por 'uploaded_by' conforme missão técnica
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('uploaded_by', userId)
                 .order('created_at', { ascending: false })
 
             if (error) {
@@ -66,6 +68,8 @@ export default function DocumentHubPage() {
             setDocuments(data || [])
         } catch (err: any) {
             console.error('DocumentHub: Critical mapping error:', err)
+            // Error feedback visual for debugging
+            setErrorMsg('Erro Crítico: Verifique a conexão ou permissões.')
         } finally {
             setLoading(false)
         }
@@ -121,6 +125,7 @@ export default function DocumentHubPage() {
         try {
             setDeletingId(docId)
 
+            // 3. DELETE ACTION: Dual cleanup
             const { error: dbError } = await supabase
                 .from('client_documents')
                 .delete()
@@ -133,7 +138,7 @@ export default function DocumentHubPage() {
                 .remove([filePath])
 
             if (storageError) {
-                console.warn('Storage removal sync warning:', storageError)
+                console.warn('Storage removal warning:', storageError)
             }
 
             setDocuments(prev => prev.filter(d => d.id !== docId))
@@ -155,11 +160,13 @@ export default function DocumentHubPage() {
         }
     }
 
+    // SAFE CATEGORY MAPPING with optional chaining
     const getDocCategory = (doc: any) => {
         const category = doc.category || doc.metadata?.category || 'Geral'
         return category.replace(/_/g, ' ')
     }
 
+    // BULLETPROOF STATUS MAPPING (inc. CONFIRMADO)
     const isDocVerified = (doc: any) => {
         const status = (doc.status || doc.extraction_status || '').toLowerCase()
         const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado']
@@ -243,7 +250,6 @@ export default function DocumentHubPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
                 >
-                    {/* UI REFACTOR: added overflow-x-auto for mobile safety */}
                     <div className="overflow-x-auto">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-24">
@@ -251,13 +257,12 @@ export default function DocumentHubPage() {
                                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sincronizando Cofre...</p>
                             </div>
                         ) : (
-                            /* UI REFACTOR: applied table-fixed and w-full */
+                            /* 4. UI FIX: table-fixed and forced widths */
                             <table className="w-full table-fixed text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50/50 border-b border-slate-100">
-                                        {/* UI REFACTOR: Percentage widths assigned */}
-                                        <th className="w-2/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Ficheiro</th>
-                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria</th>
+                                        <th className="w-2/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Documento</th>
+                                        <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Categoria</th>
                                         <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Envio</th>
                                         <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                                         <th className="w-1/6 px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
@@ -279,21 +284,21 @@ export default function DocumentHubPage() {
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-4">
                                                         <div className="flex-shrink-0 w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
-                                                            <FileText className="w-5 h-5" />
+                                                            <FileText className="w-5 h-5 text-current" />
                                                         </div>
-                                                        {/* UI REFACTOR: Truncate applied to document name */}
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]" title={doc.file_name}>
+                                                        <div className="min-w-0 flex-1 overflow-hidden">
+                                                            {/* UI FIX: Truncate and tooltips */}
+                                                            <p className="text-sm font-bold text-slate-900 truncate" title={doc.file_name}>
                                                                 {doc.file_name}
                                                             </p>
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">PDF</p>
                                                                 {relationship && (
                                                                     <>
-                                                                        <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                                                                        <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase">
-                                                                            <Users className="w-2.5 h-2.5" />
-                                                                            {relationship}
+                                                                        <span className="w-1 h-1 bg-slate-200 rounded-full flex-shrink-0" />
+                                                                        <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase truncate">
+                                                                            <Users className="w-2.5 h-2.5 flex-shrink-0" />
+                                                                            <span className="truncate" title={relationship}>{relationship}</span>
                                                                         </div>
                                                                     </>
                                                                 )}
@@ -301,24 +306,24 @@ export default function DocumentHubPage() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-5">
-                                                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50 truncate max-w-full">
+                                                <td className="px-6 py-5 text-center">
+                                                    <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50 truncate max-w-full" title={getDocCategory(doc)}>
                                                         {getDocCategory(doc)}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5">
-                                                    <p className="text-xs font-bold text-slate-600 truncate">{formatDocDate(doc.created_at)}</p>
+                                                    <p className="text-xs font-bold text-slate-600 whitespace-nowrap">{formatDocDate(doc.created_at)}</p>
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     {isVerified ? (
-                                                        <div className="flex items-center gap-2 text-emerald-600 truncate">
+                                                        <div className="flex items-center gap-2 text-emerald-600">
                                                             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                                                            <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
+                                                            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">Verificado</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 text-orange-500 truncate">
+                                                        <div className="flex items-center gap-2 text-orange-500">
                                                             <Clock className="w-4 h-4 flex-shrink-0" />
-                                                            <span className="text-[11px] font-black uppercase tracking-widest text-nowrap">Em Análise</span>
+                                                            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">Em Análise</span>
                                                         </div>
                                                     )}
                                                 </td>
