@@ -195,7 +195,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <LanguageToggle lang={lang} onToggle={toggleLang} />
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
               <LogOut size={14} />
               Sair
@@ -258,7 +258,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </a>
               <button
                 onClick={handleLogout}
-                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 hover:border-red-200 hover:bg-red-50 flex items-center justify-center text-slate-500 hover:text-red-600 transition-all shadow-sm"
+                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 hover:border-red-600 hover:bg-red-50 flex items-center justify-center text-slate-500 hover:text-red-600 transition-all shadow-sm"
                 title={lang === 'pt' ? 'Sair' : 'Logout'}
               >
                 <LogOut size={18} />
@@ -292,7 +292,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ))}
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg text-slate-400 min-w-[56px]"
+            className="flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg text-slate-400 min-w-[56px] hover:text-red-600"
           >
             <LogOut size={20} />
             <span className="text-[10px] font-medium">Sair</span>
@@ -302,4 +302,3 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
-
