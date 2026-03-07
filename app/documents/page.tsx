@@ -50,10 +50,11 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
+            // TÉCNICO: Filtro usando 'user_id' conforme solicitado
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
-                .eq('client_id', userId)
+                .eq('user_id', userId)
                 .order('created_at', { ascending: false })
 
             if (error) {
@@ -114,7 +115,7 @@ export default function DocumentHubPage() {
     }
 
     const handleDelete = async (docId: string, filePath: string) => {
-        const confirmed = window.confirm('Deseja realmente excluir este documento?')
+        const confirmed = window.confirm('Tem certeza que deseja apagar este documento permanentemente?')
         if (!confirmed) return
 
         try {
@@ -134,7 +135,7 @@ export default function DocumentHubPage() {
                 .remove([filePath])
 
             if (storageError) {
-                console.warn('Storage removal warning (might have been deleted already):', storageError)
+                console.warn('Storage removal warning:', storageError)
             }
 
             // 3. Update local state
@@ -148,10 +149,11 @@ export default function DocumentHubPage() {
         }
     }
 
-    const filteredDocs = documents.filter(doc =>
-        (doc.file_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (doc.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    )
+    const filteredDocs = documents.filter(doc => {
+        const name = doc.file_name?.toLowerCase() || ''
+        const category = (doc.category || doc.metadata?.category || doc.type || '').toLowerCase()
+        return name.includes(searchTerm.toLowerCase()) || category.includes(searchTerm.toLowerCase())
+    })
 
     const formatDocDate = (dateStr: string) => {
         if (!dateStr) return 'N/A'
@@ -160,6 +162,18 @@ export default function DocumentHubPage() {
         } catch (e) {
             return 'Data inválida'
         }
+    }
+
+    // MAPEAMENTO DE CATEGORIA COM FALLBACKS
+    const getDocCategory = (doc: any) => {
+        return doc.category || doc.metadata?.category || doc.type || 'Geral'
+    }
+
+    // MAPEAMENTO DE STATUS ROBUSTO
+    const isDocVerified = (doc: any) => {
+        const status = (doc.status || doc.extraction_status || '').toLowerCase()
+        const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido']
+        return verifiedStates.includes(status)
     }
 
     return (
@@ -247,84 +261,78 @@ export default function DocumentHubPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredDocs.map((doc, idx) => {
-                                        // User requested sync status logic: Accept 'approved' OR 'confirmed'
-                                        const isVerificado = doc.extraction_status === 'approved' || doc.status === 'approved' || doc.status === 'confirmed';
-
-                                        return (
-                                            <motion.tr
-                                                key={doc.id}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: idx * 0.05 }}
-                                                className="group hover:bg-slate-50/50 transition-colors"
-                                            >
-                                                <td className="px-6 py-5">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
-                                                            <FileText className="w-5 h-5" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
-                                                            <p className="text-[10px] font-bold text-slate-400">PDF</p>
-                                                        </div>
+                                    {filteredDocs.map((doc, idx) => (
+                                        <motion.tr
+                                            key={doc.id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: idx * 0.05 }}
+                                            className="group hover:bg-slate-50/50 transition-colors"
+                                        >
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
+                                                        <FileText className="w-5 h-5" />
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
-                                                        {/* User requested correction: display category from DB with fallback */}
-                                                        {doc.category?.replace('_', ' ') || 'Geral'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    {isVerificado ? (
-                                                        <div className="flex items-center gap-2 text-emerald-600">
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                            <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 text-orange-500">
-                                                            <Clock className="w-4 h-4" />
-                                                            <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-5 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleView(doc.file_path)}
-                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                            title="Visualizar"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDownload(doc.file_path, doc.file_name)}
-                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                            title="Download"
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(doc.id, doc.file_path)}
-                                                            disabled={deletingId === doc.id}
-                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
-                                                            title="Excluir"
-                                                        >
-                                                            {deletingId === doc.id ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                            ) : (
-                                                                <Trash2 className="w-4 h-4" />
-                                                            )}
-                                                        </button>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400">PDF</p>
                                                     </div>
-                                                </td>
-                                            </motion.tr>
-                                        );
-                                    })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
+                                                    {getDocCategory(doc).replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                {isDocVerified(doc) ? (
+                                                    <div className="flex items-center gap-2 text-emerald-600">
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                        <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-orange-500">
+                                                        <Clock className="w-4 h-4" />
+                                                        <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-5 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleView(doc.file_path)}
+                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                        title="Visualizar"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDownload(doc.file_path, doc.file_name)}
+                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                        title="Download"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(doc.id, doc.file_path)}
+                                                        disabled={deletingId === doc.id}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                                                        title="Excluir"
+                                                    >
+                                                        {deletingId === doc.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
 
                                     {filteredDocs.length === 0 && !loading && (
                                         <tr>
