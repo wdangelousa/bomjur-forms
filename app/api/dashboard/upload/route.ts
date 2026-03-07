@@ -46,34 +46,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `Storage: ${msg}` }, { status: 500 })
         }
 
-        // 2. Upsert into case_documents apenas se ainda não estiver aprovado
-        const { data: existingCaseDoc } = await supabaseAdmin
+        // 2. Upsert into case_documents (Sempre reseta para 'uploaded' para forçar revisão do novo arquivo)
+        const { error: caseDocErr } = await supabaseAdmin
             .from('case_documents')
-            .select('status')
-            .eq('case_id', caseId)
-            .eq('document_type', documentType)
-            .eq('version', 1)
-            .single()
+            .upsert({
+                case_id: caseId,
+                document_type: documentType,
+                version: 1,
+                file_path: storageData.path,
+                file_name: file.name,
+                file_size: file.size,
+                mime_type: file.type,
+                status: 'uploaded',
+                uploaded_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'case_id,document_type,version' })
 
-        if (existingCaseDoc?.status !== 'approved') {
-            const { error: caseDocErr } = await supabaseAdmin
-                .from('case_documents')
-                .upsert({
-                    case_id: caseId,
-                    document_type: documentType,
-                    version: 1,
-                    file_path: storageData.path,
-                    file_name: file.name,
-                    file_size: file.size,
-                    mime_type: file.type,
-                    status: 'uploaded',
-                    uploaded_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'case_id,document_type,version' })
-
-            if (caseDocErr) {
-                console.error('[Dashboard Upload] case_documents error:', caseDocErr.message)
-            }
+        if (caseDocErr) {
+            console.error('[Dashboard Upload] case_documents error:', caseDocErr.message)
         }
 
         // 3. Insert into client_documents to trigger extraction pipeline
