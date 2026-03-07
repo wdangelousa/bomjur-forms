@@ -80,7 +80,7 @@ export default function DocumentHubPage() {
     const handleView = async (filePath: string) => {
         try {
             const { data, error } = await supabase.storage
-                .from('documents')
+                .from('bomjur-documents')
                 .createSignedUrl(filePath, 60)
 
             if (error) throw error
@@ -96,7 +96,7 @@ export default function DocumentHubPage() {
     const handleDownload = async (filePath: string, fileName: string) => {
         try {
             const { data, error } = await supabase.storage
-                .from('documents')
+                .from('bomjur-documents')
                 .download(filePath)
 
             if (error) throw error
@@ -131,7 +131,7 @@ export default function DocumentHubPage() {
             if (dbError) throw dbError
 
             const { error: storageError } = await supabase.storage
-                .from('documents')
+                .from('bomjur-documents')
                 .remove([filePath])
 
             if (storageError) {
@@ -249,9 +249,14 @@ export default function DocumentHubPage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredDocs.map((doc, idx) => {
-                                        // 1. Status Mapping Logic (Strict) conforme solicitado
-                                        const rawStatus = (doc.status || '').toLowerCase();
-                                        const isVerified = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado'].includes(rawStatus);
+                                        // Source of truth: DocumentCard.tsx uses extraction_status === 'completed'
+                                        // (set by POST /api/documents/[id] when user clicks "Confirmar Dados")
+                                        // Fallback covers legacy status values from other flows.
+                                        const extractionStatus = (doc.extraction_status || '').toLowerCase()
+                                        const legacyStatus = (doc.status || '').toLowerCase()
+                                        const isVerified =
+                                            extractionStatus === 'completed' ||
+                                            ['approved', 'confirmed', 'verified', 'concluido', 'confirmado'].includes(legacyStatus)
 
                                         // 2. Category & Tag Mapping Logic (Strict) conforme solicitado
                                         const displayCategory = doc.category || doc.metadata?.category || 'GERAL';
