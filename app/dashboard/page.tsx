@@ -185,23 +185,6 @@ export default function IntelligentChecklistDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
-      {/* ── Top Bar ── */}
-      <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 z-40 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <img src="/proexpand-logo.png" alt="Proexpand" className="h-8 w-auto" />
-          <div className="flex items-center gap-6">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              Ambiente Seguro
-            </div>
-            <div className="w-px h-6 bg-slate-200" />
-            <button onClick={handleLogout} title="Sair" className="text-slate-400 hover:text-red-500 transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-3xl mx-auto px-6 pt-10">
         {/* ── Progress Header ── */}
         <header className="mb-12">
