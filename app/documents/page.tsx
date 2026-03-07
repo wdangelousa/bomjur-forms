@@ -15,7 +15,8 @@ import {
     Archive,
     AlertCircle,
     Loader2,
-    Lock
+    Lock,
+    Users
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -35,6 +36,7 @@ export default function DocumentHubPage() {
             setLoading(true)
             setErrorMsg(null)
 
+            // 1. SESSION FIRST: Garantir que a sessão está pronta
             const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
             if (sessionError) {
@@ -50,7 +52,7 @@ export default function DocumentHubPage() {
 
             const userId = session.user.id
 
-            // TÉCNICO: Filtro usando 'user_id' conforme solicitado
+            // 2. SIMPLE QUERY: Filtro estritamente por user_id
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
@@ -65,7 +67,7 @@ export default function DocumentHubPage() {
 
             setDocuments(data || [])
         } catch (err: any) {
-            console.error('DocumentHub: Critical error:', err)
+            console.error('DocumentHub: Critical mapping error:', err)
         } finally {
             setLoading(false)
         }
@@ -121,7 +123,7 @@ export default function DocumentHubPage() {
         try {
             setDeletingId(docId)
 
-            // 1. Delete from database
+            // DELETE ACTION: Banco + Storage
             const { error: dbError } = await supabase
                 .from('client_documents')
                 .delete()
@@ -129,16 +131,14 @@ export default function DocumentHubPage() {
 
             if (dbError) throw dbError
 
-            // 2. Delete from storage
             const { error: storageError } = await supabase.storage
                 .from('documents')
                 .remove([filePath])
 
             if (storageError) {
-                console.warn('Storage removal warning:', storageError)
+                console.warn('Storage removal sync warning:', storageError)
             }
 
-            // 3. Update local state
             setDocuments(prev => prev.filter(d => d.id !== docId))
 
         } catch (err: any) {
@@ -149,12 +149,6 @@ export default function DocumentHubPage() {
         }
     }
 
-    const filteredDocs = documents.filter(doc => {
-        const name = doc.file_name?.toLowerCase() || ''
-        const category = (doc.category || doc.metadata?.category || doc.type || '').toLowerCase()
-        return name.includes(searchTerm.toLowerCase()) || category.includes(searchTerm.toLowerCase())
-    })
-
     const formatDocDate = (dateStr: string) => {
         if (!dateStr) return 'N/A'
         try {
@@ -164,17 +158,29 @@ export default function DocumentHubPage() {
         }
     }
 
-    // MAPEAMENTO DE CATEGORIA COM FALLBACKS
+    // DETECTIVE CATEGORY MAPPING
     const getDocCategory = (doc: any) => {
-        return doc.category || doc.metadata?.category || doc.type || 'Geral'
+        const category = doc.category || doc.metadata?.category || 'Geral'
+        return category.replace(/_/g, ' ')
     }
 
-    // MAPEAMENTO DE STATUS ROBUSTO
+    // DETECTIVE STATUS MAPPING
     const isDocVerified = (doc: any) => {
         const status = (doc.status || doc.extraction_status || '').toLowerCase()
-        const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido']
+        const verifiedStates = ['approved', 'confirmed', 'verified', 'concluido', 'confirmado']
         return verifiedStates.includes(status)
     }
+
+    // UI: Relationship Tag
+    const getRelationshipTag = (doc: any) => {
+        return doc.metadata?.relationship || null
+    }
+
+    const filteredDocs = documents.filter(doc => {
+        const name = doc.file_name?.toLowerCase() || ''
+        const category = getDocCategory(doc).toLowerCase()
+        return name.includes(searchTerm.toLowerCase()) || category.includes(searchTerm.toLowerCase())
+    })
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
@@ -247,7 +253,7 @@ export default function DocumentHubPage() {
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-24">
                                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
-                                <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Carregando Cofre...</p>
+                                <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Sincronizando Cofre...</p>
                             </div>
                         ) : (
                             <table className="w-full text-left border-collapse">
@@ -261,78 +267,94 @@ export default function DocumentHubPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredDocs.map((doc, idx) => (
-                                        <motion.tr
-                                            key={doc.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className="group hover:bg-slate-50/50 transition-colors"
-                                        >
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
-                                                        <FileText className="w-5 h-5" />
+                                    {filteredDocs.map((doc, idx) => {
+                                        const isVerified = isDocVerified(doc)
+                                        const relationship = getRelationshipTag(doc)
+
+                                        return (
+                                            <motion.tr
+                                                key={doc.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: idx * 0.05 }}
+                                                className="group hover:bg-slate-50/50 transition-colors"
+                                            >
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-all">
+                                                            <FileText className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">PDF</p>
+                                                                {relationship && (
+                                                                    <>
+                                                                        <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                                                                        <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase">
+                                                                            <Users className="w-2.5 h-2.5" />
+                                                                            {relationship}
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{doc.file_name}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400">PDF</p>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
+                                                        {getDocCategory(doc)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    {isVerified ? (
+                                                        <div className="flex items-center gap-2 text-emerald-600">
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-orange-500">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-5 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleView(doc.file_path)}
+                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Visualizar"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(doc.file_path, doc.file_name)}
+                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                            title="Download"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(doc.id, doc.file_path)}
+                                                            disabled={deletingId === doc.id}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                                                            title="Excluir"
+                                                        >
+                                                            {deletingId === doc.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                            )}
+                                                        </button>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-blue-100/50">
-                                                    {getDocCategory(doc).replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <p className="text-xs font-bold text-slate-600">{formatDocDate(doc.created_at)}</p>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                {isDocVerified(doc) ? (
-                                                    <div className="flex items-center gap-2 text-emerald-600">
-                                                        <CheckCircle2 className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Verificado</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-orange-500">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span className="text-[11px] font-black uppercase tracking-widest">Em Análise</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleView(doc.file_path)}
-                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                        title="Visualizar"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownload(doc.file_path, doc.file_name)}
-                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                        title="Download"
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(doc.id, doc.file_path)}
-                                                        disabled={deletingId === doc.id}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
-                                                        title="Excluir"
-                                                    >
-                                                        {deletingId === doc.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Trash2 className="w-4 h-4" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
+                                                </td>
+                                            </motion.tr>
+                                        )
+                                    })}
 
                                     {filteredDocs.length === 0 && !loading && (
                                         <tr>
