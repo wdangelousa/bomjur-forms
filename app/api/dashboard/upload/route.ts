@@ -114,7 +114,11 @@ export async function POST(req: NextRequest) {
 
         if (fnError) {
             console.error('[Dashboard Upload] Edge function error:', fnError.message)
-            // Non-fatal — document is uploaded, extraction may have partially succeeded
+            // Garante que o documento não fique preso em 'processing' para sempre
+            await supabaseAdmin
+                .from('client_documents')
+                .update({ extraction_status: 'failed' })
+                .eq('id', clientDoc.id)
         }
 
         return NextResponse.json({ success: true, clientDocumentId: clientDoc.id })

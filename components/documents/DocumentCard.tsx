@@ -17,7 +17,6 @@ import {
     RefreshCw,
     PlusCircle
 } from 'lucide-react'
-import { COLORS } from '@/lib/design-system'
 import { createClient } from '@/lib/supabase/client'
 import DocumentUpload from './DocumentUpload'
 import Link from 'next/link'
@@ -64,7 +63,7 @@ export default function DocumentCard({
     const isCategoryApproved = documents.length > 0 && documents.some(d => d.status === 'approved')
 
     const handleRemove = async (docId: string, filePath?: string) => {
-        if (!window.confirm('Tem certeza que deseja remover este documento?')) return
+        if (!window.confirm('Tem certeza que deseja excluir este documento?')) return
 
         setIsRemoving(docId)
         try {
@@ -82,7 +81,7 @@ export default function DocumentCard({
             if (onUpdate) onUpdate()
         } catch (err) {
             console.error('[DocumentCard] Error removing document:', err)
-            alert('Erro ao remover documento.')
+            alert('Erro ao excluir documento.')
         } finally {
             setIsRemoving(null)
         }
@@ -92,7 +91,7 @@ export default function DocumentCard({
         <div className={`group relative p-6 rounded-[2rem] border bg-white transition-all shadow-sm ${isCategoryApproved ? 'border-emerald-100 bg-emerald-50/20' : 'border-slate-200'}`}>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                 <div className="flex items-start gap-5 flex-1 min-w-0">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${isCategoryApproved ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex-items-center justify-center shrink-0 border ${isCategoryApproved ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
                         <FileText className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
@@ -134,17 +133,19 @@ export default function DocumentCard({
                         {documents.map(doc => {
                             const relationship = doc.metadata?.relationship ?? 'Requerente Principal'
                             return (
-                                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
-                                        <FileText className="w-4 h-4 text-slate-400" />
-                                    </div>
+                                <div key={doc.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
+                                            <FileText className="w-4 h-4 text-slate-400" />
+                                        </div>
 
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-slate-700 font-bold truncate">{doc.file_name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${RELATIONSHIP_BADGE[relationship] ?? 'bg-slate-100 text-slate-600'}`}>
-                                                {relationship}
-                                            </span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-slate-700 font-bold truncate">{doc.file_name}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${RELATIONSHIP_BADGE[relationship] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                    {relationship}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -162,19 +163,24 @@ export default function DocumentCard({
                                         ) : (
                                             <Link
                                                 href={`/upload/review/${doc.id}`}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors group/link"
                                             >
                                                 <span className="text-[9px] font-black uppercase tracking-wider">Revisar</span>
-                                                <ChevronRight className="w-3 h-3" />
+                                                <ChevronRight className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5" />
                                             </Link>
                                         )}
 
                                         <button
                                             onClick={() => handleRemove(doc.id, doc.file_path)}
                                             disabled={isRemoving === doc.id}
-                                            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                                            aria-label="Excluir documento"
+                                            className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
                                         >
-                                            {isRemoving === doc.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                            {isRemoving === doc.id ? (
+                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            )}
                                         </button>
                                     </div>
                                 </div>

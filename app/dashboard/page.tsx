@@ -15,11 +15,12 @@ import {
   LogOut,
   Check,
   HelpCircle,
-  Eye,
   RotateCcw,
   UserCircle2,
   X,
   PlusCircle,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -37,6 +38,7 @@ interface UploadedDoc {
   fileName: string
   relationship: string
   extractionStatus: string // 'processing' | 'completed' | 'failed'
+  filePath?: string
 }
 
 interface ChecklistItem {
@@ -140,6 +142,9 @@ export default function IntelligentChecklistDashboard() {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [uploadingId, setUploadingId] = useState<string | null>(null)
 
+  // Deletion state
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
   // Relationship picker modal state
   const [relationshipPicker, setRelationshipPicker] = useState<{ itemId: string; category: string } | null>(null)
   const [selectedRelationship, setSelectedRelationship] = useState('Requerente Principal')
@@ -223,6 +228,7 @@ export default function IntelligentChecklistDashboard() {
             fileName: d.file_name,
             relationship,
             extractionStatus: d.extraction_status,
+            filePath: d.file_path,
           })
         })
       }
@@ -265,6 +271,36 @@ export default function IntelligentChecklistDashboard() {
     }
   }
 
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  const handleDeleteDocument = async (docId: string, filePath?: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este documento?')) return
+
+    setDeletingId(docId)
+    try {
+      // 1. Delete from storage if path exists
+      if (filePath) {
+        await supabase.storage.from('documents').remove([filePath])
+      }
+
+      // 2. Delete record from table
+      const { error } = await supabase
+        .from('client_documents')
+        .delete()
+        .eq('id', docId)
+
+      if (error) throw error
+
+      // 3. Refresh dashboard to update list and progress
+      await loadDashboard(false)
+      router.refresh()
+    } catch (error) {
+      console.error('Deletion error:', error)
+      alert('Erro ao excluir documento.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   // ── Relationship picker flow ─────────────────────────────────────────────────
   const openRelationshipPicker = (itemId: string, category: string) => {
     setSelectedRelationship('Requerente Principal')
@@ -278,27 +314,13 @@ export default function IntelligentChecklistDashboard() {
     setTimeout(() => ref?.click(), 50)
   }
 
-  const handleReplaceDocument = async (itemId: string) => {
-    if (!window.confirm('Isso removerá todos os documentos desta categoria. Continuar?')) return
-
-    // Simplificando: o usuário quer "recomeçar" o upload desta categoria.
-    // Na prática, deveria deletar no banco. Por ora, limpamos na UI e pedimos novo upload.
-    setChecklist(prev => prev.map(item =>
-      item.id === itemId ? { ...item, dbStatus: 'pending', documents: [] } : item
-    ))
-  }
-
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   // ── Derived metrics ──────────────────────────────────────────────────────────
-  // Cálculo de progresso corrigido: conta documentos ÚNICOS aprovados (status 'completed' no client_documents)
-  const allDocs = checklist.flatMap(i => i.documents)
-  const approvedDocsCount = allDocs.filter(d => d.extractionStatus === 'completed').length
-
-  // Para a barra de progresso, usamos o percentual de CATEGORIAS concluídas (padrão checklist)
+  // Fonte de verdade: case_documents.status = 'approved' (atualizado apenas após o usuário confirmar)
   const approvedCategoriesCount = checklist.filter(i => i.dbStatus === 'approved').length
   const totalCategories = checklist.length
   const progress = totalCategories > 0 ? Math.round((approvedCategoriesCount / totalCategories) * 100) : 0
@@ -399,8 +421,8 @@ export default function IntelligentChecklistDashboard() {
               <p className="text-slate-500 font-medium mt-1">Checklist de Evidências USCIS</p>
             </div>
             <div className="text-right">
-              <span className="text-4xl font-black text-slate-900 leading-none">{approvedDocsCount}</span>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Docs Confirmados</p>
+              <span className="text-4xl font-black text-slate-900 leading-none">{approvedCategoriesCount}/{totalCategories}</span>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Categorias Aprovadas</p>
             </div>
           </div>
 
@@ -512,41 +534,67 @@ export default function IntelligentChecklistDashboard() {
                     </p>
                     <div className="grid gap-2">
                       {item.documents.map(doc => (
-                        <div key={doc.clientDocId} className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                          <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4 text-slate-400" />
-                          </div>
+                        <div key={doc.clientDocId} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-slate-400" />
+                            </div>
 
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-slate-700 font-bold truncate">{doc.fileName}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${RELATIONSHIP_BADGE[doc.relationship] ?? 'bg-slate-100 text-slate-600'}`}>
-                                {doc.relationship}
-                              </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-slate-700 font-bold truncate">{doc.fileName}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${RELATIONSHIP_BADGE[doc.relationship] ?? 'bg-slate-100 text-slate-600'}`}>
+                                  {doc.relationship}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Status individual do documento */}
-                          <div className="shrink-0">
-                            {doc.extractionStatus === 'completed' ? (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                                <CheckCircle2 className="w-3 h-3" />
-                                <span className="text-[9px] font-black uppercase tracking-wider">Aprovado</span>
-                              </div>
-                            ) : doc.extractionStatus === 'failed' ? (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
-                                <AlertCircle className="w-3 h-3" />
-                                <span className="text-[9px] font-black uppercase tracking-wider">Falhou</span>
-                              </div>
-                            ) : (
-                              <Link
-                                href={`/upload/review/${doc.clientDocId}`}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors group/link"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">Revisar Extração</span>
-                                <ChevronRightIcon className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5" />
-                              </Link>
-                            )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Status individual do documento */}
+                            <div className="shrink-0">
+                              {doc.extractionStatus === 'failed' ? (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
+                                  <AlertCircle className="w-3 h-3" />
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Falhou</span>
+                                </div>
+                              ) : doc.extractionStatus === 'processing' ? (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+                                  <Clock className="w-3 h-3 animate-spin" />
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Em Extração</span>
+                                </div>
+                              ) : isApproved ? (
+                                <Link
+                                  href={`/upload/review/${doc.clientDocId}`}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                >
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Confirmado</span>
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/upload/review/${doc.clientDocId}`}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-600 rounded-full border border-sky-100 hover:bg-sky-100 transition-colors group/link"
+                                >
+                                  <span className="text-[9px] font-black uppercase tracking-wider">Revisar</span>
+                                  <ChevronRightIcon className="w-3 h-3 transition-transform group-hover/link:translate-x-0.5" />
+                                </Link>
+                              )}
+                            </div>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeleteDocument(doc.clientDocId, doc.filePath)}
+                              disabled={deletingId === doc.clientDocId}
+                              aria-label="Excluir documento"
+                              className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {deletingId === doc.clientDocId ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -606,15 +654,6 @@ export default function IntelligentChecklistDashboard() {
         </div>
       </main>
     </div>
-  )
-}
-
-function Plus({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
   )
 }
 
