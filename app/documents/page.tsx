@@ -1,3 +1,5 @@
+Substitua todo o código por...
+
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -12,7 +14,8 @@ import {
     Filter,
     MoreHorizontal,
     FilePlus,
-    Archive
+    Archive,
+    AlertCircle
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -22,53 +25,77 @@ export default function DocumentHubPage() {
     const [documents, setDocuments] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
     const fetchDocuments = async () => {
         try {
             setLoading(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                console.error('DocumentHub: No authenticated user found')
+            setErrorMsg(null)
+
+            // 1. Await explicit session to ensure Auth is ready
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.error('DocumentHub: Session error:', sessionError.message || sessionError)
+                setErrorMsg('Erro de autenticação. Por favor, faça login novamente.')
+                setLoading(false)
                 return
             }
 
-            // 1. Get the current active case for this client
+            if (!session?.user) {
+                console.warn('DocumentHub: No active session found')
+                setErrorMsg('Sessão expirada. Por favor, faça login novamente.')
+                setLoading(false)
+                return
+            }
+
+            const userId = session.user.id
+
+            // 2. Get the current active case for this client
             const { data: caseData, error: caseError } = await supabase
                 .from('cases')
                 .select('id')
-                .eq('client_id', user.id)
+                .eq('client_id', userId)
                 .neq('status', 'archived')
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single()
 
             if (caseError) {
-                console.error('DocumentHub: Error fetching case:', caseError)
+                console.error('DocumentHub: Error fetching case:', caseError.message || caseError)
+                // PGRST116 means no rows returned
+                if (caseError.code !== 'PGRST116') {
+                    setErrorMsg('Não foi possível localizar seu caso ativo.')
+                }
                 setDocuments([])
+                setLoading(false)
                 return
             }
 
             if (!caseData?.id) {
                 console.warn('DocumentHub: No active case found for user')
                 setDocuments([])
+                setLoading(false)
                 return
             }
 
-            // 2. Fetch all documents for this specific case
+            // 3. Fetch all documents for this specific case with explicit user filtering
             const { data, error } = await supabase
                 .from('client_documents')
                 .select('*')
                 .eq('case_id', caseData.id)
+                .eq('uploaded_by', userId)
                 .order('created_at', { ascending: false })
 
             if (error) {
-                console.error('DocumentHub: Error fetching client_documents:', error)
+                console.error('DocumentHub: Error fetching client_documents:', error.message || error)
+                setErrorMsg('Não foi possível carregar seus documentos. Tente recarregar a página.')
                 throw error
             }
 
             setDocuments(data || [])
-        } catch (err) {
-            console.error('DocumentHub: Critical error in fetchDocuments:', err)
+        } catch (err: any) {
+            console.error('DocumentHub: Critical error in fetchDocuments:', err.message || err)
         } finally {
             setLoading(false)
         }
@@ -160,6 +187,14 @@ export default function DocumentHubPage() {
             </div>
 
             <main className="max-w-6xl mx-auto px-8 mt-10">
+                {/* ── Error Feedback ── */}
+                {errorMsg && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                        {errorMsg}
+                    </div>
+                )}
+
                 {/* ── Search & Filter Controls ── */}
                 <div className="mb-6 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1 group">
