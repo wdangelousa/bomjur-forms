@@ -17,7 +17,9 @@ import {
     PlusCircle,
     UserCircle2,
     Check,
-    Info
+    Info,
+    Lock,
+    Unlock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -73,6 +75,7 @@ export default function DocumentCard({
     const supabase = createClient()
     const [isUploading, setIsUploading] = useState(false)
     const [isRemoving, setIsRemoving] = useState(null as string | null)
+    const [isCompleting, setIsCompleting] = useState(false)
     const [relationshipPickerOpen, setRelationshipPickerOpen] = useState(false)
     const [selectedRelationship, setSelectedRelationship] = useState('Requerente Principal')
 
@@ -81,9 +84,14 @@ export default function DocumentCard({
     const hasDocuments = documents.length > 0
     const isApproved = categoryStatus === 'approved'
 
+    // Existe pelo menos um documento aprovado e a categoria ainda não está completa?
+    // Nota: consideramos 'completed' no extraction_status como aprovado pelo usuário (conforme API de review)
+    const canFinalize = documents.some(d => d.extraction_status === 'completed') && !isApproved
+
     // ── Handlers ─────────────────────────────────────────────────────────────
 
     const handleUploadClick = () => {
+        if (isApproved) return
         setRelationshipPickerOpen(true)
     }
 
@@ -120,6 +128,7 @@ export default function DocumentCard({
     }
 
     const handleRemove = async (docId: string, filePath?: string) => {
+        if (isApproved) return
         if (!window.confirm('Tem certeza que deseja excluir este documento?')) return
 
         setIsRemoving(docId)
@@ -144,6 +153,24 @@ export default function DocumentCard({
         }
     }
 
+    const handleCategoryAction = async (action: 'complete' | 'reopen') => {
+        setIsCompleting(true)
+        try {
+            const res = await fetch('/api/dashboard/categories/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caseId, category, action })
+            })
+            if (!res.ok) throw new Error('Erro ao atualizar categoria')
+            if (onUpdate) onUpdate()
+        } catch (err) {
+            console.error('[DocumentCard] Category action error:', err)
+            alert('Erro ao processar solicitação.')
+        } finally {
+            setIsCompleting(false)
+        }
+    }
+
     return (
         <div className={`group relative p-6 rounded-[2rem] border bg-white transition-all hover:shadow-xl hover:shadow-slate-200/50 ${isApproved ? 'border-emerald-100 bg-emerald-50/20' : 'border-slate-200 hover:border-sky-300'}`}>
             <input
@@ -157,11 +184,14 @@ export default function DocumentCard({
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                 <div className="flex items-start gap-5 flex-1 min-w-0">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${isApproved ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-400 group-hover:bg-sky-50 group-hover:border-sky-100 group-hover:text-sky-500'}`}>
-                        <FileText className="w-6 h-6" />
+                        {isApproved ? <CheckCircle2 className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                     </div>
                     <div className="min-w-0">
                         <div className="flex items-center gap-3 mb-1 flex-wrap">
-                            <h3 className="font-black text-slate-900 tracking-tight">{label}</h3>
+                            <h3 className="font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                {label}
+                                {isApproved && <Check className="w-4 h-4 text-emerald-500" />}
+                            </h3>
                             <CategoryStatusBadge status={categoryStatus} />
                         </div>
                         {description && (
@@ -178,7 +208,7 @@ export default function DocumentCard({
                             <Clock className="w-4 h-4 animate-spin" />
                             Extraindo...
                         </div>
-                    ) : (
+                    ) : !isApproved ? (
                         <button
                             onClick={handleUploadClick}
                             className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm ${hasDocuments
@@ -188,6 +218,15 @@ export default function DocumentCard({
                         >
                             {hasDocuments ? <><PlusCircle className="w-4 h-4" />Adicionar outro</> : <><Upload className="w-4 h-4" />Enviar Documento</>}
                         </button>
+                    ) : (
+                        <button
+                            onClick={() => handleCategoryAction('reopen')}
+                            disabled={isCompleting}
+                            className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                        >
+                            {isCompleting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                            Reabrir Categoria
+                        </button>
                     )}
                 </div>
             </div>
@@ -195,19 +234,28 @@ export default function DocumentCard({
             {/* List of Documents (1:N) */}
             {hasDocuments && (
                 <div className="mt-6 space-y-2 border-t border-slate-100 pt-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">
-                        Arquivos Enviados ({documents.length})
-                    </p>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Arquivos Enviados ({documents.length})
+                        </p>
+                        {isApproved && (
+                            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                <Lock className="w-2.5 h-2.5" />
+                                Categoria Finalizada
+                            </div>
+                        )}
+                    </div>
                     <div className="grid gap-2">
                         {documents.map(doc => {
                             const relationship = doc.metadata?.relationship ?? 'Requerente Principal'
                             const extractionStatus = doc.extraction_status ?? 'processing'
+                            const docIsApproved = extractionStatus === 'completed'
 
                             return (
-                                <div key={doc.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                <div key={doc.id} className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-colors ${isApproved ? 'bg-white/40 border-slate-100' : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50'}`}>
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
-                                            <FileText className="w-4 h-4 text-slate-400" />
+                                        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${docIsApproved ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`}>
+                                            <FileText className={`w-4 h-4 ${docIsApproved ? 'text-emerald-500' : 'text-slate-400'}`} />
                                         </div>
 
                                         <div className="flex-1 min-w-0">
@@ -227,12 +275,12 @@ export default function DocumentCard({
                                                     <AlertCircle className="w-3 h-3" />
                                                     <span className="text-[9px] font-black uppercase tracking-wider">Falhou</span>
                                                 </div>
-                                            ) : extractionStatus === 'processing' ? (
+                                            ) : extractionStatus === 'processing' || extractionStatus === 'pending' ? (
                                                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
                                                     <Clock className="w-3 h-3 animate-spin" />
                                                     <span className="text-[9px] font-black uppercase tracking-wider">Extraindo</span>
                                                 </div>
-                                            ) : isApproved ? (
+                                            ) : docIsApproved ? (
                                                 <Link
                                                     href={`/upload/review/${doc.id}`}
                                                     className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 hover:bg-emerald-100 transition-colors"
@@ -251,23 +299,46 @@ export default function DocumentCard({
                                             )}
                                         </div>
 
-                                        <button
-                                            onClick={() => handleRemove(doc.id, doc.file_path)}
-                                            disabled={isRemoving === doc.id}
-                                            aria-label="Excluir documento"
-                                            className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
-                                        >
-                                            {isRemoving === doc.id ? (
-                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            )}
-                                        </button>
+                                        {!isApproved && (
+                                            <button
+                                                onClick={() => handleRemove(doc.id, doc.file_path)}
+                                                disabled={isRemoving === doc.id}
+                                                aria-label="Excluir documento"
+                                                className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
+                                            >
+                                                {isRemoving === doc.id ? (
+                                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                )}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )
                         })}
                     </div>
+
+                    {/* Finalize Category Button */}
+                    <AnimatePresence>
+                        {canFinalize && (
+                            <motion.button
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                onClick={() => handleCategoryAction('complete')}
+                                disabled={isCompleting}
+                                className="w-full mt-4 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.1em] shadow-lg shadow-sky-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:scale-100"
+                            >
+                                {isCompleting ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                )}
+                                Finalizar Etapa: {label}
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
                 </div>
             )}
 
@@ -345,14 +416,14 @@ function CategoryStatusBadge({ status }: { status: 'pending' | 'under_review' | 
             return (
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Aprovado</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider">Concluído</span>
                 </div>
             )
         case 'under_review':
             return (
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
                     <Clock className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Em Revisão</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider">Aguardando Finalização</span>
                 </div>
             )
         default:

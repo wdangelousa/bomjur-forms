@@ -111,7 +111,7 @@ export async function POST(
             const docTypeEnum = CATEGORY_TO_DOC_TYPE_ENUM[doc.document_type ?? ''] ?? doc.document_type
             await supabase
                 .from('case_documents')
-                .update({ status: 'approved' })
+                .update({ status: 'in_review' }) // Não aprova a categoria automaticamente
                 .eq('case_id', caseData.id)
                 .eq('document_type', docTypeEnum)
         }
