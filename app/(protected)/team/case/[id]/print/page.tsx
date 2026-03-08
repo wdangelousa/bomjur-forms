@@ -2,32 +2,21 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
     Printer,
     Download,
     FileText,
-    CheckCircle2,
     AlertCircle,
-    Clock,
     CreditCard,
     Image as ImageIcon,
     Bell,
-    ChevronRight,
     ArrowLeft,
     Check,
     Lock,
-    ExternalLink,
-    HelpCircle,
-    Square
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { sortForUscis } from '@/lib/uscis-sorter'
 import type { CaseDocument } from '@/types'
-
-// ============================================================
-// TYPES & MOCK CONFIG
-// ============================================================
 
 interface AssemblyStep {
     id: string
@@ -40,10 +29,6 @@ interface AssemblyStep {
     fileUrl?: string
 }
 
-// ============================================================
-// COMPONENTS
-// ============================================================
-
 export default function PrintAssemblyDashboard() {
     const { id: caseId } = useParams()
     const router = useRouter()
@@ -55,7 +40,6 @@ export default function PrintAssemblyDashboard() {
     const [documents, setDocuments] = useState<CaseDocument[]>([])
     const [verifiedSteps, setVerifiedSteps] = useState<Record<string, boolean>>({})
 
-    // Fetch Data
     useEffect(() => {
         async function loadCaseForPrint() {
             setLoading(true)
@@ -100,13 +84,11 @@ export default function PrintAssemblyDashboard() {
 
     if (!caseData) return <div className="p-20 text-center">Caso não encontrado.</div>
 
-    // Document Logic
-    const passportDoc = documents.find(d => d.category === 'passport')
-    const i94Doc = documents.find(d => d.category === 'i94')
-    const birthCertDoc = documents.find(d => d.category === 'birth_certificate')
-    const translationDoc = documents.find(d => d.category === 'translation') // Theoretical category
-    const photosDoc = documents.find(d => d.category === 'passport_photos')
-    const mainForm = documents.find(d => d.category.includes('form_'))
+    const passportDoc = documents.find(d => (d.category ?? '') === 'passport')
+    const i94Doc = documents.find(d => (d.category ?? '') === 'i94')
+    const birthCertDoc = documents.find(d => (d.category ?? '') === 'birth_certificate')
+    const photosDoc = documents.find(d => (d.category ?? '') === 'passport_photos')
+    const mainForm = documents.find(d => (d.category ?? '').includes('form_'))
 
     const handlePrint = (url?: string) => {
         if (!url) return
@@ -115,7 +97,6 @@ export default function PrintAssemblyDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
-            {/* ── Admin Top Bar ── */}
             <header className="sticky top-0 bg-white border-b border-slate-200 z-50 px-8 py-4 shadow-sm">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <button
@@ -141,13 +122,12 @@ export default function PrintAssemblyDashboard() {
             </header>
 
             <main className="max-w-4xl mx-auto px-8 pt-12">
-                {/* ── Hero Info ── */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
                             <span className="px-2 py-0.5 bg-sky-100 text-sky-600 text-[10px] font-black uppercase tracking-widest rounded">USCIS Order</span>
                             <span className="text-slate-300">•</span>
-                            <span className="text-xs font-bold text-slate-400">ID: {caseId?.slice(0, 8)}</span>
+                            <span className="text-xs font-bold text-slate-400">ID: {(Array.isArray(caseId) ? caseId[0] : caseId)?.slice(0, 8)}</span>
                         </div>
                         <h2 className="text-4xl font-black text-slate-900 tracking-tight">Print Assembly Line</h2>
                         <p className="text-slate-500 font-medium mt-2 max-w-lg">Siga a ordem rigorosa abaixo para a montagem física do dossiê USCIS.</p>
@@ -165,12 +145,10 @@ export default function PrintAssemblyDashboard() {
                 </div>
 
                 <div className="relative">
-                    {/* Vertical Timeline Line */}
                     <div className="absolute left-7 top-0 bottom-0 w-1 bg-slate-200 rounded-full" />
 
                     <div className="space-y-8 relative">
 
-                        {/* 1. FILING FEE */}
                         <StepCard
                             number={1}
                             title="Pagamento de Taxas (Filing Fee)"
@@ -180,7 +158,6 @@ export default function PrintAssemblyDashboard() {
                             onToggle={() => toggleStep('fee')}
                         />
 
-                        {/* 2. G-1145 */}
                         <StepCard
                             number={2}
                             title="Formulário G-1145"
@@ -195,7 +172,6 @@ export default function PrintAssemblyDashboard() {
                             }
                         />
 
-                        {/* 3. MAIN FORM */}
                         <StepCard
                             number={3}
                             title={`Formulário Principal (${caseData.case_type})`}
@@ -216,7 +192,6 @@ export default function PrintAssemblyDashboard() {
                             }
                         />
 
-                        {/* 4. PHOTOS */}
                         <StepCard
                             number={4}
                             title="Fotografias (Style Passport)"
@@ -237,7 +212,6 @@ export default function PrintAssemblyDashboard() {
                             }
                         />
 
-                        {/* 5. EVIDENCE BUNDLE */}
                         <div className="relative pl-16">
                             <div className="absolute left-4 top-2 w-6 h-6 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[10px] font-black shadow-md z-10 transition-transform group-hover:scale-110">
                                 5
@@ -278,7 +252,6 @@ export default function PrintAssemblyDashboard() {
                     </div>
                 </div>
 
-                {/* ── Conclusion Section ── */}
                 <div className="mt-20 text-center">
                     <button className="px-12 py-5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-emerald-500/20 hover:scale-105 transition-all active:scale-95">
                         Concluir e Selar Pacote
@@ -296,7 +269,6 @@ export default function PrintAssemblyDashboard() {
 function StepCard({ number, title, description, icon, status = 'ready', action, isVerified, onToggle }: any) {
     return (
         <div className="group relative pl-16">
-            {/* Step Number Dot */}
             <div className={`absolute left-4 top-2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shadow-md z-10 transition-all border-2 ${isVerified ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-slate-900 border-slate-800 text-white'}`}>
                 {isVerified ? <Check className="w-3 h-3" /> : number}
             </div>
@@ -336,7 +308,7 @@ function StepCard({ number, title, description, icon, status = 'ready', action, 
     )
 }
 
-function EvidenceItem({ title, doc, isVerified, onToggle, onPrint, hasAlert }: any) {
+function EvidenceItem({ title, doc, isVerified, onToggle, onPrint, hasAlert: _hasAlert }: any) {
     return (
         <div className={`group/item flex items-center justify-between p-4 rounded-2xl border transition-all ${isVerified ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100 hover:border-sky-200 hover:bg-sky-50/30'}`}>
             <div className="flex items-center gap-4">
@@ -346,7 +318,7 @@ function EvidenceItem({ title, doc, isVerified, onToggle, onPrint, hasAlert }: a
                 <div>
                     <h4 className="text-xs font-black text-slate-900 tracking-tight">{title}</h4>
                     {doc ? (
-                        <p className="text-[10px] font-bold text-slate-400 truncate max-w-[150px]">{doc.title}</p>
+                        <p className="text-[10px] font-bold text-slate-400 truncate max-w-[150px]">{doc.file_name ?? doc.document_type}</p>
                     ) : (
                         <p className="text-[10px] font-bold text-red-400 italic">Pendente no Portal do Cliente</p>
                     )}
