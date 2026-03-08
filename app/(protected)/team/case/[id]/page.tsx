@@ -37,7 +37,7 @@ export default function TeamCaseDetailPage() {
             // Fetch case and client data
             const { data: cData } = await supabase
                 .from('cases')
-                .select('*, profiles!client_id(full_name, email)')
+                .select('*, user_profiles!client_id(full_name, email)')
                 .eq('id', caseId)
                 .single()
             setCaseData(cData)
@@ -146,11 +146,11 @@ export default function TeamCaseDetailPage() {
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: {caseData.id.slice(0, 8)}</span>
                         </div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">
-                            {caseData.profiles?.full_name || 'Protocolo Sem Nome'}
+                            {caseData.user_profiles?.full_name || 'Protocolo Sem Nome'}
                         </h1>
                         <p className="text-slate-500 font-medium mt-3 flex items-center gap-2">
                             <User size={16} className="text-slate-300" />
-                            {caseData.profiles?.email}
+                            {caseData.user_profiles?.email}
                         </p>
                     </div>
 

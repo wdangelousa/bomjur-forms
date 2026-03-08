@@ -29,7 +29,7 @@ import { motion } from 'framer-motion'
  */
 
 interface CaseWithRelations extends Case {
-  profiles: Profile
+  user_profiles: Profile
   case_documents: Pick<CaseDocument, 'status' | 'is_required'>[]
 }
 
@@ -66,7 +66,7 @@ export default function TeamPage() {
       .from('cases')
       .select(`
         *,
-        profiles!client_id (id, full_name, email, phone, preferred_language),
+        user_profiles!client_id (id, full_name, email, phone, preferred_language),
         case_documents (status, is_required)
       `)
       .eq('tenant_id', currentTenantId)
@@ -109,8 +109,8 @@ export default function TeamPage() {
     if (filterType !== 'all' && c.case_type !== filterType) return false
     if (search.trim()) {
       const q = search.toLowerCase()
-      const name = (c.profiles as any)?.full_name?.toLowerCase() || ''
-      const email = (c.profiles as any)?.email?.toLowerCase() || ''
+      const name = (c.user_profiles as any)?.full_name?.toLowerCase() || ''
+      const email = (c.user_profiles as any)?.email?.toLowerCase() || ''
       if (!name.includes(q) && !email.includes(q)) return false
     }
     return true
@@ -204,7 +204,7 @@ export default function TeamPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filtered.map((c, idx) => {
-              const client = c.profiles as any as Profile
+              const client = c.user_profiles as any as Profile
               const progress = calculateCategoryProgress(c.case_documents || [])
 
               return (

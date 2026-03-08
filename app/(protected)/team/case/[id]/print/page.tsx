@@ -62,13 +62,13 @@ export default function PrintAssemblyDashboard() {
             try {
                 const { data: cData } = await supabase
                     .from('cases')
-                    .select('*, profiles!client_id(*)')
+                    .select('*, user_profiles!client_id(*)')
                     .eq('id', caseId)
                     .single()
 
                 if (cData) {
                     setCaseData(cData)
-                    setClientProfile(cData.profiles)
+                    setClientProfile(cData.user_profiles)
 
                     const { data: dData } = await supabase
                         .from('case_documents')
