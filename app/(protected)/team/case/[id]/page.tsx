@@ -1,342 +1,324 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { calculateCategoryProgress } from '@/lib/cases/case-helpers'
-import type { CaseDocument, ClientDocument, Case } from '@/types'
+import { calculateCategoryProgress, getCaseStatusLabel } from '@/lib/cases/case-helpers'
+import CreateCaseModal from '@/components/team/CreateCaseModal'
+import type { Case, Profile, CaseDocument, CaseStatus, CaseType } from '@/types'
 import {
-    FileText,
-    ArrowLeft,
-    Download,
-    Printer,
-    CheckCircle2,
+    Plus,
+    Search,
+    FolderOpen,
     Clock,
-    AlertCircle,
-    User,
-    Users,
-    ChevronDown,
-    ChevronUp,
-    Lock
+    Copy,
+    Mail,
+    CheckCircle2,
+    Printer,
+    Eye,
+    ShieldCheck,
+    ChevronRight,
+    AlertCircle
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
-export default function TeamCaseDetailPage() {
-    const { id: caseId } = useParams()
-    const router = useRouter()
-    const supabase = createClient()
+/**
+ * Substitua todo o código por...
+ * 
+ * PROEXPAND - Team Pipeline Dashboard
+ * Design System: Light Mode Premium (Mirror of Client Dashboard)
+ */
 
+interface CaseWithRelations extends Case {
+    user_profiles: Profile
+    case_documents: Pick<CaseDocument, 'status' | 'is_required'>[]
+}
+
+export default function TeamPage() {
+    const [cases, setCases] = useState<CaseWithRelations[]>([])
     const [loading, setLoading] = useState(true)
-    const [caseData, setCaseData] = useState<any>(null)
-    const [caseDocuments, setCaseDocuments] = useState<CaseDocument[]>([])
-    const [clientFiles, setClientFiles] = useState<ClientDocument[]>([])
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
+    const [modalOpen, setModalOpen] = useState(false)
+    const [search, setSearch] = useState('')
+    const [filterStatus, setFilterStatus] = useState<CaseStatus | 'all'>('all')
+    const [filterType, setFilterType] = useState<CaseType | 'all'>('all')
+    const [tenantId, setTenantId] = useState<string | null>(null)
+    const supabase = createClient()
+    const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
-    const fetchCaseData = useCallback(async () => {
-        try {
-            // Fetch case and client data
-            const { data: cData } = await supabase
-                .from('cases')
-                .select('*, user_profiles!client_id(full_name, email)')
-                .eq('id', caseId)
-                .single()
-            setCaseData(cData)
+    const fetchTenantIdAndCases = async () => {
+        setLoading(true)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
 
-            // Fetch categories (case_documents)
-            const { data: catData } = await supabase
-                .from('case_documents')
-                .select('*')
-                .eq('case_id', caseId)
-                .order('category', { ascending: true })
+        const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('tenant_id')
+            .eq('id', user.id)
+            .single()
 
-            if (catData) {
-                setCaseDocuments(catData as CaseDocument[])
-            }
+        if (!userProfile?.tenant_id) { setLoading(false); return }
 
-            // Fetch actual files (client_documents)
-            const { data: filesData } = await supabase
-                .from('client_documents')
-                .select('*')
-                .eq('case_id', caseId)
-                .order('created_at', { ascending: false })
+        setTenantId(userProfile.tenant_id)
+        await fetchCases(userProfile.tenant_id)
+    }
 
-            if (filesData) {
-                setClientFiles(filesData as ClientDocument[])
-            }
-        } catch (error) {
-            console.error('Error fetching case details:', error)
-        } finally {
-            setLoading(false)
+    const fetchCases = async (currentTenantId: string) => {
+        const { data, error } = await supabase
+            .from('cases')
+            .select(`
+        *,
+        user_profiles!client_id (id, full_name, email, phone, preferred_language),
+        case_documents (status, is_required)
+      `)
+            .eq('tenant_id', currentTenantId)
+            .order('created_at', { ascending: false })
+
+        if (!error && data) {
+            setCases(data as unknown as CaseWithRelations[])
         }
-    }, [caseId, supabase])
+        setLoading(false)
+    }
 
     useEffect(() => {
-        if (caseId) {
-            fetchCaseData()
+        fetchTenantIdAndCases()
+    }, [])
 
-            // Realtime Sync
-            const channel = supabase.channel(`case-detail-${caseId}`)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'case_documents', filter: `case_id=eq.${caseId}` }, () => fetchCaseData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'client_documents', filter: `case_id=eq.${caseId}` }, () => fetchCaseData())
-                .subscribe()
+    useEffect(() => {
+        if (!tenantId) return
+        const channel = supabase.channel('team-dashboard-cases')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cases', filter: `tenant_id=eq.${tenantId}` },
+                () => fetchCases(tenantId))
+            .subscribe()
+        return () => { supabase.removeChannel(channel) }
+    }, [tenantId])
 
-            return () => { supabase.removeChannel(channel) }
+    const copyToClipboard = async (caseId: string, email: string) => {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.bomjur.com'
+        const loginUrl = new URL('/login', baseUrl).toString()
+        const msg = `Seu processo na Proexpand foi iniciado.\nAcesse: ${loginUrl}\nLogin: ${email}`
+        await navigator.clipboard.writeText(msg)
+        setCopiedLink(caseId)
+        setTimeout(() => setCopiedLink(null), 2000)
+    }
+
+    const resendEmail = async (email: string) => {
+        alert(`Lembrete de pendências enviado para ${email} (Simulação).`)
+    }
+
+    const filtered = cases.filter(c => {
+        if (filterStatus !== 'all' && c.status !== filterStatus) return false
+        if (filterType !== 'all' && c.case_type !== filterType) return false
+        if (search.trim()) {
+            const q = search.toLowerCase()
+            const name = (c.user_profiles as any)?.full_name?.toLowerCase() || ''
+            const email = (c.user_profiles as any)?.email?.toLowerCase() || ''
+            if (!name.includes(q) && !email.includes(q)) return false
         }
-    }, [caseId, fetchCaseData, supabase])
+        return true
+    })
 
-    const toggleCategory = (category: string) => {
-        setExpandedCategories(prev => ({
-            ...prev,
-            [category]: !prev[category]
-        }))
-    }
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        )
-    }
-
-    if (!caseData) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-                <FileText className="w-16 h-16 text-slate-300 mb-4" />
-                <h1 className="text-xl font-bold text-slate-700">Caso não encontrado</h1>
-                <button onClick={() => router.back()} className="mt-4 text-sky-500 font-medium hover:underline">
-                    Voltar para a lista
-                </button>
-            </div>
-        )
-    }
-
-    const progress = calculateCategoryProgress(caseDocuments)
-
-    const getRelationshipBadge = (relationship: string) => {
-        const styles: Record<string, string> = {
-            'Requerente Principal': 'bg-sky-100 text-sky-700 border-sky-200',
-            'Cônjuge': 'bg-purple-100 text-purple-700 border-purple-200',
-            'Filho(a)': 'bg-amber-100 text-amber-700 border-amber-200',
-            'Outro': 'bg-slate-100 text-slate-600 border-slate-200'
-        }
-        return styles[relationship] || styles['Outro']
+    const timeAgo = (date: string) => {
+        const diff = Date.now() - new Date(date).getTime()
+        const days = Math.floor(diff / 86400000)
+        if (days === 0) return 'Hoje'
+        if (days === 1) return 'Ontem'
+        return `${days} dias atrás`
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 lg:p-12 font-sans">
-            <div className="max-w-5xl mx-auto space-y-10">
+        <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
 
-                {/* Breadcrumb & Simple Back */}
-                <button
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-colors mb-4 group"
-                >
-                    <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-                    Voltar ao Pipeline
-                </button>
-
-                {/* Header Section */}
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-10 border-b border-slate-200">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="px-3 py-1 bg-sky-500 text-white text-[10px] font-black rounded-lg uppercase tracking-widest">
-                                {caseData.case_type}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: {caseData.id.slice(0, 8)}</span>
-                        </div>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">
-                            {caseData.user_profiles?.full_name || 'Protocolo Sem Nome'}
-                        </h1>
-                        <p className="text-slate-500 font-medium mt-3 flex items-center gap-2">
-                            <User size={16} className="text-slate-300" />
-                            {caseData.user_profiles?.email}
-                        </p>
-                    </div>
-
-                    <div className="w-full md:w-64 space-y-3">
-                        <div className="flex justify-between items-end">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progresso do Formulário</span>
-                            <span className="text-xl font-black text-sky-500">{progress.percentage}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress.percentage}%` }}
-                                className="h-full bg-sky-500"
-                            />
-                        </div>
-                        <p className="text-[9px] font-bold text-slate-400 text-right uppercase tracking-wider">
-                            {progress.approved} de {progress.total} categorias finalizadas
-                        </p>
-                    </div>
-                </header>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                    {/* Main Document List */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
-                                <FileText className="text-sky-500" />
-                                Documentação Coletada
-                            </h2>
-                        </div>
-
-                        <div className="space-y-4">
-                            {caseDocuments.length === 0 ? (
-                                <div className="text-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200">
-                                    <FileText size={48} className="mx-auto text-slate-200 mb-4" />
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aguardando início do cliente</p>
-                                </div>
-                            ) : (
-                                caseDocuments.map((cat) => {
-                                    const filesInCategory = clientFiles.filter(f => f.category === cat.category)
-                                    const isExpanded = expandedCategories[cat.category]
-                                    const isApproved = cat.status === 'approved'
-
-                                    return (
-                                        <div
-                                            key={cat.id}
-                                            className={`bg-white rounded-[2rem] border transition-all overflow-hidden ${isApproved ? 'border-emerald-100 bg-emerald-50/10' : 'border-slate-200 hover:border-slate-300'
-                                                }`}
-                                        >
-                                            {/* Category Header */}
-                                            <div
-                                                onClick={() => toggleCategory(cat.category)}
-                                                className="p-6 flex items-center justify-between cursor-pointer group"
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isApproved ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                                                        }`}>
-                                                        {isApproved ? <CheckCircle2 size={20} /> : <FileText size={20} />}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm">
-                                                            {cat.category.replace(/_/g, ' ')}
-                                                        </h3>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${isApproved ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                                                                }`}>
-                                                                {isApproved ? 'Finalizado' : filesInCategory.length > 0 ? 'Em Revisão' : 'Pendente'}
-                                                            </span>
-                                                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest truncate max-w-[150px]">
-                                                                • {filesInCategory.length} {filesInCategory.length === 1 ? 'arquivo' : 'arquivos'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    {isApproved && <Lock size={14} className="text-emerald-400" />}
-                                                    {isExpanded ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-                                                </div>
-                                            </div>
-
-                                            {/* Files List */}
-                                            <AnimatePresence>
-                                                {isExpanded && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="px-6 pb-6"
-                                                    >
-                                                        <div className="pt-4 border-t border-slate-100 space-y-3">
-                                                            {filesInCategory.length === 0 ? (
-                                                                <p className="text-center py-6 text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhum arquivo enviado</p>
-                                                            ) : (
-                                                                filesInCategory.map((file) => (
-                                                                    <div key={file.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl group/file">
-                                                                        <div className="flex items-center gap-3 min-w-0">
-                                                                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-200 text-slate-400 group-hover/file:text-sky-500 group-hover/file:border-sky-200 transition-colors">
-                                                                                <FileText size={16} />
-                                                                            </div>
-                                                                            <div className="min-w-0">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-xs font-bold text-slate-700 truncate">{file.file_name}</span>
-                                                                                    {file.metadata?.relationship && (
-                                                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${getRelationshipBadge(file.metadata.relationship)}`}>
-                                                                                            {file.metadata.relationship}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">
-                                                                                    {new Date(file.created_at).toLocaleDateString('pt-BR')}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <a
-                                                                                href={file.file_url}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-sky-500 hover:border-sky-200 transition-all shadow-sm active:scale-90"
-                                                                            >
-                                                                                <Download size={14} />
-                                                                            </a>
-                                                                        </div>
-                                                                    </div>
-                                                                ))
-                                                            )}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    )
-                                })
-                            )}
+            {/* ── Top Bar Branding ── */}
+            <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 z-50 px-6 py-4">
+                <div className="max-w-6xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <img src="/proexpand-logo.png" alt="Proexpand" className="h-10 w-auto" />
+                        <div className="hidden md:block w-px h-6 bg-slate-200 mx-2" />
+                        <div className="hidden md:flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Internal Platform</span>
+                            <span className="text-sm font-bold text-slate-700 tracking-tight">Team Operations</span>
                         </div>
                     </div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                            <ShieldCheck className="w-4 h-4" />
+                            SISTEMA OPERACIONAL
+                        </div>
+                        <button
+                            onClick={() => setModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white font-black uppercase tracking-widest rounded-xl text-[10px] hover:bg-sky-600 transition-all shadow-lg shadow-sky-500/20 active:scale-95"
+                        >
+                            <Plus size={16} />
+                            Novo Cliente
+                        </button>
+                    </div>
+                </div>
+            </header>
 
-                    {/* Sidebar Actions */}
-                    <div className="space-y-6">
-                        <section className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-slate-900/20">
-                            <h3 className="text-xl font-black tracking-tight mb-4 flex items-center gap-3">
-                                <Printer size={20} className="text-sky-400" />
-                                Ações do Caso
-                            </h3>
-                            <div className="space-y-3">
-                                <button className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group active:scale-95">
-                                    <span className="text-xs font-black uppercase tracking-widest">Print Order PDF</span>
-                                    <Download size={18} className="group-hover:translate-y-0.5 transition-transform" />
-                                </button>
-                                <button className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group active:scale-95">
-                                    <span className="text-xs font-black uppercase tracking-widest">Enviar p/ Esteira</span>
-                                    <Printer size={18} />
-                                </button>
-                            </div>
-                        </section>
+            <main className="max-w-6xl mx-auto px-6 pt-10">
 
-                        <section className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
-                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-3">
-                                <Users size={16} className="text-sky-500" />
-                                Membros da Família
-                            </h3>
-                            <div className="space-y-4">
-                                {Array.from(new Set(clientFiles.map(f => f.metadata?.relationship).filter(Boolean))).map(rel => (
-                                    <div key={rel as string} className="flex items-center gap-3">
-                                        <div className={`w-2 h-2 rounded-full ${rel === 'Requerente Principal' ? 'bg-sky-500' : 'bg-purple-400'
-                                            }`} />
-                                        <span className="text-xs font-bold text-slate-600">{rel as string}</span>
-                                    </div>
-                                ))}
-                                {clientFiles.length === 0 && <p className="text-slate-400 text-xs font-medium italic">Nenhum dado extraído</p>}
-                            </div>
-                        </section>
+                {/* ── Title & Stats ── */}
+                <div className="mb-10">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                        Pipeline de <span className="text-sky-500">Gestão</span>
+                    </h1>
+                    <p className="text-slate-500 font-medium mt-1">Acompanhe o progresso de documentos e assembly de casos.</p>
+                </div>
+
+                {/* ── Search + Filters ── */}
+                <div className="flex flex-col md:flex-row gap-4 mb-10">
+                    <div className="relative flex-1 group">
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Buscar por nome ou email..."
+                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all font-medium shadow-sm"
+                        />
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                        <select
+                            value={filterStatus}
+                            onChange={e => setFilterStatus(e.target.value as CaseStatus | 'all')}
+                            className="px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold text-xs focus:ring-2 focus:ring-sky-500/20 outline-none transition-all cursor-pointer shadow-sm min-w-[160px]"
+                        >
+                            <option value="all">Todos os Status</option>
+                            <option value="pending_onboarding">1. Onboarding</option>
+                            <option value="documents_pending">2. Docs Pendentes</option>
+                            <option value="in_progress">3. Em Andamento</option>
+                            <option value="in_review">4. Em Revisão</option>
+                            <option value="complete">5. Completo</option>
+                        </select>
                     </div>
                 </div>
 
-                {/* Footer Signature */}
-                <footer className="pt-20 pb-10 flex flex-col md:flex-row items-center justify-between gap-6 opacity-40 hover:opacity-100 transition-opacity">
+                {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="w-10 h-10 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="text-center py-20 bg-white border border-dashed border-slate-300 rounded-[2.5rem]">
+                        <FolderOpen size={48} className="mx-auto text-slate-300 mb-4 opacity-50" />
+                        <p className="text-slate-500 font-bold">Nenhum caso encontrado para estes filtros.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {filtered.map((c, idx) => {
+                            const client = c.user_profiles as any as Profile
+                            const progress = calculateCategoryProgress(c.case_documents || [])
+
+                            return (
+                                <motion.div
+                                    key={c.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:border-sky-200 transition-all group relative overflow-hidden"
+                                >
+                                    {/* Mirroring Client Progress Bar Style */}
+                                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                        <FolderOpen size={80} className="text-slate-900" />
+                                    </div>
+
+                                    <div className="flex items-start justify-between mb-6">
+                                        <div className="flex-1 min-w-0 pr-10">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="text-lg font-black text-slate-900 truncate tracking-tight">{client?.full_name || 'Sem nome'}</h3>
+                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-wider">{c.case_type}</span>
+                                            </div>
+                                            <p className="text-xs font-semibold text-slate-400 truncate">{client?.email}</p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2 shrink-0">
+                                            {progress.percentage === 100 ? (
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                                                    <CheckCircle2 size={12} />
+                                                    <span className="text-[10px] font-black uppercase tracking-wider">Pronto</span>
+                                                </div>
+                                            ) : progress.inReview > 0 ? (
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+                                                    <Clock size={12} />
+                                                    <span className="text-[10px] font-black uppercase tracking-wider">Pendente Finalização</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                                                    <AlertCircle size={12} />
+                                                    <span className="text-[10px] font-black uppercase tracking-wider">Em Aberto</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Progress Indicator (Mirrored from Client) */}
+                                    <div className="mb-8">
+                                        <div className="flex justify-between text-[10px] font-black mb-2 uppercase tracking-widest">
+                                            <span className="text-slate-400">{progress.approved}/{progress.total} CATEGORIAS CONCLUÍDAS</span>
+                                            <span className="text-sky-500">{progress.percentage}%</span>
+                                        </div>
+                                        <div className="h-3 w-full bg-slate-100 rounded-2xl overflow-hidden p-0.5 border border-white shadow-inner">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${progress.percentage}%` }}
+                                                className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Actions Grid */}
+                                    <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-100">
+                                        <a
+                                            href={`/team/case/${c.id}`}
+                                            className="flex items-center justify-center gap-2 py-3 bg-slate-50 hover:bg-sky-50 text-slate-600 hover:text-sky-600 border border-slate-200 hover:border-sky-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                        >
+                                            <Eye size={14} />
+                                            REVISAR
+                                        </a>
+
+                                        <button
+                                            onClick={() => resendEmail(client?.email || '')}
+                                            className="flex items-center justify-center gap-2 py-3 bg-slate-50 hover:bg-orange-50 text-slate-600 hover:text-orange-600 border border-slate-200 hover:border-orange-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                        >
+                                            <Mail size={14} />
+                                            COBRAR
+                                        </button>
+
+                                        <a
+                                            href={`/team/case/${c.id}/print`}
+                                            className="col-span-2 flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-sky-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-slate-900/10"
+                                        >
+                                            <Printer size={14} />
+                                            ENVIAR PARA ESTEIRA DE IMPRESSÃO
+                                            <ChevronRight size={14} />
+                                        </a>
+                                    </div>
+
+                                    <div className="mt-4 flex items-center justify-between text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+                                        <span>ID: {c.id.slice(0, 8)}</span>
+                                        <span>Criado: {timeAgo(c.created_at)}</span>
+                                    </div>
+                                </motion.div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                {/* ── Page Signature (Footer) ── */}
+                <footer className="mt-20 pt-10 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 opacity-60 hover:opacity-100 transition-opacity">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Agency Operations Platform</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Platform Strategy & Operations</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Powered by</span>
+                        <span className="text-[10px] font-bold text-slate-400">Powered by</span>
                         <img src="/bomjur-logo.png" alt="Bomjur" className="h-5 w-auto grayscale" />
                     </div>
                 </footer>
-            </div>
+
+            </main>
+
+            <CreateCaseModal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSuccess={() => { setModalOpen(false); fetchTenantIdAndCases() }}
+            />
         </div>
     )
 }
